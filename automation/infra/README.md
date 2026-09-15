@@ -836,7 +836,7 @@ for the next person to find it.
    STARTTLS setting and token. It does not send anything, so the From
    address and actual delivery are proven in
    [Confirm by effect](#confirm-by-effect-2).
-4. Attach the credential to the eight Send Email nodes. They are the only
+4. Attach the credential to the seven Send Email nodes. They are the only
    places the pipeline sends mail:
 
    | Workflow | Node |
