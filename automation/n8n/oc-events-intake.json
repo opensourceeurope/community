@@ -409,7 +409,9 @@
         "subject": "={{ $json.subject }}",
         "emailFormat": "text",
         "text": "={{ $json.body }}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "bb22cc33-dd44-4e55-8f66-aa7788990011",
       "name": "Send decision email",
