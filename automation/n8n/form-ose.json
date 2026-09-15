@@ -15,26 +15,24 @@
       "parameters": {
         "formTitle": "Open Source Europe — application form",
         "formDescription": "This is step 2 of applying for fiscal hosting with Open Source Europe. Step 1 is applying on Open Collective — if you haven't yet, do that first and come back to this link.",
-        "authentication": "none",
         "formFields": {
           "values": [
             {
               "fieldLabel": "Contact email",
               "fieldType": "email",
-              "requiredField": true,
-              "placeholder": "you@example.org"
+              "placeholder": "you@example.org",
+              "requiredField": true
             },
             {
               "fieldLabel": "Your collective's Open Collective URL",
-              "fieldType": "text",
-              "requiredField": true,
-              "placeholder": "https://opencollective.com/your-collective"
+              "placeholder": "https://opencollective.com/your-collective",
+              "requiredField": true
             }
           ]
         },
         "options": {
-          "path": "apply-ose",
-          "buttonLabel": "Continue"
+          "buttonLabel": "Continue",
+          "path": "apply-ose"
         }
       }
     },
@@ -44,7 +42,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
+        224,
         0
       ],
       "parameters": {
@@ -57,7 +55,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        440,
+        448,
         0
       ],
       "parameters": {
@@ -91,15 +89,13 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        660,
-        200
+        672,
+        208
       ],
       "parameters": {
         "operation": "completion",
-        "respondWith": "text",
         "completionTitle": "That doesn't look like an Open Collective URL",
         "completionMessage": "We expected a link like https://opencollective.com/your-collective — the address of your collective's page on opencollective.com. Please open the form link again and paste that URL.",
-        "limitWaitTime": false,
         "options": {}
       },
       "webhookId": "8cfa63a6-95dd-4c0c-910e-d5db4d596947"
@@ -111,11 +107,10 @@
       "typeVersion": 1.1,
       "alwaysOutputData": true,
       "position": [
-        660,
-        -100
+        672,
+        -96
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -127,12 +122,10 @@
           "conditions": [
             {
               "keyName": "slug",
-              "condition": "eq",
               "keyValue": "={{ $json.slug }}"
             }
           ]
         },
-        "returnAll": false,
         "limit": 1
       }
     },
@@ -144,10 +137,9 @@
       "typeVersion": 3.4,
       "position": [
         880,
-        -100
+        -96
       ],
       "parameters": {
-        "mode": "rules",
         "rules": {
           "values": [
             {
@@ -214,15 +206,13 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        1100,
-        60
+        1104,
+        64
       ],
       "parameters": {
         "operation": "completion",
-        "respondWith": "text",
         "completionTitle": "Apply on Open Collective first",
         "completionMessage": "This form is step 2, and we couldn't find an application for that collective yet. Step 1 is applying to Open Source Europe on Open Collective: https://opencollective.com/europe/apply — once you've done that, open this form link again.",
-        "limitWaitTime": false,
         "options": {}
       },
       "webhookId": "ba39b619-2d32-4bf2-ae9b-13f6cf79990f"
@@ -233,15 +223,13 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        1100,
-        220
+        1104,
+        224
       ],
       "parameters": {
         "operation": "completion",
-        "respondWith": "text",
         "completionTitle": "This application is already in progress",
         "completionMessage": "A form for this collective has already been submitted — the first submission wins, and a human will review it. If you think this is an error, reply to any email you received from us and a reviewer will sort it out.",
-        "limitWaitTime": false,
         "options": {}
       },
       "webhookId": "e90be289-0c76-465b-b4f2-4a1f9d05319d"
@@ -252,11 +240,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1100,
-        -220
+        1104,
+        -224
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -268,7 +255,6 @@
           "conditions": [
             {
               "keyName": "slug",
-              "condition": "eq",
               "keyValue": "={{ $('Derive slug').item.json.slug }}"
             }
           ]
@@ -292,35 +278,30 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        1320,
-        -220
+        1328,
+        -224
       ],
       "parameters": {
-        "operation": "page",
-        "defineForm": "fields",
         "formFields": {
           "values": [
             {
               "fieldLabel": "Repository URL",
-              "fieldType": "text",
-              "requiredField": true,
-              "placeholder": "https://github.com/your-project"
+              "placeholder": "https://github.com/your-project",
+              "requiredField": true
             },
             {
               "fieldLabel": "Licence",
-              "fieldType": "text",
-              "requiredField": true,
-              "placeholder": "e.g. Apache-2.0, MIT, AGPL-3.0"
+              "placeholder": "e.g. Apache-2.0, MIT, AGPL-3.0",
+              "requiredField": true
             },
             {
               "fieldLabel": "How does development happen in the open?",
               "fieldType": "textarea",
-              "requiredField": true,
-              "placeholder": "Public issues and pull requests, roadmap, community calls, who maintains it…"
+              "placeholder": "Public issues and pull requests, roadmap, community calls, who maintains it…",
+              "requiredField": true
             }
           ]
         },
-        "limitWaitTime": false,
         "options": {
           "formTitle": "The project in the open",
           "formDescription": "Where the code lives and how it is developed. This is what the human review reads first.",
@@ -336,11 +317,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1540,
-        -220
+        1552,
+        -224
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -352,7 +332,6 @@
           "conditions": [
             {
               "keyName": "slug",
-              "condition": "eq",
               "keyValue": "={{ $('Derive slug').item.json.slug }}"
             }
           ]
@@ -376,40 +355,33 @@
       "typeVersion": 2.5,
       "position": [
         1760,
-        -220
+        -224
       ],
       "parameters": {
-        "operation": "page",
-        "defineForm": "fields",
         "formFields": {
           "values": [
             {
               "fieldLabel": "How long has the project been operating?",
-              "fieldType": "text",
-              "requiredField": true,
-              "placeholder": "e.g. two years, since 2021…"
+              "placeholder": "e.g. two years, since 2021…",
+              "requiredField": true
             },
             {
               "fieldLabel": "How much have you raised so far, if anything?",
-              "fieldType": "text",
-              "requiredField": false,
               "placeholder": "Leave empty if you haven't started fundraising"
             },
             {
               "fieldLabel": "What is your target fundraising amount?",
-              "fieldType": "text",
-              "requiredField": true,
-              "placeholder": "A rough yearly figure is fine"
+              "placeholder": "A rough yearly figure is fine",
+              "requiredField": true
             },
             {
               "fieldLabel": "Who do you expect will fund the project?",
               "fieldType": "textarea",
-              "requiredField": true,
-              "placeholder": "Companies using it, individual donors, grants…"
+              "placeholder": "Companies using it, individual donors, grants…",
+              "requiredField": true
             }
           ]
         },
-        "limitWaitTime": false,
         "options": {
           "formTitle": "Operations and funding",
           "formDescription": "Concise answers are fine — a sentence or two each.",
@@ -424,11 +396,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1980,
-        -220
+        1984,
+        -224
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -440,7 +411,6 @@
           "conditions": [
             {
               "keyName": "slug",
-              "condition": "eq",
               "keyValue": "={{ $('Derive slug').item.json.slug }}"
             }
           ]
@@ -463,35 +433,31 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        2200,
-        -220
+        2208,
+        -224
       ],
       "parameters": {
-        "operation": "page",
-        "defineForm": "fields",
         "formFields": {
           "values": [
             {
               "fieldLabel": "What does the project do?",
               "fieldType": "textarea",
-              "requiredField": true,
-              "placeholder": "Briefly describe what the project and its community do"
+              "placeholder": "Briefly describe what the project and its community do",
+              "requiredField": true
             },
             {
               "fieldLabel": "How does the project further open source in Europe?",
               "fieldType": "textarea",
-              "requiredField": true,
-              "placeholder": "Why Open Source Europe is the right home for it"
+              "placeholder": "Why Open Source Europe is the right home for it",
+              "requiredField": true
             },
             {
               "fieldLabel": "Anything else we should know?",
               "fieldType": "textarea",
-              "requiredField": false,
               "placeholder": "Optional"
             }
           ]
         },
-        "limitWaitTime": false,
         "options": {
           "formTitle": "Activities and fit",
           "formDescription": "Last page.",
@@ -507,11 +473,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        2420,
-        -220
+        2432,
+        -224
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -523,7 +488,6 @@
           "conditions": [
             {
               "keyName": "slug",
-              "condition": "eq",
               "keyValue": "={{ $('Derive slug').item.json.slug }}"
             }
           ]
@@ -548,11 +512,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        3740,
-        -220
+        3744,
+        -224
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -564,7 +527,6 @@
           "conditions": [
             {
               "keyName": "slug",
-              "condition": "eq",
               "keyValue": "={{ $('Derive slug').item.json.slug }}"
             }
           ]
@@ -588,15 +550,13 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        3960,
-        -220
+        3968,
+        -224
       ],
       "parameters": {
         "operation": "completion",
-        "respondWith": "text",
         "completionTitle": "Application received",
         "completionMessage": "Thanks — your answers are in and a confirmation email is on its way. A human will now review the application; that usually takes a couple of weeks, and you'll hear from us by email either way.",
-        "limitWaitTime": false,
         "options": {}
       },
       "webhookId": "eb5ccaba-672a-4985-bd15-9f28455fd23d"
@@ -608,7 +568,7 @@
       "typeVersion": 2,
       "position": [
         2640,
-        -220
+        -224
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -622,11 +582,10 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        2860,
-        -220
+        2864,
+        -224
       ],
       "parameters": {
-        "operation": "send",
         "fromEmail": "={{ $env.SMTP_FROM }}",
         "toEmail": "={{ $json.to }}",
         "subject": "={{ $json.subject }}",
@@ -640,8 +599,8 @@
       "webhookId": "d937445e-5003-4c8a-8fa9-2d2e9f76a657",
       "credentials": {
         "smtp": {
-          "id": "otAOYOqVfjNjQlGG",
-          "name": "smtp-relay (placeholder values, set the real relay before go-live)"
+          "id": "s1LzcjJsNerXwUAq",
+          "name": "smtp-proton"
         }
       }
     },
@@ -651,8 +610,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3080,
-        -220
+        3088,
+        -224
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -666,16 +625,16 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3300,
-        -220
+        3312,
+        -224
       ],
       "parameters": {
         "conditions": {
           "options": {
-            "version": 2,
-            "leftValue": "",
             "caseSensitive": true,
-            "typeValidation": "strict"
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
           },
           "combinator": "and",
           "conditions": [
@@ -704,7 +663,6 @@
         -320
       ],
       "parameters": {
-        "operation": "send",
         "fromEmail": "={{ $env.SMTP_FROM }}",
         "toEmail": "={{ $json.to }}",
         "subject": "={{ $json.subject }}",
@@ -718,8 +676,8 @@
       "webhookId": "3193a764-34e5-4770-820e-9f33b5b488b1",
       "credentials": {
         "smtp": {
-          "id": "otAOYOqVfjNjQlGG",
-          "name": "smtp-relay (placeholder values, set the real relay before go-live)"
+          "id": "s1LzcjJsNerXwUAq",
+          "name": "smtp-proton"
         }
       }
     },
@@ -730,11 +688,9 @@
       "typeVersion": 2.7,
       "position": [
         3520,
-        -120
+        -128
       ],
       "parameters": {
-        "resource": "message",
-        "operation": "post",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -747,7 +703,13 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "2559a34e-d071-4513-8e11-dd1dd4e1fb1a"
+      "webhookId": "2559a34e-d071-4513-8e11-dd1dd4e1fb1a",
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      }
     }
   ],
   "connections": {
@@ -991,7 +953,8 @@
   },
   "settings": {
     "timezone": "Europe/Berlin",
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   },
   "pinData": {}
 }

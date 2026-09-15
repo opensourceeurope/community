@@ -28,11 +28,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        220,
-        -200
+        224,
+        -208
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -44,7 +43,6 @@
           "conditions": [
             {
               "keyName": "stage",
-              "condition": "eq",
               "keyValue": "reviewed"
             }
           ]
@@ -59,8 +57,8 @@
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2.2,
       "position": [
-        440,
-        -200
+        448,
+        -208
       ],
       "parameters": {
         "conditions": {
@@ -93,11 +91,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1100,
-        -200
+        1104,
+        -208
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -109,7 +106,6 @@
           "conditions": [
             {
               "keyName": "slug",
-              "condition": "eq",
               "keyValue": "={{ $('Awaiting invitation').item.json.slug }}"
             }
           ]
@@ -133,11 +129,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        220,
+        224,
         0
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -149,7 +144,6 @@
           "conditions": [
             {
               "keyName": "stage",
-              "condition": "eq",
               "keyValue": "form_invited"
             }
           ]
@@ -164,7 +158,7 @@
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2.2,
       "position": [
-        440,
+        448,
         0
       ],
       "parameters": {
@@ -198,11 +192,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1100,
+        1104,
         0
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -214,7 +207,6 @@
           "conditions": [
             {
               "keyName": "slug",
-              "condition": "eq",
               "keyValue": "={{ $('Reminder due').item.json.slug }}"
             }
           ]
@@ -237,11 +229,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        220,
-        200
+        224,
+        208
       ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
@@ -253,7 +244,6 @@
           "conditions": [
             {
               "keyName": "stage",
-              "condition": "eq",
               "keyValue": "form_invited"
             }
           ]
@@ -268,8 +258,8 @@
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2.2,
       "position": [
-        440,
-        200
+        448,
+        208
       ],
       "parameters": {
         "conditions": {
@@ -302,11 +292,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1320,
-        200
+        1328,
+        208
       ],
       "parameters": {
-        "resource": "row",
         "operation": "update",
         "dataTableId": {
           "__rl": true,
@@ -318,7 +307,6 @@
           "conditions": [
             {
               "keyName": "slug",
-              "condition": "eq",
               "keyValue": "={{ $('Escalation due').item.json.slug }}"
             }
           ]
@@ -342,8 +330,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        660,
-        -200
+        672,
+        -208
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -358,10 +346,9 @@
       "typeVersion": 2.1,
       "position": [
         880,
-        -200
+        -208
       ],
       "parameters": {
-        "operation": "send",
         "fromEmail": "={{ $env.SMTP_FROM }}",
         "toEmail": "={{ $json.to }}",
         "subject": "={{ $json.subject }}",
@@ -375,8 +362,8 @@
       "webhookId": "0329b626-fb08-4158-88b5-6f7d9b9536d5",
       "credentials": {
         "smtp": {
-          "id": "otAOYOqVfjNjQlGG",
-          "name": "smtp-relay (placeholder values, set the real relay before go-live)"
+          "id": "s1LzcjJsNerXwUAq",
+          "name": "smtp-proton"
         }
       }
     },
@@ -386,7 +373,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        660,
+        672,
         0
       ],
       "parameters": {
@@ -405,7 +392,6 @@
         0
       ],
       "parameters": {
-        "operation": "send",
         "fromEmail": "={{ $env.SMTP_FROM }}",
         "toEmail": "={{ $json.to }}",
         "subject": "={{ $json.subject }}",
@@ -419,8 +405,8 @@
       "webhookId": "3d1725d9-fce1-46f4-a0e4-f804d51972e2",
       "credentials": {
         "smtp": {
-          "id": "otAOYOqVfjNjQlGG",
-          "name": "smtp-relay (placeholder values, set the real relay before go-live)"
+          "id": "s1LzcjJsNerXwUAq",
+          "name": "smtp-proton"
         }
       }
     },
@@ -430,8 +416,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        660,
-        200
+        672,
+        208
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -446,15 +432,15 @@
       "typeVersion": 2.2,
       "position": [
         880,
-        200
+        208
       ],
       "parameters": {
         "conditions": {
           "options": {
-            "version": 2,
-            "leftValue": "",
             "caseSensitive": true,
-            "typeValidation": "strict"
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
           },
           "combinator": "and",
           "conditions": [
@@ -479,11 +465,10 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1100,
-        120
+        1104,
+        128
       ],
       "parameters": {
-        "operation": "send",
         "fromEmail": "={{ $env.SMTP_FROM }}",
         "toEmail": "={{ $json.to }}",
         "subject": "={{ $json.subject }}",
@@ -497,8 +482,8 @@
       "webhookId": "5731e113-3f2d-47b8-9aff-87bfb835edb8",
       "credentials": {
         "smtp": {
-          "id": "otAOYOqVfjNjQlGG",
-          "name": "smtp-relay (placeholder values, set the real relay before go-live)"
+          "id": "s1LzcjJsNerXwUAq",
+          "name": "smtp-proton"
         }
       }
     },
@@ -508,12 +493,10 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        1100,
-        280
+        1104,
+        288
       ],
       "parameters": {
-        "resource": "message",
-        "operation": "post",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -526,7 +509,13 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "a8973caa-7d53-4031-9ee8-7e243db3ca81"
+      "webhookId": "a8973caa-7d53-4031-9ee8-7e243db3ca81",
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      }
     }
   ],
   "connections": {
@@ -715,7 +704,8 @@
   },
   "settings": {
     "timezone": "Europe/Berlin",
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   },
   "pinData": {}
 }

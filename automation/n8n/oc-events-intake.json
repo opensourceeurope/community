@@ -151,7 +151,13 @@
         672,
         -160
       ],
-      "notes": "Host.hostApplications requires host-admin auth: credential 'oc-host-admin' (Header Auth, header name Personal-Token) — select it here once the operator has created it."
+      "notes": "Host.hostApplications requires host-admin auth: credential 'oc-host-admin' (Header Auth, header name Personal-Token) — select it here once the operator has created it.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kRobLK9PAZHBzHZb",
+          "name": "oc-host-admin"
+        }
+      }
     },
     {
       "parameters": {
@@ -321,7 +327,13 @@
         880,
         160
       ],
-      "notes": "Same 'oc-host-admin' credential as the pending fetch."
+      "notes": "Same 'oc-host-admin' credential as the pending fetch.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kRobLK9PAZHBzHZb",
+          "name": "oc-host-admin"
+        }
+      }
     },
     {
       "parameters": {
@@ -413,8 +425,8 @@
       "webhookId": "8b7629c9-d6de-4393-996e-7bc16c32270c",
       "credentials": {
         "smtp": {
-          "id": "otAOYOqVfjNjQlGG",
-          "name": "smtp-relay (placeholder values, set the real relay before go-live)"
+          "id": "s1LzcjJsNerXwUAq",
+          "name": "smtp-proton"
         }
       }
     }
