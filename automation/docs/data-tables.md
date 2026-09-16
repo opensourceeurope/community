@@ -47,8 +47,8 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 | `decided_at` | Date | intake (decision branch) | When that decision was recorded. |
 | `dry_run` | Boolean | every workflow that emails an applicant | Set when an applicant-facing email for this row went to `DRY_RUN_RECIPIENT` instead of the applicant, so a row that advanced during a rehearsal is visibly a rehearsal. Slack messages are internal and always send, so they never set it. |
 | `freshdesk_ticket_id` | String | none | Reserved for a possible future Freshdesk integration. No workflow writes it. |
-| `slack_channel_id` | String | intake | The channel holding this application's Slack thread. Written once, by whichever intake workflow created the row |
-| `slack_thread_ts` | String | intake | The parent message's timestamp, which is the thread anchor. A Slack identifier, not a number: stored as a number it rounds and every reply fails |
+| `slack_channel_id` | String | intake | The channel holding this application's Slack thread. Written once, by whichever intake workflow created the row. |
+| `slack_thread_ts` | String | intake | The parent message's timestamp, which is the thread anchor. A Slack identifier, not a number: stored as a number it rounds and every reply fails. |
 
 ### The nine `stage` values
 
