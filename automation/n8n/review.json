@@ -53,41 +53,6 @@
       }
     },
     {
-      "id": "33c4d5e6-f7a8-4b9c-8d0e-2f3a4b5c6d7e",
-      "name": "In scope?",
-      "notes": "ONLY_SLUGS keeps a test a test — see automation/.env.example.",
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.2,
-      "position": [
-        440,
-        0
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "44d5e6f7-a8b9-4c0d-9e1f-3a4b5c6d7e8f",
-              "leftValue": "={{ !$env.ONLY_SLUGS || $env.ONLY_SLUGS.split(',').map((s) => s.trim()).includes($json.slug) }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
       "id": "55e6f7a8-b9c0-4d1e-8f2a-4b5c6d7e8f9a",
       "name": "Build review request",
       "type": "n8n-nodes-base.code",
@@ -188,6 +153,92 @@
         },
         "options": {}
       }
+    },
+    {
+      "id": "cefcabec-6ea9-4ef0-a93f-27b540aeaa46",
+      "name": "Render AI review thread reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// The verdict is advisory. It is posted so reviewers can read it, never so anything acts\n// on it: approval and rejection stay human decisions made on Open Collective.\nreturn $input.all()\n  .filter((item) => item.json.slack_thread_ts && item.json.slack_channel_id)\n  .map((item) => {\n    const row = item.json;\n    const confidence = row.ai_confidence === null || row.ai_confidence === undefined\n      ? 'unknown'\n      : row.ai_confidence;\n    const text = [\n      `:mag: AI review: *${row.ai_verdict}*, confidence ${confidence}`,\n      row.ai_reasoning,\n      row.ai_applicant_message ? `_Sent to the applicant:_ ${row.ai_applicant_message}` : null,\n      `_Advisory only. The decision is made on Open Collective._`,\n    ].filter(Boolean).join('\\n');\n    return { json: {\n      slug: row.slug,\n      channel: row.slack_channel_id,\n      thread_ts: row.slack_thread_ts,\n      text,\n    } };\n  });"
+      }
+    },
+    {
+      "id": "a51ad50d-aed9-49d4-8a57-3cc0d08cc487",
+      "name": "Reply with the AI review in thread",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "58f1702a-b9be-4671-8cd8-88be052a143e",
+      "disabled": false
+    },
+    {
+      "id": "19ca996a-b3c0-4599-a060-fc9f416c3016",
+      "name": "React with eyes on the parent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1980,
+        0
+      ],
+      "parameters": {
+        "resource": "reaction",
+        "operation": "add",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Render AI review thread reply').item.json.channel }}"
+        },
+        "timestamp": "={{ $('Render AI review thread reply').item.json.thread_ts }}",
+        "name": "eyes"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "1c4f4f7f-0239-4723-b0cf-0b8918123171",
+      "disabled": false
     }
   ],
   "connections": {
@@ -203,17 +254,6 @@
       ]
     },
     "Get rows awaiting review": {
-      "main": [
-        [
-          {
-            "node": "In scope?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "In scope?": {
       "main": [
         [
           {
@@ -251,6 +291,39 @@
         [
           {
             "node": "Store verdict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store verdict": {
+      "main": [
+        [
+          {
+            "node": "Render AI review thread reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render AI review thread reply": {
+      "main": [
+        [
+          {
+            "node": "Reply with the AI review in thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply with the AI review in thread": {
+      "main": [
+        [
+          {
+            "node": "React with eyes on the parent",
             "type": "main",
             "index": 0
           }
