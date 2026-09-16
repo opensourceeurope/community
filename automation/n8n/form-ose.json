@@ -512,8 +512,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        3744,
-        -224
+        3088,
+        -320
       ],
       "parameters": {
         "operation": "update",
@@ -550,8 +550,8 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        3968,
-        -224
+        3312,
+        -320
       ],
       "parameters": {
         "operation": "completion",
@@ -613,7 +613,7 @@
       "typeVersion": 2,
       "position": [
         3088,
-        -224
+        -96
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -628,7 +628,7 @@
       "typeVersion": 2.7,
       "position": [
         3312,
-        -224
+        -96
       ],
       "parameters": {
         "select": "channel",
@@ -666,7 +666,7 @@
       "typeVersion": 2.7,
       "position": [
         3520,
-        -224
+        -96
       ],
       "parameters": {
         "resource": "reaction",
@@ -872,6 +872,11 @@
       "main": [
         [
           {
+            "node": "Mark awaiting decision",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "Render submission thread reply",
             "type": "main",
             "index": 0
@@ -895,17 +900,6 @@
         [
           {
             "node": "React with a clipboard on the parent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "React with a clipboard on the parent": {
-      "main": [
-        [
-          {
-            "node": "Mark awaiting decision",
             "type": "main",
             "index": 0
           }
