@@ -446,9 +446,9 @@ before going on.
 ### Setting a plain configuration value
 
 Most variables in `automation/.env.example` are not secrets: `DRY_RUN`,
-`DRY_RUN_RECIPIENT`, `ONLY_SLUGS`, the two `*_AFTER_MINUTES` timers,
-`SWEEP_CRON`, `FORM_URL_OSE`, `AI_MODEL`, `AI_BASE_URL`, `SMTP_FROM` and
-`SLACK_CHANNEL`. Any of them can be set over `ssh` directly. Replace `<VAR>`
+`DRY_RUN_RECIPIENT`, the two `*_AFTER_MINUTES` timers, `SWEEP_CRON`,
+`FORM_URL_OSE`, `AI_MODEL`, `AI_BASE_URL`, `SMTP_FROM` and `SLACK_CHANNEL`.
+Any of them can be set over `ssh` directly. Replace `<VAR>`
 with the variable name and `<value>` with the value:
 
 ```bash

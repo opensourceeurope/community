@@ -137,18 +137,10 @@ the workflows no longer need programmatic changes.
 
 ### Testing safely
 
-Two settings protect real applicants during any test.
-
-`DRY_RUN` decides whether messages reach real recipients. Every email and
-Slack node is fed by a render step that reads `DRY_RUN`. When it is true, the
+`DRY_RUN` protects real applicants during any test. Every email and Slack
+node is fed by a render step that reads `DRY_RUN`. When it is true, the
 message goes to `DRY_RUN_RECIPIENT` instead, with the intended recipient
 named in the subject, and the row is marked `dry_run`.
-
-`ONLY_SLUGS` limits which collectives a test touches. The automation runs
-against production Open Collective data, so set it to your test collectives
-before you shorten any timer. Without it, a fast sweep processes every
-pending application, sends dry-run mail about real applicants, and advances
-their state rows.
 
 One more thing about timers: they only fire when the sweep runs. A 5 minute
 reminder threshold on a daily sweep still takes a day to fire. Shorten
