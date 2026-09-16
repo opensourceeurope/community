@@ -315,8 +315,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "stage": "escalated",
-            "slack_notified_at": "={{ $now.toISO() }}",
-            "dry_run": "={{ $('Render Slack escalation').item.json.suppressed }}"
+            "slack_notified_at": "={{ $now.toISO() }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -415,8 +414,112 @@
       }
     },
     {
-      "id": "e5e6f7a8-b9c0-43b4-85c6-e7f8091a2b34",
-      "name": "Render Slack escalation",
+      "id": "e0e191f5-5a31-445e-8cea-c99341f4d7a8",
+      "name": "Render invitation thread reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        -208
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all()\n  .filter((item) => item.json.slack_thread_ts && item.json.slack_channel_id)\n  .map((item) => ({ json: {\n    slug: item.json.slug,\n    channel: item.json.slack_channel_id,\n    thread_ts: item.json.slack_thread_ts,\n    text: ':envelope_with_arrow: Form invitation sent to the applicant',\n  } }));"
+      }
+    },
+    {
+      "id": "8733a93e-6a2e-4380-8e45-f26df533cbcb",
+      "name": "Reply that the invitation was sent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1552,
+        -208
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "c307ec53-e1b0-4fe5-92ff-445cf9b1255a"
+    },
+    {
+      "id": "73ffac23-93ce-4c4a-a49a-b5f3fba6e6ab",
+      "name": "Render reminder thread reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return $input.all()\n  .filter((item) => item.json.slack_thread_ts && item.json.slack_channel_id)\n  .map((item) => ({ json: {\n    slug: item.json.slug,\n    channel: item.json.slack_channel_id,\n    thread_ts: item.json.slack_thread_ts,\n    text: ':alarm_clock: No form yet. Reminder sent to the applicant',\n  } }));"
+      }
+    },
+    {
+      "id": "44d9303e-3eff-4c46-9dc5-e654f51ab332",
+      "name": "Reply that the reminder was sent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1552,
+        0
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "e85012b5-7eae-4577-b472-e609196cc830"
+    },
+    {
+      "id": "6d8b44eb-f49d-4105-916c-13a1fe434870",
+      "name": "Render escalation thread reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -424,104 +527,79 @@
         208
       ],
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const TEMPLATE = ':warning: *{{ collective_name }}* ({{ slug }}, applied to {{ org_name }}) needs a human decision — no activity since the last automated email. {{ collective_url }}';\nconst ORG_NAMES = { OSE: 'Open Source Europe' };\nconst row = $json;\nconst vars = {\n  collective_name: row.collective_name,\n  slug: row.slug,\n  org_name: ORG_NAMES[row.org] || row.org,\n  collective_url: row.collective_url,\n};\nconst render = (tpl) => tpl.replace(/\\{\\{\\s*(\\w+)\\s*\\}\\}/g, (m, key) => {\n  const value = vars[key];\n  if (value === undefined || value === null || value === '') {\n    throw new Error(`escalation: missing \"${key}\" for ${row.slug}`);\n  }\n  return String(value);\n});\nconst body = render(TEMPLATE);\nconst channel = $env.SLACK_CHANNEL || '';\nconst suppressed = ($env.DRY_RUN || '').toLowerCase() === 'true';\nconst to = suppressed ? ($env.DRY_RUN_RECIPIENT || '') : channel;\nif (!to) throw new Error(suppressed ? 'escalation: DRY_RUN is true but DRY_RUN_RECIPIENT is empty' : 'escalation: SLACK_CHANNEL is empty');\nconst subject = `[DRY_RUN → would have gone to Slack ${channel || '(no channel set)'}] Escalation for ${row.slug}`;\nreturn { json: { slug: row.slug, to, subject, body, suppressed } };"
-      },
-      "notes": "DRY_RUN is checked here, at the send site: a suppressed escalation goes to DRY_RUN_RECIPIENT by email instead of to Slack."
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Escalation is the one stage that asks a person to do something, so it also marks the\n// parent. Reviewers scan the channel for parents carrying this reaction.\nconst ORG_NAMES = { OSE: 'Open Source Europe' };\nconst minutes = Number($env.ESCALATE_AFTER_MINUTES || 10080);\nconst days = Math.round(minutes / 1440);\nreturn $input.all()\n  .filter((item) => item.json.slack_thread_ts && item.json.slack_channel_id)\n  .map((item) => {\n    const row = item.json;\n    const org = ORG_NAMES[row.org] || row.org;\n    const text = [\n      `:rotating_light: *${row.collective_name}* has not filled the form ${days} days after the reminder.`,\n      `Someone needs to decide what happens to this application. ${row.collective_url}`,\n      `Applied to ${org}.`,\n    ].join('\\n');\n    return { json: {\n      slug: row.slug,\n      channel: row.slack_channel_id,\n      thread_ts: row.slack_thread_ts,\n      text,\n    } };\n  });"
+      }
     },
     {
-      "id": "e6f7a8b9-c0d1-44c5-86d7-f8091a2b3c45",
-      "name": "Escalation suppressed?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
+      "id": "cf3d1016-ec26-4e4e-8aa5-dbc8a46be8ce",
+      "name": "Reply that the applicant went silent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
       "position": [
         880,
         208
       ],
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "e7a8b9c0-d1e2-45d6-87e8-091a2b3c4d56",
-              "leftValue": "={{ $json.suppressed }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "e8b9c0d1-e2f3-46e7-88f9-1a2b3c4d5e67",
-      "name": "Send suppressed escalation by email",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [
-        1104,
-        128
-      ],
-      "parameters": {
-        "fromEmail": "={{ $env.SMTP_FROM }}",
-        "toEmail": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailFormat": "text",
-        "text": "={{ $json.body }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
-      "webhookId": "5731e113-3f2d-47b8-9aff-87bfb835edb8",
-      "credentials": {
-        "smtp": {
-          "id": "s1LzcjJsNerXwUAq",
-          "name": "smtp-proton"
-        }
-      }
-    },
-    {
-      "id": "e9c0d1e2-f3a4-47f8-890a-2b3c4d5e6f78",
-      "name": "Notify Slack",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.7,
-      "position": [
-        1104,
-        288
-      ],
-      "parameters": {
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "mode": "name",
-          "value": "={{ $json.to }}"
+          "mode": "id",
+          "value": "={{ $json.channel }}"
         },
-        "text": "={{ $json.body }}",
-        "otherOptions": {}
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
-      "webhookId": "a8973caa-7d53-4031-9ee8-7e243db3ca81",
       "credentials": {
         "slackApi": {
           "id": "IaMw5QbOtl3cY80f",
           "name": "slack-bot"
         }
-      }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "5ca3bb5c-7e0f-4d60-a55c-52889b6b983c"
+    },
+    {
+      "id": "416db1b0-6911-47c4-aa58-7086b71f5a5c",
+      "name": "React with an alarm on the parent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1104,
+        208
+      ],
+      "parameters": {
+        "resource": "reaction",
+        "operation": "add",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Render escalation thread reply').item.json.channel }}"
+        },
+        "timestamp": "={{ $('Render escalation thread reply').item.json.thread_ts }}",
+        "name": "rotating_light"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "8213b850-93b2-407c-9f08-f63b12a808c7"
     }
   ],
   "connections": {
@@ -649,54 +727,80 @@
       "main": [
         [
           {
-            "node": "Render Slack escalation",
+            "node": "Render escalation thread reply",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Render Slack escalation": {
+    "Mark form_invited": {
       "main": [
         [
           {
-            "node": "Escalation suppressed?",
+            "node": "Render invitation thread reply",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Escalation suppressed?": {
+    "Render invitation thread reply": {
       "main": [
         [
           {
-            "node": "Send suppressed escalation by email",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Notify Slack",
+            "node": "Reply that the invitation was sent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send suppressed escalation by email": {
+    "Mark reminded": {
       "main": [
         [
           {
-            "node": "Mark escalated",
+            "node": "Render reminder thread reply",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Notify Slack": {
+    "Render reminder thread reply": {
+      "main": [
+        [
+          {
+            "node": "Reply that the reminder was sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render escalation thread reply": {
+      "main": [
+        [
+          {
+            "node": "Reply that the applicant went silent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply that the applicant went silent": {
+      "main": [
+        [
+          {
+            "node": "React with an alarm on the parent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "React with an alarm on the parent": {
       "main": [
         [
           {
