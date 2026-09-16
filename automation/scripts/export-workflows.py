@@ -8,7 +8,8 @@ N8N_API_KEY from the environment.
 import collections
 import json
 import os
-import subprocess
+import urllib.request
+import urllib.error
 
 MAP = {
     "riA64OvtXf8DuNcN": "oc-events-intake.json",
@@ -41,13 +42,22 @@ def main():
         old_nodes = {n["id"]: n for n in old["nodes"]}
         old_order = [n["id"] for n in old["nodes"]]
 
-        raw = subprocess.run(
-            ["curl", "-sS", "-H", f"X-N8N-API-KEY: {key}",
-             f"{base}/api/v1/workflows/{workflow_id}"],
-            capture_output=True, text=True, check=True).stdout
-        live = json.loads(raw)
-        if "nodes" not in live:
-            raise SystemExit(f"{workflow_id}: unexpected response")
+        url = f"{base}/api/v1/workflows/{workflow_id}"
+        req = urllib.request.Request(url)
+        req.add_header("X-N8N-API-KEY", key)
+        try:
+            with urllib.request.urlopen(req) as response:
+                raw = response.read().decode('utf-8')
+        except urllib.error.HTTPError as e:
+            raise SystemExit(f"{workflow_id}: HTTP {e.code}")
+
+        try:
+            live = json.loads(raw)
+        except json.JSONDecodeError:
+            raise SystemExit(f"{workflow_id}: invalid JSON response")
+
+        if not isinstance(live, dict) or "nodes" not in live:
+            raise SystemExit(f"{workflow_id}: unexpected response shape")
 
         by_id = {n["id"]: n for n in live["nodes"]}
         order = ([i for i in old_order if i in by_id]
