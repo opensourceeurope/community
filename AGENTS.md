@@ -123,7 +123,8 @@ The rules below are the OSE-specific invariants on top of that skill:
   ends the expression at the first `}}`, so inline GraphQL or nested JSON
   must space consecutive closing braces (`} }`). The truncation shows up as
   `[ERROR: invalid syntax]` in the UI and `validate_workflow` does not catch
-  it.
+  it. This is about braces nested inside the expression body. The expression's
+  own closing delimiter is always `}}`.
 - **Never activate a workflow without asking.** New and changed workflows are
   deployed inactive; activation is the user's explicit call, every time.
 
