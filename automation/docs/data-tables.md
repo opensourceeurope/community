@@ -42,7 +42,7 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 | `form_page` | Number | form workflow | Which page of the multi page form the applicant has reached. Answers persist per page. |
 | `answers` | String (JSON) | form workflow | Form responses so far. Shape below. |
 | `form_submitted_at` | Date | form workflow | When the final form page was submitted. |
-| `slack_notified_at` | Date | form workflow and follow-up | When Slack was last told about this row, either ready for evaluation or an escalation. |
+| `slack_notified_at` | Date | form workflow and follow-up | When the pipeline reached a stage that tells Slack about this row, either ready for evaluation or an escalation. It records the attempt, not the delivery: a Slack post that failed or was skipped for a row with no thread still stamps it, because the stage advanced either way. Nothing reads it. |
 | `decision` | String | intake (decision branch) | `approved` or `rejected`, from the human decision made on Open Collective. |
 | `decided_at` | Date | intake (decision branch) | When that decision was recorded. |
 | `dry_run` | Boolean | every workflow that emails an applicant | Set when an applicant-facing email for this row went to `DRY_RUN_RECIPIENT` instead of the applicant, so a row that advanced during a rehearsal is visibly a rehearsal. Slack messages are internal and always send, so they never set it. |
