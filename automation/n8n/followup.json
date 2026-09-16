@@ -173,7 +173,7 @@
           "conditions": [
             {
               "id": "b9c0d1e2-f3a4-4b5c-8d6e-9f0a1b2c3d4e",
-              "leftValue": "={{ (!$env.ONLY_SLUGS || $env.ONLY_SLUGS.split(',').map((s) => s.trim()).includes($json.slug)) && !$json.form_reminded_at && !!$json.form_invited_at && DateTime.fromISO($json.form_invited_at) < $now.minus({ minutes: Number($env.REMINDER_AFTER_MINUTES || 10080) }) }}",
+              "leftValue": "={{ !$json.form_reminded_at && !!$json.form_invited_at && DateTime.fromISO($json.form_invited_at) < $now.minus({ minutes: Number($env.REMINDER_AFTER_MINUTES || 10080) }) }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -273,7 +273,7 @@
           "conditions": [
             {
               "id": "a4b5c6d7-e8f9-4a0b-9c1d-4e5f6a7b8c9d",
-              "leftValue": "={{ (!$env.ONLY_SLUGS || $env.ONLY_SLUGS.split(',').map((s) => s.trim()).includes($json.slug)) && !!$json.form_reminded_at && DateTime.fromISO($json.form_reminded_at) < $now.minus({ minutes: Number($env.ESCALATE_AFTER_MINUTES || 10080) }) }}",
+              "leftValue": "={{ !!$json.form_reminded_at && DateTime.fromISO($json.form_reminded_at) < $now.minus({ minutes: Number($env.ESCALATE_AFTER_MINUTES || 10080) }) }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -463,7 +463,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "c307ec53-e1b0-4fe5-92ff-445cf9b1255a"
+      "webhookId": "c307ec53-e1b0-4fe5-92ff-445cf9b1255a",
+      "disabled": false
     },
     {
       "id": "73ffac23-93ce-4c4a-a49a-b5f3fba6e6ab",
@@ -515,7 +516,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "e85012b5-7eae-4577-b472-e609196cc830"
+      "webhookId": "e85012b5-7eae-4577-b472-e609196cc830",
+      "disabled": false
     },
     {
       "id": "6d8b44eb-f49d-4105-916c-13a1fe434870",
@@ -567,7 +569,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "5ca3bb5c-7e0f-4d60-a55c-52889b6b983c"
+      "webhookId": "5ca3bb5c-7e0f-4d60-a55c-52889b6b983c",
+      "disabled": false
     },
     {
       "id": "416db1b0-6911-47c4-aa58-7086b71f5a5c",
@@ -599,7 +602,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "8213b850-93b2-407c-9f08-f63b12a808c7"
+      "webhookId": "8213b850-93b2-407c-9f08-f63b12a808c7",
+      "disabled": false
     }
   ],
   "connections": {

@@ -84,7 +84,7 @@
         -160
       ],
       "parameters": {
-        "jsCode": "// Flattens the per-host GraphQL responses into one item per pending\n// application, shaped exactly like an ose_applications row.\n// ONLY_SLUGS (a safety control — see automation/.env.example) restricts\n// processing to named collectives; empty means all.\nconst ORG_BY_HOST = { 'europe': 'OSE' };\nconst only = ($env.ONLY_SLUGS || '').split(',').map((s) => s.trim()).filter(Boolean);\nconst out = [];\nfor (const item of $input.all()) {\n  const host = item.json.data && item.json.data.host;\n  if (!host) {\n    throw new Error('intake: unexpected GraphQL response: ' + JSON.stringify(item.json.errors || item.json).slice(0, 500));\n  }\n  for (const node of host.hostApplications.nodes) {\n    const account = node.account || {};\n    if (!account.slug) continue;\n    if (only.length && !only.includes(account.slug)) continue;\n    const links = account.socialLinks || [];\n    const repoLink = links.find((l) => ['GITHUB', 'GITLAB', 'GIT_REPOSITORY'].includes(l.type));\n    const siteLink = links.find((l) => l.type === 'WEBSITE');\n    const adminEmails = ((account.members || {}).nodes || [])\n      .map((m) => (m.account || {}).email)\n      .filter(Boolean);\n    const custom = node.customData || {};\n    out.push({ json: {\n      slug: account.slug,\n      org: ORG_BY_HOST[host.slug] || host.slug,\n      host_slug: host.slug,\n      collective_name: account.name || account.slug,\n      collective_url: 'https://opencollective.com/' + account.slug,\n      description: account.description || '',\n      long_description: account.longDescription || '',\n      repository_url: (repoLink || {}).url || '',\n      website_url: (siteLink || {}).url || '',\n      application_message: node.message || '',\n      applicant_email: custom.email || custom.contactEmail || adminEmails[0] || '',\n      applied_at: node.createdAt,\n    }});\n  }\n}\nreturn out;"
+        "jsCode": "// Flattens the per-host GraphQL responses into one item per pending\n// application, shaped exactly like an ose_applications row.\nconst ORG_BY_HOST = { 'europe': 'OSE' };\nconst out = [];\nfor (const item of $input.all()) {\n  const host = item.json.data && item.json.data.host;\n  if (!host) {\n    throw new Error('intake: unexpected GraphQL response: ' + JSON.stringify(item.json.errors || item.json).slice(0, 500));\n  }\n  for (const node of host.hostApplications.nodes) {\n    const account = node.account || {};\n    if (!account.slug) continue;\n    const links = account.socialLinks || [];\n    const repoLink = links.find((l) => ['GITHUB', 'GITLAB', 'GIT_REPOSITORY'].includes(l.type));\n    const siteLink = links.find((l) => l.type === 'WEBSITE');\n    const adminEmails = ((account.members || {}).nodes || [])\n      .map((m) => (m.account || {}).email)\n      .filter(Boolean);\n    const custom = node.customData || {};\n    out.push({ json: {\n      slug: account.slug,\n      org: ORG_BY_HOST[host.slug] || host.slug,\n      host_slug: host.slug,\n      collective_name: account.name || account.slug,\n      collective_url: 'https://opencollective.com/' + account.slug,\n      description: account.description || '',\n      long_description: account.longDescription || '',\n      repository_url: (repoLink || {}).url || '',\n      website_url: (siteLink || {}).url || '',\n      application_message: node.message || '',\n      applicant_email: custom.email || custom.contactEmail || adminEmails[0] || '',\n      applied_at: node.createdAt,\n    }});\n  }\n}\nreturn out;"
       }
     },
     {
@@ -198,7 +198,7 @@
           "conditions": [
             {
               "id": "c9d0e1f2-a3b4-4c5d-8e6f-9a0b1c2d3e4f",
-              "leftValue": "={{ !['approved', 'rejected'].includes($json.stage) && (!$env.ONLY_SLUGS || $env.ONLY_SLUGS.split(',').map((s) => s.trim()).includes($json.slug)) }}",
+              "leftValue": "={{ !['approved', 'rejected'].includes($json.stage) }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -392,7 +392,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "1e8077bf-e7f6-4ceb-8978-da9f73ab1069"
+      "webhookId": "1e8077bf-e7f6-4ceb-8978-da9f73ab1069",
+      "disabled": false
     },
     {
       "id": "a720990e-27e3-4938-bbdd-db36a7432933",
@@ -481,7 +482,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "fb374e98-9818-43b1-97c0-42c0c04f6631"
+      "webhookId": "fb374e98-9818-43b1-97c0-42c0c04f6631",
+      "disabled": false
     },
     {
       "id": "68e53602-70a1-4970-8c3b-7ca6b2baea0f",
@@ -513,7 +515,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "7329e39a-5f8e-4954-b1d0-71885c0d454a"
+      "webhookId": "7329e39a-5f8e-4954-b1d0-71885c0d454a",
+      "disabled": false
     },
     {
       "id": "1c73d6f3-8b78-45a5-9eab-5ff6adc61247",
