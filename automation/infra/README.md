@@ -836,7 +836,7 @@ for the next person to find it.
    STARTTLS setting and token. It does not send anything, so the From
    address and actual delivery are proven in
    [Confirm by effect](#confirm-by-effect-2).
-4. Attach the credential to the seven Send Email nodes. They are the only
+4. Attach the credential to the five Send Email nodes. They are the only
    places the pipeline sends mail:
 
    | Workflow | Node |
@@ -845,9 +845,7 @@ for the next person to find it.
    | `apply 1b — daily catch-up` | **Send decision email** |
    | `apply 3 — follow-up` | **Send form invitation** |
    | `apply 3 — follow-up` | **Send reminder** |
-   | `apply 3 — follow-up` | **Send suppressed escalation by email** |
    | `apply 4 — application form` | **Send confirmation email** |
-   | `apply 4 — application form` | **Send suppressed notification by email** |
 
    Open each workflow, open the node, pick `smtp-proton` under
    **Credential to connect with**, and save the workflow. Then export the

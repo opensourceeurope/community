@@ -82,11 +82,17 @@ The rules below are the OSE-specific invariants on top of that skill:
   the [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
 - **Only public project material goes to the model.** Never a name or an
   email address.
-- **Every send site checks `DRY_RUN`.** Each email or Slack node is fed by a
+- **Every applicant-facing email site checks `DRY_RUN`.** Each email node is fed by a
   render Code node that reads `DRY_RUN`: when true, the message goes to
-  `DRY_RUN_RECIPIENT` with the intended recipient named in the subject, and
-  the row update that follows sets `dry_run`. Copy this pattern for every new
-  send — a sender node without this render step in front of it is a bug.
+  `DRY_RUN_RECIPIENT` with the intended recipient named in the subject, and the row
+  update that follows sets `dry_run`. Copy this pattern for every new email send. Slack
+  messages and reactions are internal, carry no applicant address, and always post to
+  `SLACK_CHANNEL`, in a dry run as well.
+- **Every stage change replies in the application's Slack thread.** The parent message is
+  posted by apply 1a or 1b and its channel and timestamp live on the row in
+  `slack_channel_id` and `slack_thread_ts`. A stage that has no reply in Slack is
+  invisible to reviewers, so add one with the stage. A row without a thread anchor is
+  skipped rather than posted loose in the channel.
 - **Workflows coordinate only through the `ose_applications` data table**
   and never call each other. Stages move forward
   only; writes are idempotent — insert only when the slug is new, guard
@@ -105,7 +111,9 @@ The rules below are the OSE-specific invariants on top of that skill:
   `DRY_RUN=true`.** The instance runs against production Open Collective data.
 - **Email copy lives in `automation/emails/*.md`** and is embedded verbatim
   in the render step of whichever workflow sends it — change both in the same
-  PR, and refresh the export of every changed workflow into `automation/n8n/`.
+  PR, and refresh the export of every changed workflow into `automation/n8n/`
+  , using `automation/scripts/export-workflows.py`, which preserves the existing node and
+  key order so the diff shows what changed rather than how the API ordered its response.
 - **Name workflows `apply <step> — <what it does>`** — long and descriptive,
   so the list reads in pipeline order.
 - **OC webhooks carry no application data** (`data: {}`). Treat every event
