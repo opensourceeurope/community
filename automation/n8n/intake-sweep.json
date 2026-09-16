@@ -346,6 +346,174 @@
           "name": "smtp-proton"
         }
       }
+    },
+    {
+      "id": "5cc4c0bb-2128-4220-a4b1-801563522f8c",
+      "name": "Render application parent message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        -160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// One Slack message per new application. Its timestamp becomes the thread anchor every\n// later stage replies to, so it is stored on the row in the next node.\nconst ORG_NAMES = { OSE: 'Open Source Europe' };\nconst channel = $env.SLACK_CHANNEL || '';\nif (!channel) throw new Error('application parent message: SLACK_CHANNEL is empty');\nreturn $input.all().map((item) => {\n  const row = item.json;\n  const org = ORG_NAMES[row.org] || row.org;\n  const text = [\n    `:incoming_envelope: *${row.collective_name}* applied to ${org}`,\n    row.collective_url,\n    row.description ? `> ${row.description}` : null,\n  ].filter(Boolean).join('\\n');\n  return { json: { slug: row.slug, channel, text } };\n});"
+      }
+    },
+    {
+      "id": "d88dde40-8355-432c-a5e2-e9403ae298b4",
+      "name": "Post application parent message to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1552,
+        -160
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "1e8077bf-e7f6-4ceb-8978-da9f73ab1069"
+    },
+    {
+      "id": "a720990e-27e3-4938-bbdd-db36a7432933",
+      "name": "Store Slack thread identifiers",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1776,
+        -160
+      ],
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "keyValue": "={{ $('Render application parent message').item.json.slug }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "slack_channel_id": "={{ $json.channel }}",
+            "slack_thread_ts": "={{ $json.message.ts }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a05c9b09-38c7-4f92-bb52-465ce3265288",
+      "name": "Render decision thread reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Rows whose parent message never got posted are skipped rather than posted loose in the\n// channel: a reply with no thread_ts lands in the channel with no context.\nconst LABELS = { approved: ':white_check_mark: Approved on Open Collective',\n                 rejected: ':x: Rejected on Open Collective' };\nreturn $input.all()\n  .filter((item) => item.json.slack_thread_ts && item.json.slack_channel_id)\n  .map((item) => {\n    const row = item.json;\n    const label = LABELS[row.decision] || `Decision recorded: ${row.decision}`;\n    return { json: {\n      slug: row.slug,\n      channel: row.slack_channel_id,\n      thread_ts: row.slack_thread_ts,\n      reaction: row.decision === 'approved' ? 'white_check_mark' : 'x',\n      text: label,\n    } };\n  });"
+      }
+    },
+    {
+      "id": "5219514f-b265-48ef-a2a4-130abafd1439",
+      "name": "Reply with the decision in thread",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        2000,
+        160
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "fb374e98-9818-43b1-97c0-42c0c04f6631"
+    },
+    {
+      "id": "68e53602-70a1-4970-8c3b-7ca6b2baea0f",
+      "name": "React with the decision on the parent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        2224,
+        160
+      ],
+      "parameters": {
+        "resource": "reaction",
+        "operation": "add",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Render decision thread reply').item.json.channel }}"
+        },
+        "timestamp": "={{ $('Render decision thread reply').item.json.thread_ts }}",
+        "name": "={{ $('Render decision thread reply').item.json.reaction }}"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "7329e39a-5f8e-4954-b1d0-71885c0d454a"
     }
   ],
   "connections": {
@@ -469,6 +637,72 @@
         [
           {
             "node": "Record decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create application row": {
+      "main": [
+        [
+          {
+            "node": "Render application parent message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render application parent message": {
+      "main": [
+        [
+          {
+            "node": "Post application parent message to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post application parent message to Slack": {
+      "main": [
+        [
+          {
+            "node": "Store Slack thread identifiers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record decision": {
+      "main": [
+        [
+          {
+            "node": "Render decision thread reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render decision thread reply": {
+      "main": [
+        [
+          {
+            "node": "Reply with the decision in thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply with the decision in thread": {
+      "main": [
+        [
+          {
+            "node": "React with the decision on the parent",
             "type": "main",
             "index": 0
           }
