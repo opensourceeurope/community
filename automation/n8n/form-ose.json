@@ -536,7 +536,7 @@
           "value": {
             "stage": "awaiting_decision",
             "slack_notified_at": "={{ $now.toISO() }}",
-            "dry_run": "={{ $('Render Slack notification').item.json.suppressed }}"
+            "dry_run": "={{ $('Render confirmation email').item.json.suppressed }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -607,8 +607,8 @@
       }
     },
     {
-      "id": "f3c4d5e6-f7a8-492a-93a4-c5d6e7f90a13",
-      "name": "Render Slack notification",
+      "id": "99ac5bff-6ed2-4117-8269-9be3287e8396",
+      "name": "Render submission thread reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -616,104 +616,80 @@
         -224
       ],
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const TEMPLATE = ':inbox_tray: *{{ collective_name }}* ({{ slug }}, applied to {{ org_name }}) submitted the application form and is ready for evaluation. {{ collective_url }}';\nconst ORG_NAMES = { OSE: 'Open Source Europe' };\nconst row = $('Record submission').item.json;\nconst vars = {\n  collective_name: row.collective_name,\n  slug: row.slug,\n  org_name: ORG_NAMES[row.org] || row.org,\n  collective_url: row.collective_url,\n};\nconst render = (tpl) => tpl.replace(/\\{\\{\\s*(\\w+)\\s*\\}\\}/g, (m, key) => {\n  const value = vars[key];\n  if (value === undefined || value === null || value === '') {\n    throw new Error(`slack notification: missing \"${key}\" for ${row.slug}`);\n  }\n  return String(value);\n});\nconst body = render(TEMPLATE);\nconst channel = $env.SLACK_CHANNEL || '';\nconst suppressed = ($env.DRY_RUN || '').toLowerCase() === 'true';\nconst to = suppressed ? ($env.DRY_RUN_RECIPIENT || '') : channel;\nif (!to) throw new Error(suppressed ? 'slack notification: DRY_RUN is true but DRY_RUN_RECIPIENT is empty' : 'slack notification: SLACK_CHANNEL is empty');\nconst subject = `[DRY_RUN → would have gone to Slack ${channel || '(no channel set)'}] Form submitted by ${row.slug}`;\nreturn { json: { slug: row.slug, to, subject, body, suppressed } };"
+        "mode": "runOnceForAllItems",
+        "jsCode": "// This node sits after the email send, so the row comes from Record submission by name\n// rather than from the input. The form handles one application per execution.\nconst ORG_NAMES = { OSE: 'Open Source Europe' };\nreturn $('Record submission').all()\n  .filter((item) => item.json.slack_thread_ts && item.json.slack_channel_id)\n  .map((item) => {\n    const row = item.json;\n    const org = ORG_NAMES[row.org] || row.org;\n    const text = [\n      `:clipboard: *${row.collective_name}* submitted the application form and is ready for evaluation.`,\n      `${row.collective_url} — applied to ${org}.`,\n      `The answers are on the row in the ose_applications table.`,\n    ].join('\\n');\n    return { json: {\n      slug: row.slug,\n      channel: row.slack_channel_id,\n      thread_ts: row.slack_thread_ts,\n      text,\n    } };\n  });"
       },
-      "notes": "Ready for evaluation. DRY_RUN is checked here: a suppressed notification goes to DRY_RUN_RECIPIENT by email instead of to Slack."
+      "notes": "Ready for evaluation. Slack always posts now, dry run included — the dry run protects applicant-facing email only."
     },
     {
-      "id": "f4d5e6f7-a8b9-4a3b-94b5-d6e7f90a1b24",
-      "name": "Notification suppressed?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
+      "id": "1ae6da1a-045e-4969-ae8b-9bf7c298a6ba",
+      "name": "Reply that the form was submitted",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
       "position": [
         3312,
         -224
       ],
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "f5e6f7a8-b9c0-4b4c-95c6-e7f90a1b2c35",
-              "leftValue": "={{ $json.suppressed }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "f6f7a8b9-c0d1-4c5d-96d7-f90a1b2c3d46",
-      "name": "Send suppressed notification by email",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [
-        3520,
-        -320
-      ],
-      "parameters": {
-        "fromEmail": "={{ $env.SMTP_FROM }}",
-        "toEmail": "={{ $json.to }}",
-        "subject": "={{ $json.subject }}",
-        "emailFormat": "text",
-        "text": "={{ $json.body }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
-      "webhookId": "3193a764-34e5-4770-820e-9f33b5b488b1",
-      "credentials": {
-        "smtp": {
-          "id": "s1LzcjJsNerXwUAq",
-          "name": "smtp-proton"
-        }
-      }
-    },
-    {
-      "id": "f7a8b9c0-d1e2-4d6e-97e8-0a1b2c3d4e57",
-      "name": "Notify Slack",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.7,
-      "position": [
-        3520,
-        -128
-      ],
-      "parameters": {
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "mode": "name",
-          "value": "={{ $json.to }}"
+          "mode": "id",
+          "value": "={{ $json.channel }}"
         },
-        "text": "={{ $json.body }}",
-        "otherOptions": {}
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
       },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
-      "webhookId": "2559a34e-d071-4513-8e11-dd1dd4e1fb1a",
       "credentials": {
         "slackApi": {
           "id": "IaMw5QbOtl3cY80f",
           "name": "slack-bot"
         }
-      }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "52ca6ed0-d3d8-434c-b0c2-735ce60b192f"
+    },
+    {
+      "id": "892e0f31-359c-4b29-8046-aa79ed11c1d9",
+      "name": "React with a clipboard on the parent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        3520,
+        -224
+      ],
+      "parameters": {
+        "resource": "reaction",
+        "operation": "add",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Render submission thread reply').item.json.channel }}"
+        },
+        "timestamp": "={{ $('Render submission thread reply').item.json.thread_ts }}",
+        "name": "clipboard"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "251e05dd-b988-46ca-8884-b69ffe0846c7"
     }
   ],
   "connections": {
@@ -896,54 +872,36 @@
       "main": [
         [
           {
-            "node": "Render Slack notification",
+            "node": "Render submission thread reply",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Render Slack notification": {
+    "Render submission thread reply": {
       "main": [
         [
           {
-            "node": "Notification suppressed?",
+            "node": "Reply that the form was submitted",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Notification suppressed?": {
+    "Reply that the form was submitted": {
       "main": [
         [
           {
-            "node": "Send suppressed notification by email",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Notify Slack",
+            "node": "React with a clipboard on the parent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send suppressed notification by email": {
-      "main": [
-        [
-          {
-            "node": "Mark awaiting decision",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Notify Slack": {
+    "React with a clipboard on the parent": {
       "main": [
         [
           {
