@@ -53,41 +53,6 @@
       }
     },
     {
-      "id": "33c4d5e6-f7a8-4b9c-8d0e-2f3a4b5c6d7e",
-      "name": "In scope?",
-      "notes": "ONLY_SLUGS keeps a test a test — see automation/.env.example.",
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.2,
-      "position": [
-        440,
-        0
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "44d5e6f7-a8b9-4c0d-9e1f-3a4b5c6d7e8f",
-              "leftValue": "={{ !$env.ONLY_SLUGS || $env.ONLY_SLUGS.split(',').map((s) => s.trim()).includes($json.slug) }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
       "id": "55e6f7a8-b9c0-4d1e-8f2a-4b5c6d7e8f9a",
       "name": "Build review request",
       "type": "n8n-nodes-base.code",
@@ -289,17 +254,6 @@
       ]
     },
     "Get rows awaiting review": {
-      "main": [
-        [
-          {
-            "node": "In scope?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "In scope?": {
       "main": [
         [
           {

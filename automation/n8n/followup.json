@@ -51,41 +51,6 @@
       }
     },
     {
-      "id": "b3c4d5e6-f7a8-4b9c-8d0e-3f4a5b6c7d8e",
-      "name": "Awaiting invitation",
-      "notes": "Every reviewed application is invited to the form (decision 2026-09-01); the verdict only changes which email carries the invitation.",
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.2,
-      "position": [
-        448,
-        -208
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "c4d5e6f7-a8b9-4c0d-9e1f-4a5b6c7d8e9f",
-              "leftValue": "={{ !$env.ONLY_SLUGS || $env.ONLY_SLUGS.split(',').map((s) => s.trim()).includes($json.slug) }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ]
-        },
-        "options": {}
-      }
-    },
-    {
       "id": "e6f7a8b9-c0d1-4e2f-9a3b-6c7d8e9f0a1b",
       "name": "Mark form_invited",
       "type": "n8n-nodes-base.dataTable",
@@ -106,7 +71,7 @@
           "conditions": [
             {
               "keyName": "slug",
-              "keyValue": "={{ $('Awaiting invitation').item.json.slug }}"
+              "keyValue": "={{ $('Get reviewed rows').item.json.slug }}"
             }
           ]
         },
@@ -632,7 +597,7 @@
       "main": [
         [
           {
-            "node": "Awaiting invitation",
+            "node": "Render form invitation",
             "type": "main",
             "index": 0
           }
@@ -655,17 +620,6 @@
         [
           {
             "node": "Escalation due",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Awaiting invitation": {
-      "main": [
-        [
-          {
-            "node": "Render form invitation",
             "type": "main",
             "index": 0
           }
