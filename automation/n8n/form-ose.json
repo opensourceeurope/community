@@ -14,7 +14,7 @@
       ],
       "parameters": {
         "formTitle": "Open Source Europe — application form",
-        "formDescription": "This is step 2 of applying for fiscal hosting with Open Source Europe. Step 1 is applying on Open Collective — if you haven't yet, do that first and come back to this link.",
+        "formDescription": "The application form for fiscal hosting with Open Source Europe. It picks up from your application on Open Collective, so everything here is about the project itself.",
         "formFields": {
           "values": [
             {
@@ -212,7 +212,7 @@
       "parameters": {
         "operation": "completion",
         "completionTitle": "Apply on Open Collective first",
-        "completionMessage": "This form is step 2, and we couldn't find an application for that collective yet. Step 1 is applying to Open Source Europe on Open Collective: https://opencollective.com/europe/apply — once you've done that, open this form link again.",
+        "completionMessage": "We could not find an application for that collective. Apply to Open Source Europe on Open Collective first: <a href=\"https://opencollective.com/europe/apply\">opencollective.com/europe/apply</a>. Once you have, we will email you a link that brings you straight back here, so there is no need to return to this page on your own.",
         "options": {}
       },
       "webhookId": "ba39b619-2d32-4bf2-ae9b-13f6cf79990f"
@@ -658,7 +658,7 @@
       "maxTries": 3,
       "waitBetweenTries": 5000,
       "webhookId": "52ca6ed0-d3d8-434c-b0c2-735ce60b192f",
-      "disabled": false
+      "disabled": true
     },
     {
       "id": "892e0f31-359c-4b29-8046-aa79ed11c1d9",
@@ -691,7 +691,7 @@
       "maxTries": 3,
       "waitBetweenTries": 5000,
       "webhookId": "251e05dd-b988-46ca-8884-b69ffe0846c7",
-      "disabled": false
+      "disabled": true
     }
   ],
   "connections": {
