@@ -485,7 +485,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        2000,
+        2224,
         -160
       ],
       "parameters": {
@@ -500,7 +500,7 @@
           "conditions": [
             {
               "keyName": "slug",
-              "keyValue": "={{ $('Render application parent message').item.json.slug }}"
+              "keyValue": "={{ $json.slug }}"
             }
           ]
         },
@@ -508,7 +508,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "slack_channel_id": "={{ $json.channel }}",
-            "slack_thread_ts": "={{ $json.message.ts }}"
+            "slack_thread_ts": "={{ $json.thread_ts }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -599,6 +599,20 @@
       "maxTries": 3,
       "waitBetweenTries": 5000,
       "webhookId": "c34af4c1-e5f5-433d-be23-3797b0f6b632"
+    },
+    {
+      "id": "977f796b-ca6e-4781-b4c9-158628df3669",
+      "name": "Skip applications whose Slack post failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -160
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// The Slack post above runs with onError continueRegularOutput, so a Slack outage never\n// holds up an application. A failed post arrives here as { error: ... } with no\n// message.ts, and writing that would store an anchor pointing at nothing. Drop those\n// items: the row keeps null identifiers, and every later stage already skips a row that\n// has none.\nconst rendered = $('Render application parent message').all();\nreturn $input.all()\n  .map((item, index) => ({ item, slug: rendered[index] ? rendered[index].json.slug : null }))\n  .filter(({ item, slug }) => Boolean(slug) && Boolean(item.json && item.json.message && item.json.message.ts))\n  .map(({ item, slug }) => ({ json: {\n    slug,\n    channel: item.json.channel,\n    thread_ts: item.json.message.ts,\n  } }));"
+      }
     }
   ],
   "connections": {
@@ -774,7 +788,7 @@
       "main": [
         [
           {
-            "node": "Store Slack thread identifiers",
+            "node": "Skip applications whose Slack post failed",
             "type": "main",
             "index": 0
           }
@@ -808,6 +822,17 @@
         [
           {
             "node": "React with the decision on the parent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip applications whose Slack post failed": {
+      "main": [
+        [
+          {
+            "node": "Store Slack thread identifiers",
             "type": "main",
             "index": 0
           }
