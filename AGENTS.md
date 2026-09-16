@@ -103,6 +103,12 @@ The rules below are the OSE-specific invariants on top of that skill:
   changed, that same change must update **every** data table node in **every**
   workflow, refresh the exports, and re-validate — a half-updated reference
   fails silently, not loudly.
+- **The form's field labels are part of the emailed link.** n8n keys prefill
+  query parameters on a field's label, so the invitation and reminder emails
+  build a link containing the page 1 label `Your collective's Open Collective
+  URL`, percent-encoded. Rename that field and the prefill stops working
+  silently: the form still loads, just empty. Change the label and the two
+  render nodes in apply 3 in the same PR.
 - **Timers are derived from timestamps** by the scheduled runs, never from
   Wait nodes.
 - **Config comes from the env vars in `automation/.env.example`**; credentials
