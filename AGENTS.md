@@ -112,8 +112,9 @@ The rules below are the OSE-specific invariants on top of that skill:
 - **Email copy lives in `automation/emails/*.md`** and is embedded verbatim
   in the render step of whichever workflow sends it — change both in the same
   PR, and refresh the export of every changed workflow into `automation/n8n/`
-  , using `automation/scripts/export-workflows.py`, which preserves the existing node and
-  key order so the diff shows what changed rather than how the API ordered its response.
+  using `automation/scripts/export-workflows.py`, which preserves the existing
+  node and key order so the diff shows what changed rather than how the API
+  ordered its response.
 - **Name workflows `apply <step> — <what it does>`** — long and descriptive,
   so the list reads in pipeline order.
 - **OC webhooks carry no application data** (`data: {}`). Treat every event
