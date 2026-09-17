@@ -81,7 +81,12 @@ The rules below are the OSE-specific invariants on top of that skill:
   close an application — that happens on Open Collective, by a person, per
   the [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
 - **Only public project material goes to the model.** Never a name or an
-  email address.
+  email address. The form answers are not public material and never reach it:
+  the review runs once, on rows at stage `applied`, before the applicant has
+  filled anything in, and no later stage calls a model. An applicant writes
+  those answers for a reviewer, not for publication or inference, so feeding
+  them to a model is a decision to take deliberately and not a refinement to
+  slip into a prompt.
 - **Every applicant-facing email site checks `DRY_RUN`.** Each email node is fed by a
   render Code node that reads `DRY_RUN`: when true, the message goes to
   `DRY_RUN_RECIPIENT` with the intended recipient named in the subject, and the row
