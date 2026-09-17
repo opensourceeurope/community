@@ -80,8 +80,30 @@ The rules below are the OSE-specific invariants on top of that skill:
 - **The AI review is advisory only.** No workflow may approve, reject or
   close an application — that happens on Open Collective, by a person, per
   the [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
-- **Only public project material goes to the model.** Never a name or an
-  email address.
+- **No address column is ever given to the model.** The intake review sees the
+  public Open Collective page. The summary in apply 5 additionally sees the
+  applicant's form answers and the project's README, because a reviewer needs
+  the form read for them and the form is where the thin descriptions get filled
+  in. `contact_email` and `applicant_email` are never included: every render
+  node selects from a fixed key list rather than iterating the row, so sending
+  an address takes a deliberate edit rather than an oversight. State the rule
+  this way round and not as "no personal data reaches the model", which is a
+  promise the pipeline cannot keep: form answers and READMEs are free text, and
+  an applicant who signs a comment with their name and address has sent them.
+- **A URL an applicant supplied is a request they are asking this server to
+  make.** apply 5 fetches a README from the repository they named, which is the
+  only place the pipeline reaches a host of someone else's choosing. It is
+  `https` only, never an IP literal, never `localhost` or a `.local` or
+  `.internal` name, and no redirects at all: a repository link resolves in one
+  hop or it does not resolve, because every host check runs on the first URL and
+  a redirect would hand the applicant's server the choice of where the request
+  lands. The body is fetched as text so that nothing parses it, and only its
+  first 8000 characters reach a model. n8n's HTTP helper has no response size
+  option to set, so the ten second timeout and that truncation are the only
+  bounds on it. A Code node cannot resolve DNS, so a hostname pointing at a
+  private address still passes; what makes that tolerable is that nothing on the
+  box listens on a private interface over HTTPS. Widen this and that reasoning
+  has to be redone.
 - **Every applicant-facing email site checks `DRY_RUN`.** Each email node is fed by a
   render Code node that reads `DRY_RUN`: when true, the message goes to
   `DRY_RUN_RECIPIENT` with the intended recipient named in the subject, and the row
@@ -93,16 +115,52 @@ The rules below are the OSE-specific invariants on top of that skill:
   `slack_channel_id` and `slack_thread_ts`. A stage that has no reply in Slack is
   invisible to reviewers, so add one with the stage. A row without a thread anchor is
   skipped rather than posted loose in the channel.
-- **Workflows coordinate only through the `ose_applications` data table**
-  and never call each other. Stages move forward
-  only; writes are idempotent — insert only when the slug is new, guard
+- **Continuing on a Slack error protects the stage, not whatever follows.**
+  Slack nodes carry `onError: continueRegularOutput` so one unreachable row
+  cannot abort a run and starve the others. It does NOT mean the work after the
+  post should proceed as if it had succeeded. A failed post continues as an
+  error item with no `message.ts`, so any data table write after a Slack node
+  needs a guard that drops those items first. Both intake workflows and apply 5
+  have one. Without it the row records something the thread never received, and
+  because the sweeps select on that same field being empty, it is never retried.
+- **The row is the record, and anything triggered directly also has a sweep.**
+  Workflows coordinate through the `ose_applications` data table. apply 5 runs on
+  `SUMMARY_CRON` as its catch-up, and a direct trigger from apply 4 is intended to
+  make summaries immediate, which requires apply 5 to be activated first: n8n
+  refuses to save an active workflow that references a sub-workflow that has
+  never been activated. The sweep is what makes a direct trigger safe to add: a
+  failure in the hand-off must never lose an application. Stages move forward
+  only; writes are idempotent, so insert only when the slug is new and guard
   terminal updates on the current stage.
+- **An active workflow cannot reference an unpublished sub-workflow.** n8n only
+  creates a published version of a workflow the first time it is activated, and
+  saving a change to an active workflow requires every sub-workflow its Execute
+  Workflow nodes point at to already have one. Wiring apply 4 to call apply 5
+  failed against the live instance for exactly this reason: apply 5 had never
+  been activated, so apply 4 could not be saved. Activating a sub-workflow ahead
+  of its caller is not a way around "never activate a workflow without asking."
+  It is the same rule: ask first, every time.
 - **The table reference in the workflows must always match the live table.**
   Every data table node references `ose_applications` the same way (currently
   by name). If the table is renamed, recreated, or the reference mode is ever
   changed, that same change must update **every** data table node in **every**
   workflow, refresh the exports, and re-validate — a half-updated reference
   fails silently, not loudly.
+- **A new form question lands in five places, not one.** The form pages do not
+  accumulate answers: each page rebuilds the whole answers object by reaching
+  back to the earlier pages by node name. So a field added to page 2 must also
+  go into `Persist page 2`, `Persist page 3` and `Record submission`, and a field
+  added to page 3 into `Persist page 3` and `Record submission`. Then two
+  hardcoded label lists read those keys and will silently omit anything missing
+  from them: `Render submission thread reply` in apply 4, which is what a
+  reviewer reads in Slack, and `Render summary request` in apply 5, which is what
+  the model is told. Miss one storage expression and the answer vanishes when the
+  applicant clicks to the next page, with no error anywhere. A form field has
+  no description property, so a question that needs a line of explanation is
+  two entries: the field, then a Custom HTML element holding the sentence.
+  Leave that element's `elementName` empty and it stays out of the form
+  output, which is what keeps it out of `answers` and off the five places
+  above.
 - **The form's field labels are part of the emailed link.** n8n keys prefill
   query parameters on a field's label, so the invitation and reminder emails
   build a link containing the page 1 label `Your collective's Open Collective
@@ -135,6 +193,16 @@ The rules below are the OSE-specific invariants on top of that skill:
   `[ERROR: invalid syntax]` in the UI and `validate_workflow` does not catch
   it. This is about braces nested inside the expression body. The expression's
   own closing delimiter is always `}}`.
+- **n8n is credited in the documentation, not in every message.** The
+  `appendAttribution` option is off on the form, the applicant emails and the
+  Slack messages. That is a supported n8n feature, documented and shipped in the
+  free product, so switching it off is not a licence breach: the clause about not
+  removing the licensor's notices is aimed at stripping them from the software,
+  not at using a setting n8n built and labelled. n8n's white-labelling agreement
+  is a separate matter and covers embedding the n8n editor, which this project
+  does not do. The credit belongs somewhere a reader will actually see it, so
+  name n8n in the public documentation and in the AI and tooling policy, and keep
+  it accurate as the stack changes.
 - **Never activate a workflow without asking.** New and changed workflows are
   deployed inactive; activation is the user's explicit call, every time.
 

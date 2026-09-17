@@ -301,6 +301,12 @@
               "requiredField": true
             },
             {
+              "fieldLabel": "Project website (optional)",
+              "fieldType": "text",
+              "placeholder": "https://example.org",
+              "requiredField": false
+            },
+            {
               "fieldLabel": "Licence",
               "placeholder": "e.g. Apache-2.0, MIT, AGPL-3.0",
               "requiredField": true
@@ -353,7 +359,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "form_page": 2,
-            "answers": "={{ JSON.stringify({ page: 2, submitted_at: $now.toISO(), responses: { repository_url: $json['Repository URL'] || '', licence: $json['Licence'] || '', open_development: $json['How does development happen in the open?'] || '' } }) }}"
+            "answers": "={{ JSON.stringify({ page: 2, submitted_at: $now.toISO(), responses: { repository_url: $json['Repository URL'] || '', project_website: $json['Project website (optional)'] || '', licence: $json['Licence'] || '', open_development: $json['How does development happen in the open?'] || '' } }) }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -374,6 +380,26 @@
         "formFields": {
           "values": [
             {
+              "fieldLabel": "Is the project already registered as a legal entity?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "No"
+                  },
+                  {
+                    "option": "Yes"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "If yes, what kind and in which country?",
+              "fieldType": "text",
+              "placeholder": "e.g. a German e.V., a Dutch stichting"
+            },
+            {
               "fieldLabel": "How long has the project been operating?",
               "placeholder": "e.g. two years, since 2021…",
               "requiredField": true
@@ -392,6 +418,24 @@
               "fieldType": "textarea",
               "placeholder": "Companies using it, individual donors, grants…",
               "requiredField": true
+            },
+            {
+              "fieldLabel": "What do you expect to be your expenses?",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldType": "html",
+              "html": "<p>It is important for us to know as it helps us understand the need of your collective.</p>"
+            },
+            {
+              "fieldLabel": "In which countries are most of the people who will be paid or reimbursed for expenses?",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldType": "html",
+              "html": "<p>It is important for us to know as it can be harder to send money to some countries. If you don't know, just let us know where you and your team are located.</p>"
             }
           ]
         },
@@ -434,7 +478,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "form_page": 3,
-            "answers": "={{ JSON.stringify({ page: 3, submitted_at: $now.toISO(), responses: { repository_url: $('Form page 2').item.json['Repository URL'] || '', licence: $('Form page 2').item.json['Licence'] || '', open_development: $('Form page 2').item.json['How does development happen in the open?'] || '', operating_duration: $json['How long has the project been operating?'] || '', fundraising_to_date: $json['How much have you raised so far, if anything?'] || '', fundraising_goal: $json['What is your target fundraising amount?'] || '', funding_sources: $json['Who do you expect will fund the project?'] || '' } }) }}"
+            "answers": "={{ JSON.stringify({ page: 3, submitted_at: $now.toISO(), responses: { repository_url: $('Form page 2').item.json['Repository URL'] || '', project_website: $('Form page 2').item.json['Project website (optional)'] || '', licence: $('Form page 2').item.json['Licence'] || '', open_development: $('Form page 2').item.json['How does development happen in the open?'] || '', legal_entity: $json['Is the project already registered as a legal entity?'] || '', legal_entity_detail: $json['If yes, what kind and in which country?'] || '', operating_duration: $json['How long has the project been operating?'] || '', fundraising_to_date: $json['How much have you raised so far, if anything?'] || '', fundraising_goal: $json['What is your target fundraising amount?'] || '', funding_sources: $json['Who do you expect will fund the project?'] || '', expected_expenses: $json['What do you expect to be your expenses?'] || '', payee_countries: $json['In which countries are most of the people who will be paid or reimbursed for expenses?'] || '' } }) }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -515,7 +559,7 @@
             "form_page": 4,
             "form_submitted_at": "={{ $now.toISO() }}",
             "stage": "form_submitted",
-            "answers": "={{ JSON.stringify({ page: 4, submitted_at: $now.toISO(), responses: { repository_url: $('Form page 2').item.json['Repository URL'] || '', licence: $('Form page 2').item.json['Licence'] || '', open_development: $('Form page 2').item.json['How does development happen in the open?'] || '', operating_duration: $('Form page 3').item.json['How long has the project been operating?'] || '', fundraising_to_date: $('Form page 3').item.json['How much have you raised so far, if anything?'] || '', fundraising_goal: $('Form page 3').item.json['What is your target fundraising amount?'] || '', funding_sources: $('Form page 3').item.json['Who do you expect will fund the project?'] || '', activities: $json['What does the project do?'] || '', mission_fit: $json['How does the project further open source in Europe?'] || '', notes: $json['Anything else we should know?'] || '' } }) }}"
+            "answers": "={{ JSON.stringify({ page: 4, submitted_at: $now.toISO(), responses: { repository_url: $('Form page 2').item.json['Repository URL'] || '', project_website: $('Form page 2').item.json['Project website (optional)'] || '', licence: $('Form page 2').item.json['Licence'] || '', open_development: $('Form page 2').item.json['How does development happen in the open?'] || '', legal_entity: $('Form page 3').item.json['Is the project already registered as a legal entity?'] || '', legal_entity_detail: $('Form page 3').item.json['If yes, what kind and in which country?'] || '', operating_duration: $('Form page 3').item.json['How long has the project been operating?'] || '', fundraising_to_date: $('Form page 3').item.json['How much have you raised so far, if anything?'] || '', fundraising_goal: $('Form page 3').item.json['What is your target fundraising amount?'] || '', funding_sources: $('Form page 3').item.json['Who do you expect will fund the project?'] || '', expected_expenses: $('Form page 3').item.json['What do you expect to be your expenses?'] || '', payee_countries: $('Form page 3').item.json['In which countries are most of the people who will be paid or reimbursed for expenses?'] || '', activities: $json['What does the project do?'] || '', mission_fit: $json['How does the project further open source in Europe?'] || '', notes: $json['Anything else we should know?'] || '' } }) }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -637,7 +681,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// This node sits after the email send, so the row comes from Record submission by name\n// rather than from the input. The form handles one application per execution.\nconst ORG_NAMES = { OSE: 'Open Source Europe' };\nreturn $('Record submission').all()\n  .filter((item) => item.json.slack_thread_ts && item.json.slack_channel_id)\n  .map((item) => {\n    const row = item.json;\n    const org = ORG_NAMES[row.org] || row.org;\n    const text = [\n      `:clipboard: *${row.collective_name}* submitted the application form and is ready for evaluation.`,\n      `${row.collective_url} — applied to ${org}.`,\n      `The answers are on the row in the ose_applications table.`,\n    ].join('\\n');\n    return { json: {\n      slug: row.slug,\n      channel: row.slack_channel_id,\n      thread_ts: row.slack_thread_ts,\n      text,\n    } };\n  });"
+        "jsCode": "// This node sits after the email send, so the row comes from Record submission by name\n// rather than from the input. The form handles one application per execution.\n//\n// The answers go into the thread so a reviewer never opens n8n. The contact email is\n// deliberately not among them: it is on the row for whoever needs it, and the channel is a\n// wider audience than the table.\nconst ORG_NAMES = { OSE: 'Open Source Europe' };\n\n// Question labels a reviewer recognises, in the order the form asks them.\nconst LABELS = [\n  ['repository_url', 'Repository'],\n  ['project_website', 'Website'],\n  ['licence', 'Licence'],\n  ['open_development', 'Open development'],\n  ['legal_entity', 'Already a legal entity'],\n  ['legal_entity_detail', 'Entity details'],\n  ['operating_duration', 'Running since'],\n  ['fundraising_to_date', 'Raised so far'],\n  ['fundraising_goal', 'Target'],\n  ['funding_sources', 'Expected funders'],\n  ['expected_expenses', 'Expected expenses'],\n  ['payee_countries', 'Payee countries'],\n  ['activities', 'What it does'],\n  ['mission_fit', 'Open source in Europe'],\n  ['notes', 'Anything else'],\n];\n\nconst trim = (value) => {\n  const text = String(value == null ? '' : value).replace(/\\s+/g, ' ').trim();\n  if (!text) return '';\n  return text.length > 300 ? `${text.slice(0, 300)}…` : text;\n};\n\nreturn $('Record submission').all()\n  .filter((item) => item.json.slack_thread_ts && item.json.slack_channel_id)\n  .map((item) => {\n    const row = item.json;\n    const org = ORG_NAMES[row.org] || row.org;\n\n    let responses = {};\n    try {\n      responses = (JSON.parse(row.answers || '{}').responses) || {};\n    } catch (error) {\n      // A row whose answers are not valid JSON still deserves a thread reply saying the\n      // form arrived. Better a header with no detail than no message at all.\n      responses = {};\n    }\n\n    const lines = LABELS\n      .map(([key, label]) => [label, trim(responses[key])])\n      .filter(([, value]) => value)\n      .map(([label, value]) => `• *${label}:* ${value}`);\n\n    const text = [\n      `:clipboard: *${row.collective_name}* submitted the application form and is ready for evaluation.`,\n      `${row.collective_url} — applied to ${org}.`,\n      lines.length ? '' : 'The form recorded no answers, which is worth a look.',\n      ...lines,\n    ].filter((line) => line !== '').join('\\n');\n\n    return { json: {\n      slug: row.slug,\n      channel: row.slack_channel_id,\n      thread_ts: row.slack_thread_ts,\n      text,\n    } };\n  });"
       },
       "notes": "Ready for evaluation. Slack always posts now, dry run included — the dry run protects applicant-facing email only."
     },
@@ -677,7 +721,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "52ca6ed0-d3d8-434c-b0c2-735ce60b192f"
+      "webhookId": "52ca6ed0-d3d8-434c-b0c2-735ce60b192f",
+      "disabled": false
     },
     {
       "id": "892e0f31-359c-4b29-8046-aa79ed11c1d9",
@@ -709,7 +754,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "251e05dd-b988-46ca-8884-b69ffe0846c7"
+      "webhookId": "251e05dd-b988-46ca-8884-b69ffe0846c7",
+      "disabled": false
     }
   ],
   "connections": {
