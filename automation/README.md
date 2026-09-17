@@ -14,9 +14,24 @@ the automation only listens for the result. The org
 [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md)
 lists "casting governance votes or approvals" as human-only.
 
-Only public project material is sent to the model: the collective's
+Two reads go to the model, and they see different things.
+
+The intake review sees public project material only: the collective's
 description, the application message, and the linked repository and website.
-The applicant's name and email address are never sent.
+
+The summary that runs after the form sees more, because a thin Open
+Collective page is the problem it exists to solve. It sees the applicant's
+form answers and the project's README.
+
+Neither read is given the applicant's name or email address. The pipeline
+stores both on the row, and no render step reads either column, so sending
+one takes a deliberate edit rather than an oversight.
+
+That is a promise about the columns, not about every character an applicant
+types. The form has free text boxes, and a README is whatever its authors
+wrote, so an applicant who signs a comment with their name and address has
+sent them. Anyone assessing what this pipeline discloses should read that
+sentence as the real boundary.
 
 ## Running it
 
@@ -27,10 +42,14 @@ a troubleshooting table of failures already hit in practice.
 
 ## The workflows
 
-`automation/n8n/` holds the export of every workflow. Five workflows
+`automation/n8n/` holds the export of every workflow. Six workflows
 coordinate through one Data table (`ose_applications`, keyed by collective
-slug) and never call each other. Each workflow sends its own emails and Slack
-messages, and every applicant-facing email checks `DRY_RUN` first.
+slug). The row is the record: a workflow reads state from it and writes state
+back, rather than handing work to another workflow and trusting it to arrive.
+The one direct call is apply 4 to apply 5, which exists to make a summary
+immediate, and it is safe only because apply 5's schedule recovers anything
+that call loses. Each workflow sends its own emails and Slack messages, and
+every applicant-facing email checks `DRY_RUN` first.
 
 The automation serves Open Source Europe only. Open Collective Europe appears
 in one place: the AI review may suggest that a project fits OCE better.

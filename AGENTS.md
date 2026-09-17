@@ -80,13 +80,16 @@ The rules below are the OSE-specific invariants on top of that skill:
 - **The AI review is advisory only.** No workflow may approve, reject or
   close an application — that happens on Open Collective, by a person, per
   the [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
-- **Only project material goes to the model, never a name or an email address.**
-  The intake review sees the public Open Collective page. The summary in apply 5
-  additionally sees the applicant's form answers and the project's README,
-  because a reviewer needs the form read for them and the form is where the
-  thin descriptions get filled in. `contact_email` and `applicant_email` are
-  never included: the render node simply does not read them, so sending one
-  takes a deliberate edit rather than an oversight.
+- **No address column is ever given to the model.** The intake review sees the
+  public Open Collective page. The summary in apply 5 additionally sees the
+  applicant's form answers and the project's README, because a reviewer needs
+  the form read for them and the form is where the thin descriptions get filled
+  in. `contact_email` and `applicant_email` are never included: every render
+  node selects from a fixed key list rather than iterating the row, so sending
+  an address takes a deliberate edit rather than an oversight. State the rule
+  this way round and not as "no personal data reaches the model", which is a
+  promise the pipeline cannot keep: form answers and READMEs are free text, and
+  an applicant who signs a comment with their name and address has sent them.
 - **A URL an applicant supplied is a request they are asking this server to
   make.** apply 5 fetches a README from the repository they named, which is the
   only place the pipeline reaches a host of someone else's choosing. It is
