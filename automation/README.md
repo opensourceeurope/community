@@ -103,6 +103,49 @@ catch-up asks the Open Collective API once a day for pending applications
 and fresh decisions, and processes anything the webhook missed. A lost
 event then means the applicant hears from us up to a day later, not never.
 
+## Checking the exports
+
+[`scripts/check-workflows.py`](scripts/check-workflows.py) reads the exports in
+`automation/n8n/` and enforces six of the invariants in `AGENTS.md`. Each one
+exists because that defect reached main at least once, and there are only six
+on purpose. A check that flags style rather than breakage gets switched off,
+and takes the real ones with it.
+
+1. **No disabled nodes.** An export taken while nodes were switched off for a
+   test is not the record of truth.
+2. **No truncated expressions.** n8n ends a `{{ }}` expression at the first
+   `}}`, so a nested object literal has to space its closing braces as `} }`.
+   Inside a `{{ }}` segment, more `{` than `}` means the rest of the
+   expression was swallowed. `validate_workflow` does not catch this.
+3. **Every applicant-facing email is gated.** The node feeding each email send
+   must be a Code node that reads `DRY_RUN`.
+4. **Form answers reach the reviewer.** Every key of the `responses` object
+   built by `Record submission` must appear in the label list of
+   `Render submission thread reply` and of `Render summary request`. A key
+   missing from a label list is dropped in silence, so an answer the applicant
+   gave never reaches the people deciding.
+5. **The data table is referenced the same way everywhere.** Every data table
+   node points at `ose_applications` in name mode.
+6. **Every workflow pins its timezone.** A workflow with no timezone in its
+   settings inherits `GENERIC_TIMEZONE` and drifts away from the others when
+   that changes.
+
+Run it from the repository root. It needs no arguments, no dependencies, no
+network and no API key, and it never touches the live instance.
+
+```bash
+python3 automation/scripts/check-workflows.py
+```
+
+It prints one line per problem, naming the export, the node and what is wrong,
+and exits non-zero if anything failed. `--help` lists the checks. Pass a path
+to check a single export or a directory of them.
+
+[`.github/workflows/check-workflows.yml`](../.github/workflows/check-workflows.yml)
+runs the same command on every pull request and on pushes to main, so refresh
+the exports with `scripts/export-workflows.py` in the same pull request as any
+workflow change.
+
 ## Configuration
 
 [`.env.example`](.env.example) documents every variable, with its production
