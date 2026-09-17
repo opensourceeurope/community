@@ -1000,10 +1000,10 @@ that happened, and would show nothing for a run that failed. Check
 `tail ~/backups/backup.log`, not the journal, until the units are changed to let
 the script append to the log while systemd keeps the journal.
 
-**Dumps will contain applicant personal data.** Not yet — `ose_applications`
-does not exist — but once it does, every dump carries applicant email addresses
-and form answers. That makes where copies are stored a data-protection question
-as well as a durability one: encrypt before uploading anywhere off this box.
+**Dumps contain applicant personal data.** `ose_applications` holds applicant
+email addresses and the free text of their form answers, so every dump carries
+both. That makes where copies are stored a data-protection question as well as a
+durability one: encrypt before uploading anywhere off this box.
 
 Confirmed running unattended: the timer fired on its own at 03:22 UTC on
 2026-09-01 and wrote a dump. Installed and actually-runs are different claims,

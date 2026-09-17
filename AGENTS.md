@@ -125,11 +125,11 @@ The rules below are the OSE-specific invariants on top of that skill:
   because the sweeps select on that same field being empty, it is never retried.
 - **The row is the record, and anything triggered directly also has a sweep.**
   Workflows coordinate through the `ose_applications` data table. apply 5 runs on
-  `SUMMARY_CRON` as its catch-up, and a direct trigger from apply 4 is intended to
-  make summaries immediate, which requires apply 5 to be activated first: n8n
-  refuses to save an active workflow that references a sub-workflow that has
-  never been activated. The sweep is what makes a direct trigger safe to add: a
-  failure in the hand-off must never lose an application. Stages move forward
+  `SUMMARY_CRON` as its catch-up, and apply 4 calls it directly so that a summary
+  is immediate, which requires apply 5 to be activated first: n8n refuses to save
+  an active workflow that references a sub-workflow that has never been
+  activated. The sweep is what makes a direct trigger safe to add: a failure in
+  the hand-off must never lose an application. Stages move forward
   only; writes are idempotent, so insert only when the slug is new and guard
   terminal updates on the current stage.
 - **An active workflow cannot reference an unpublished sub-workflow.** n8n only
