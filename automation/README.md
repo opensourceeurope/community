@@ -83,6 +83,19 @@ flowchart TD
     A5 --> END(["Applicant receives<br>the closing email"])
 ```
 
+Each sweep advances an application by one stage, and all three sweeps share
+`SWEEP_CRON`. They fire at the same moment and do not call each other, so a
+fresh application does not reach the invitation email on the first tick: the
+catch-up creates the row while the AI review is already running and sees
+nothing yet. The verdict lands on the second tick and the invitation on the
+third. At the default `0 6 * * *` that is three mornings.
+
+This only bites on an application's first run, and it is the price of
+workflows that coordinate through the row rather than calling each other: any
+one of them can fail without stranding the application. To move an
+application through in one sitting, click Execute on the sweeps in order,
+`apply 1b`, then `apply 2`, then `apply 3`.
+
 `apply 1b — daily catch-up` exists because Open Collective delivers each
 webhook event only once. If the server is unreachable at that moment, the
 event is lost and the application would never enter the pipeline. The
