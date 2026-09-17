@@ -49,6 +49,10 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 | `freshdesk_ticket_id` | String | none | Reserved for a possible future Freshdesk integration. No workflow writes it. |
 | `slack_channel_id` | String | intake | The channel holding this application's Slack thread. Written once, by whichever intake workflow created the row. |
 | `slack_thread_ts` | String | intake | The parent message's timestamp, which is the thread anchor. A Slack identifier, not a number: stored as a number it rounds and every reply fails. |
+| `ai_summary` | String | apply 5 | The summary posted to the thread: the description, then the gaps as lines. Empty means apply 5 has not succeeded for this row, which is what makes its sweep idempotent. |
+| `ai_summary_model` | String | apply 5 | The model that produced it, so a summary stays traceable across a model change. |
+| `ai_summarised_at` | Date | apply 5 | When the summary was written. |
+| `readme_source` | String | apply 5 | `github`, `gitlab`, `generic` or `none`, so a reviewer can see whether the summary had a README to work from. |
 
 ### The nine `stage` values
 
@@ -85,8 +89,11 @@ In order through a normal application, plus the escalation branch:
 pages as the applicant progresses, keyed by question ID.
 
 The question IDs of `form-ose`, in page order. Page 2 has `repository_url`,
-`licence` and `open_development`. Page 3 has `operating_duration`,
-`fundraising_to_date`, `fundraising_goal` and `funding_sources`. Page 4 has
+`project_website`, `licence` and `open_development`. `project_website` is
+optional and absent from any row submitted before it was added, so anything
+reading it must tolerate the key being missing rather than empty. Page 3 has
+`operating_duration`, `fundraising_to_date`, `fundraising_goal` and
+`funding_sources`. Page 4 has
 `activities`, `mission_fit` and `notes`.
 
 Page 1 asks only `contact_email` and the collective URL, which are stored as
@@ -122,3 +129,9 @@ sends only `org_name`, `collective_name`, `collective_slug`, `description`,
 `long_description`, `repository_url`, `website_url` and
 `application_message`. No name and no email address, for either the applicant
 or the collective's contact.
+
+The summary in apply 5 sends a second set: the form answers under the keys listed
+in "Shape of `answers`", the collective's public description, the repository URL
+and the fetched README. It selects them from a fixed list rather than iterating
+the row, which is what keeps the two address columns out of it. See
+`automation/prompts/summary.system.md`.
