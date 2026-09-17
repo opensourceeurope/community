@@ -147,7 +147,12 @@ The rules below are the OSE-specific invariants on top of that skill:
   from them: `Render submission thread reply` in apply 4, which is what a
   reviewer reads in Slack, and `Render summary request` in apply 5, which is what
   the model is told. Miss one storage expression and the answer vanishes when the
-  applicant clicks to the next page, with no error anywhere.
+  applicant clicks to the next page, with no error anywhere. A form field has
+  no description property, so a question that needs a line of explanation is
+  two entries: the field, then a Custom HTML element holding the sentence.
+  Leave that element's `elementName` empty and it stays out of the form
+  output, which is what keeps it out of `answers` and off the five places
+  above.
 - **The form's field labels are part of the emailed link.** n8n keys prefill
   query parameters on a field's label, so the invitation and reminder emails
   build a link containing the page 1 label `Your collective's Open Collective

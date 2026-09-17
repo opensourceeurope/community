@@ -30,7 +30,7 @@ a troubleshooting table of failures already hit in practice.
 `automation/n8n/` holds the export of every workflow. Five workflows
 coordinate through one Data table (`ose_applications`, keyed by collective
 slug) and never call each other. Each workflow sends its own emails and Slack
-messages, and every send site checks `DRY_RUN` first.
+messages, and every applicant-facing email checks `DRY_RUN` first.
 
 The automation serves Open Source Europe only. Open Collective Europe appears
 in one place: the AI review may suggest that a project fits OCE better.
@@ -139,10 +139,20 @@ the workflows no longer need programmatic changes.
 
 ### Testing safely
 
-`DRY_RUN` protects real applicants during any test. Every email and Slack
-node is fed by a render step that reads `DRY_RUN`. When it is true, the
-message goes to `DRY_RUN_RECIPIENT` instead, with the intended recipient
-named in the subject, and the row is marked `dry_run`.
+`DRY_RUN` protects real applicants during any test. Every email node is fed
+by a render step that reads `DRY_RUN`. When it is true, the message goes to
+`DRY_RUN_RECIPIENT` instead, with the intended recipient named in the
+subject, and the row is marked `dry_run`.
+
+Slack is not redirected. Its messages are internal, they carry no applicant
+address, and a rehearsal is only worth watching if the thread it produces is
+the thread a reviewer would really see, so they post to `SLACK_CHANNEL` in a
+dry run as well.
+
+`DRY_RUN` is not a control on state. A test run still advances real rows, so
+an application marked `form_invited` during a test never receives a real
+invitation afterwards. Clear the timestamps of any row a test touched, or
+delete the row.
 
 One more thing about timers: they only fire when the sweep runs. A 5 minute
 reminder threshold on a daily sweep still takes a day to fire. Shorten
