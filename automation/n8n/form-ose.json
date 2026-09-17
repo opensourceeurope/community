@@ -301,6 +301,12 @@
               "requiredField": true
             },
             {
+              "fieldLabel": "Project website (optional)",
+              "fieldType": "text",
+              "placeholder": "https://example.org",
+              "requiredField": false
+            },
+            {
               "fieldLabel": "Licence",
               "placeholder": "e.g. Apache-2.0, MIT, AGPL-3.0",
               "requiredField": true
@@ -353,7 +359,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "form_page": 2,
-            "answers": "={{ JSON.stringify({ page: 2, submitted_at: $now.toISO(), responses: { repository_url: $json['Repository URL'] || '', licence: $json['Licence'] || '', open_development: $json['How does development happen in the open?'] || '' } }) }}"
+            "answers": "={{ JSON.stringify({ page: 2, submitted_at: $now.toISO(), responses: { repository_url: $json['Repository URL'] || '', project_website: $json['Project website (optional)'] || '', licence: $json['Licence'] || '', open_development: $json['How does development happen in the open?'] || '' } }) }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -434,7 +440,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "form_page": 3,
-            "answers": "={{ JSON.stringify({ page: 3, submitted_at: $now.toISO(), responses: { repository_url: $('Form page 2').item.json['Repository URL'] || '', licence: $('Form page 2').item.json['Licence'] || '', open_development: $('Form page 2').item.json['How does development happen in the open?'] || '', operating_duration: $json['How long has the project been operating?'] || '', fundraising_to_date: $json['How much have you raised so far, if anything?'] || '', fundraising_goal: $json['What is your target fundraising amount?'] || '', funding_sources: $json['Who do you expect will fund the project?'] || '' } }) }}"
+            "answers": "={{ JSON.stringify({ page: 3, submitted_at: $now.toISO(), responses: { repository_url: $('Form page 2').item.json['Repository URL'] || '', project_website: $('Form page 2').item.json['Project website (optional)'] || '', licence: $('Form page 2').item.json['Licence'] || '', open_development: $('Form page 2').item.json['How does development happen in the open?'] || '', operating_duration: $json['How long has the project been operating?'] || '', fundraising_to_date: $json['How much have you raised so far, if anything?'] || '', fundraising_goal: $json['What is your target fundraising amount?'] || '', funding_sources: $json['Who do you expect will fund the project?'] || '' } }) }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -515,7 +521,7 @@
             "form_page": 4,
             "form_submitted_at": "={{ $now.toISO() }}",
             "stage": "form_submitted",
-            "answers": "={{ JSON.stringify({ page: 4, submitted_at: $now.toISO(), responses: { repository_url: $('Form page 2').item.json['Repository URL'] || '', licence: $('Form page 2').item.json['Licence'] || '', open_development: $('Form page 2').item.json['How does development happen in the open?'] || '', operating_duration: $('Form page 3').item.json['How long has the project been operating?'] || '', fundraising_to_date: $('Form page 3').item.json['How much have you raised so far, if anything?'] || '', fundraising_goal: $('Form page 3').item.json['What is your target fundraising amount?'] || '', funding_sources: $('Form page 3').item.json['Who do you expect will fund the project?'] || '', activities: $json['What does the project do?'] || '', mission_fit: $json['How does the project further open source in Europe?'] || '', notes: $json['Anything else we should know?'] || '' } }) }}"
+            "answers": "={{ JSON.stringify({ page: 4, submitted_at: $now.toISO(), responses: { repository_url: $('Form page 2').item.json['Repository URL'] || '', project_website: $('Form page 2').item.json['Project website (optional)'] || '', licence: $('Form page 2').item.json['Licence'] || '', open_development: $('Form page 2').item.json['How does development happen in the open?'] || '', operating_duration: $('Form page 3').item.json['How long has the project been operating?'] || '', fundraising_to_date: $('Form page 3').item.json['How much have you raised so far, if anything?'] || '', fundraising_goal: $('Form page 3').item.json['What is your target fundraising amount?'] || '', funding_sources: $('Form page 3').item.json['Who do you expect will fund the project?'] || '', activities: $json['What does the project do?'] || '', mission_fit: $json['How does the project further open source in Europe?'] || '', notes: $json['Anything else we should know?'] || '' } }) }}"
           },
           "matchingColumns": [],
           "schema": []
