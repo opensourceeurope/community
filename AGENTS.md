@@ -138,6 +138,16 @@ The rules below are the OSE-specific invariants on top of that skill:
   changed, that same change must update **every** data table node in **every**
   workflow, refresh the exports, and re-validate — a half-updated reference
   fails silently, not loudly.
+- **A new form question lands in five places, not one.** The form pages do not
+  accumulate answers: each page rebuilds the whole answers object by reaching
+  back to the earlier pages by node name. So a field added to page 2 must also
+  go into `Persist page 2`, `Persist page 3` and `Record submission`, and a field
+  added to page 3 into `Persist page 3` and `Record submission`. Then two
+  hardcoded label lists read those keys and will silently omit anything missing
+  from them: `Render submission thread reply` in apply 4, which is what a
+  reviewer reads in Slack, and `Render summary request` in apply 5, which is what
+  the model is told. Miss one storage expression and the answer vanishes when the
+  applicant clicks to the next page, with no error anywhere.
 - **The form's field labels are part of the emailed link.** n8n keys prefill
   query parameters on a field's label, so the invitation and reminder emails
   build a link containing the page 1 label `Your collective's Open Collective
