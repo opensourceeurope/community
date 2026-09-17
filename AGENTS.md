@@ -215,6 +215,14 @@ The rules below are the OSE-specific invariants on top of that skill:
   does not do. The credit belongs somewhere a reader will actually see it, so
   name n8n in the public documentation and in the AI and tooling policy, and keep
   it accurate as the stack changes.
+- **Six of these rules are enforced, the rest are on you.**
+  `automation/scripts/check-workflows.py` runs on every pull request and checks
+  the exports for disabled nodes, truncated expressions, an email send whose
+  render step does not read `DRY_RUN`, an answer key missing from a label list,
+  a data table referenced any way but by name, and a workflow with no timezone.
+  Run it locally before you push. Each check is there because that defect
+  reached main at least once. It reads the exports, so it only sees what you
+  exported: refresh them first or it is checking yesterday's workflow.
 - **Never activate a workflow without asking.** New and changed workflows are
   deployed inactive; activation is the user's explicit call, every time.
 
