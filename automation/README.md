@@ -88,7 +88,7 @@ Each sweep advances an application by one stage, and all three sweeps share
 fresh application does not reach the invitation email on the first tick: the
 catch-up creates the row while the AI review is already running and sees
 nothing yet. The verdict lands on the second tick and the invitation on the
-third. At the default `0 6 * * *` that is three mornings.
+third. At the default `0 7 * * *` that is three mornings.
 
 This only bites on an application's first run, and it is the price of
 workflows that coordinate through the row rather than calling each other: any
@@ -214,10 +214,14 @@ the workflows no longer need programmatic changes.
 
 ### Testing safely
 
-`DRY_RUN` protects real applicants during any test. Every email node is fed
-by a render step that reads `DRY_RUN`. When it is true, the message goes to
-`DRY_RUN_RECIPIENT` instead, with the intended recipient named in the
-subject, and the row is marked `dry_run`.
+`DRY_RUN` protects real applicants during any test, and it fails safe. Every
+email node is fed by a render step that reads `DRY_RUN`, and applicant email is
+suppressed unless the variable is explicitly and exactly `false`, after
+trimming and lowercasing. A suppressed message goes to `DRY_RUN_RECIPIENT`
+instead, with the intended recipient named in the subject, and the row is
+marked `dry_run`. Unset, empty, `1`, `yes` and `true ` with a trailing space all
+suppress, so a dropped or mistyped line in `.env` cannot quietly start mailing
+real applicants. Going live is the deliberate act of writing `DRY_RUN=false`.
 
 Slack is not redirected. Its messages are internal, they carry no applicant
 address, and a rehearsal is only worth watching if the thread it produces is

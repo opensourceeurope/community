@@ -471,8 +471,9 @@ will actually read. A value containing `#` needs double quotes, as in
 in a compose `.env`. Spaces and angle brackets need no quoting.
 
 For example, `DRY_RUN_RECIPIENT` must hold a real mailbox before any
-workflow is activated with `DRY_RUN=true`, because every render step throws
-when it is empty:
+workflow is activated while applicant email is suppressed, which is any value
+of `DRY_RUN` other than `false`, because every render step throws when it is
+empty:
 
 ```bash
 ssh <user>@<vps-ip> 'cd ~/community/automation/infra
@@ -658,11 +659,12 @@ Anyone who can install apps in the OSE Slack workspace can do this.
    collaborator leaves the workspace, nobody can rotate or reinstall the app
    and the token has to be recreated from scratch under a new app.
 3. Under **Features**, open **OAuth & Permissions**, scroll to **Scopes**,
-   and add one **Bot Token Scope**: `chat:write`. That is the whole
-   requirement: the two nodes only post messages. n8n's documentation
-   suggests a much longer list for general use. Do not add it: every extra
-   scope widens what a leaked token can do without adding anything the
-   pipeline uses.
+   and add two **Bot Token Scopes**: `chat:write` and `reactions:write`.
+   That is the whole requirement: the pipeline posts a message per
+   application and a reply per stage, and marks the parent message with a
+   reaction as each stage lands. n8n's documentation suggests a much longer
+   list for general use. Do not add it: every extra scope widens what a
+   leaked token can do without adding anything the pipeline uses.
 4. At the top of the same page, choose **Install to Workspace** and allow
    the request. The page then shows a **Bot User OAuth Token**, starting
    with `xoxb-`. That is the value n8n needs. Treat it like a password from
@@ -702,19 +704,38 @@ person knows the app already exists instead of creating a second one.
    incompletely or the app was not installed to the workspace. A success
    proves only that the token is valid. The scope and the channel are
    proven in [Confirm by effect](#confirm-by-effect-1).
-6. Attach the credential to the two nodes that use it. They are the only
-   places the pipeline talks to Slack:
+6. Attach the credential to the fifteen Slack nodes. They are the only
+   places the pipeline talks to Slack, and every one of them needs it:
 
    | Workflow | Node |
    |---|---|
-   | `apply 3 — follow-up` | **Notify Slack** |
-   | `apply 4 — application form` | **Notify Slack** |
+   | `apply 1a — intake` | **Post application parent message to Slack** |
+   | `apply 1a — intake` | **Reply with the decision in thread** |
+   | `apply 1a — intake` | **React with the decision on the parent** |
+   | `apply 1b — daily catch-up` | **Post application parent message to Slack** |
+   | `apply 1b — daily catch-up` | **Reply with the decision in thread** |
+   | `apply 1b — daily catch-up` | **React with the decision on the parent** |
+   | `apply 2 — AI review` | **Reply with the AI review in thread** |
+   | `apply 2 — AI review` | **React with eyes on the parent** |
+   | `apply 3 — follow-up` | **Reply that the invitation was sent** |
+   | `apply 3 — follow-up` | **Reply that the reminder was sent** |
+   | `apply 3 — follow-up` | **Reply that the applicant went silent** |
+   | `apply 3 — follow-up` | **React with an alarm on the parent** |
+   | `apply 4 — application form` | **Reply that the form was submitted** |
+   | `apply 4 — application form` | **React with a clipboard on the parent** |
+   | `apply 5 — application summary` | **Reply with the summary in thread** |
 
    Open each workflow, open the node, pick `slack-bot` under
-   **Credential to connect with**, and save the workflow. Then export both
-   workflows into `automation/n8n/` so the exports carry the reference. From
-   then on a re-import resolves the credential by name, as the Open
-   Collective nodes already do.
+   **Credential to connect with**, and save the workflow. Then export every
+   changed workflow into `automation/n8n/` so the exports carry the
+   reference. From then on a re-import resolves the credential by name, as
+   the Open Collective nodes already do.
+
+   Count the table against what you have attached before moving on. A node
+   left without the credential does not complain: every Slack node carries
+   `onError: continueRegularOutput`, so one unreachable row cannot abort a
+   run, and the same setting turns a missing credential into a green
+   execution that posted nothing.
 
 ### Set the channel
 
@@ -752,18 +773,28 @@ and the post fails with `channel_not_found`.
 
 ### Confirm by effect
 
-While `DRY_RUN` is true the pipeline never reaches its Slack nodes: the
-render step in front of each one redirects the message to
-`DRY_RUN_RECIPIENT` by email, with the channel it would have used in the
-subject. So a dry-run rehearsal proves the rendering and the routing, and
-proves nothing about the token or the channel membership.
+`DRY_RUN` does not gate Slack. The thread is the reviewers' own log, internal
+to the team and carrying no applicant address, so every message and reaction
+posts to `SLACK_CHANNEL` for real, a dry-run rehearsal included. That makes the
+rehearsal the test. Let one application through intake and watch the channel: a
+parent message appears, and each stage that follows replies in its thread and
+marks the parent with a reaction. That proves the token, both scopes and the
+channel membership together.
 
-To prove those, create a throwaway workflow in n8n with a **Manual
-Trigger** and one **Slack** node, resource **Message**, operation **Send**,
-credential `slack-bot`, channel set to the same value as `SLACK_CHANNEL`,
-and any text. Execute it once. A message appearing in the channel is the
-confirmation. Delete the throwaway workflow afterwards so it never shows up
-in the workflow list as a real one.
+Watch for the silent case. Every Slack node carries
+`onError: continueRegularOutput`, so a missing credential, a revoked token or a
+channel the bot was never invited to fails without failing the run. The
+execution is green and the channel is empty. An application that reached a stage
+with nothing in Slack to show for it is that symptom. Open the execution and the
+Slack node carries the real error, usually `not_in_channel`, `invalid_auth` or
+`missing_scope`.
+
+To test before an application exists, create a throwaway workflow in n8n with a
+**Manual Trigger** and one **Slack** node, resource **Message**, operation
+**Send**, credential `slack-bot`, channel set to the same value as
+`SLACK_CHANNEL`, and any text. Execute it once. A message appearing in the
+channel is the confirmation. Delete the throwaway workflow afterwards so it
+never shows up in the workflow list as a real one.
 
 ### Rotate
 
@@ -885,11 +916,12 @@ token and fails or gets rewritten at Proton's side, not silently accepted.
 
 ### Confirm by effect
 
-Unlike Slack, the dry run exercises SMTP for real: while `DRY_RUN` is true
-every email still goes out, to `DRY_RUN_RECIPIENT` instead of the applicant.
-So the first dry-run rehearsal is the test. A message arriving at
-`DRY_RUN_RECIPIENT` from `home@opensourceeurope.org` proves the token, the
-port settings and the From address together.
+A dry run exercises SMTP for real: while applicant email is suppressed, which
+is any value of `DRY_RUN` other than `false`, every message still goes out, to
+`DRY_RUN_RECIPIENT` instead of the applicant. So the first dry-run rehearsal is
+the test. A message arriving at `DRY_RUN_RECIPIENT` from
+`home@opensourceeurope.org` proves the token, the port settings and the From
+address together.
 
 To test earlier, create a throwaway workflow with a **Manual Trigger** and
 one **Send Email** node using `smtp-proton`, From set to the same value as

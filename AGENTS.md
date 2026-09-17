@@ -104,12 +104,25 @@ The rules below are the OSE-specific invariants on top of that skill:
   private address still passes; what makes that tolerable is that nothing on the
   box listens on a private interface over HTTPS. Widen this and that reasoning
   has to be redone.
-- **Every applicant-facing email site checks `DRY_RUN`.** Each email node is fed by a
-  render Code node that reads `DRY_RUN`: when true, the message goes to
-  `DRY_RUN_RECIPIENT` with the intended recipient named in the subject, and the row
-  update that follows sets `dry_run`. Copy this pattern for every new email send. Slack
-  messages and reactions are internal, carry no applicant address, and always post to
-  `SLACK_CHANNEL`, in a dry run as well.
+- **Every applicant-facing email site checks `DRY_RUN`, and the check fails safe.** Each
+  email node is fed by a render Code node that reads `DRY_RUN`: the pipeline suppresses
+  applicant email unless the variable is explicitly and exactly `false`, after trimming
+  and lowercasing. A suppressed message goes to `DRY_RUN_RECIPIENT` with the intended
+  recipient named in the subject, and the row update that follows sets `dry_run`. Unset,
+  empty, `1`, `yes` and `true ` with a trailing space all suppress, so a dropped or
+  mistyped line in `.env` cannot quietly start mailing real applicants. Going live is the
+  deliberate act of writing `DRY_RUN=false`. Copy this pattern, the inversion included,
+  for every new email send. Slack messages and reactions are internal, carry no applicant
+  address, and always post to `SLACK_CHANNEL`, in a dry run as well.
+- **Applicant text is data, not Slack markup.** Slack reads `<...>` as a control
+  sequence, so an applicant who writes `<!channel>` or
+  `<https://evil.example|opencollective.com/theirs>` into a collective description or a
+  form answer gets a mention or a masked link in the reviewers' channel. Every Code node
+  that builds Slack text escapes `&` to `&amp;`, `<` to `&lt;` and `>` to `&gt;`, `&`
+  first, on the values that come from an applicant, a collective's public page or a
+  model. The fixed wording is left alone so it keeps its `*bold*` and its emoji. Copy the
+  `escapeSlack` helper the render nodes already share rather than writing a second
+  spelling of it.
 - **Every stage change replies in the application's Slack thread.** The parent message is
   posted by apply 1a or 1b and its channel and timestamp live on the row in
   `slack_channel_id` and `slack_thread_ts`. A stage that has no reply in Slack is
