@@ -10,7 +10,9 @@
         0,
         -120
       ],
-      "parameters": {}
+      "parameters": {
+        "inputSource": "passthrough"
+      }
     },
     {
       "id": "a1b2c3d4-0002-4a1b-8c1d-000000000002",
