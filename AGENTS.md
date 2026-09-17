@@ -170,15 +170,16 @@ The rules below are the OSE-specific invariants on top of that skill:
   `[ERROR: invalid syntax]` in the UI and `validate_workflow` does not catch
   it. This is about braces nested inside the expression body. The expression's
   own closing delimiter is always `}}`.
-- **n8n's attribution stays on published pages.** The application form keeps
-  n8n's "Form automated with n8n" line. Slack messages and applicant email do
-  not: those are internal and counterparty messages, and n8n is credited in the
-  documentation instead. Turning it off is a supported n8n feature, the
-  `appendAttribution` option, documented and shipped in the free product, so
-  doing so is not a licence breach and nothing here should be read as saying it
-  is. Keeping it on a published page is a choice, not an obligation. n8n's
-  white-labelling agreement is a separate matter and covers embedding the n8n
-  editor, which this project does not do.
+- **n8n is credited in the documentation, not in every message.** The
+  `appendAttribution` option is off on the form, the applicant emails and the
+  Slack messages. That is a supported n8n feature, documented and shipped in the
+  free product, so switching it off is not a licence breach: the clause about not
+  removing the licensor's notices is aimed at stripping them from the software,
+  not at using a setting n8n built and labelled. n8n's white-labelling agreement
+  is a separate matter and covers embedding the n8n editor, which this project
+  does not do. The credit belongs somewhere a reader will actually see it, so
+  name n8n in the public documentation and in the AI and tooling policy, and keep
+  it accurate as the stack changes.
 - **Never activate a workflow without asking.** New and changed workflows are
   deployed inactive; activation is the user's explicit call, every time.
 
