@@ -44,7 +44,8 @@ the workflow list reads in pipeline order. The export files use short names.
 | `apply 1b — daily catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
 | `apply 2 — AI review` | `review.json` | `SWEEP_CRON` | Writes an advisory verdict on every row at stage `applied`. |
 | `apply 3 — follow-up` | `followup.json` | `SWEEP_CRON` | Sends the form invitation for every reviewed row. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
-| `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table, answers persist after every page, and a submission notifies Slack. |
+| `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table, answers persist after every page, and a submission puts the applicant's answers in the application's Slack thread. |
+| `apply 5 — application summary` | `summary.json` | `SUMMARY_CRON` | Reads a submitted form and the project's README, then posts a description and the gaps a reviewer should ask about into the thread. Advisory, like the review: it never recommends a decision. |
 
 One application flows through the workflows in this order:
 
@@ -56,8 +57,9 @@ flowchart TD
     A1a --> A2["apply 2 — AI review<br>writes the advisory verdict"]
     A1b --> A2
     A2 --> A3["apply 3 — follow-up<br>emails the form invitation<br>(reminds and escalates if it stays quiet)"]
-    A3 --> A4["apply 4 — application form<br>the applicant answers,<br>reviewers get a Slack ping"]
-    A4 --> HUMAN(["A human approves or rejects<br>on Open Collective"])
+    A3 --> A4["apply 4 — application form<br>the applicant answers,<br>their answers go to the Slack thread"]
+    A4 --> A5s["apply 5 — application summary<br>reads the README,<br>summarises it in the thread"]
+    A5s --> HUMAN(["A human approves or rejects<br>on Open Collective"])
     HUMAN --> A5["apply 1a or 1b, decision branch<br>records the outcome"]
     A5 --> END(["Applicant receives<br>the closing email"])
 ```
