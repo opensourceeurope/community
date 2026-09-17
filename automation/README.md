@@ -88,7 +88,7 @@ Each sweep advances an application by one stage, and all three sweeps share
 fresh application does not reach the invitation email on the first tick: the
 catch-up creates the row while the AI review is already running and sees
 nothing yet. The verdict lands on the second tick and the invitation on the
-third. At the default `0 6 * * *` that is three mornings.
+third. At the default `0 7 * * *` that is three mornings.
 
 This only bites on an application's first run, and it is the price of
 workflows that coordinate through the row rather than calling each other: any
