@@ -94,11 +94,16 @@ The rules below are the OSE-specific invariants on top of that skill:
   make.** apply 5 fetches a README from the repository they named, which is the
   only place the pipeline reaches a host of someone else's choosing. It is
   `https` only, never an IP literal, never `localhost` or a `.local` or
-  `.internal` name, at most three redirects, ten seconds, and the body is capped
-  and truncated before a model sees it. A Code node cannot resolve DNS, so a
-  hostname pointing at a private address still passes; what makes that
-  tolerable is that nothing on the box listens on a private interface over
-  HTTPS. Widen this and that reasoning has to be redone.
+  `.internal` name, and no redirects at all: a repository link resolves in one
+  hop or it does not resolve, because every host check runs on the first URL and
+  a redirect would hand the applicant's server the choice of where the request
+  lands. The body is fetched as text so that nothing parses it, and only its
+  first 8000 characters reach a model. n8n's HTTP helper has no response size
+  option to set, so the ten second timeout and that truncation are the only
+  bounds on it. A Code node cannot resolve DNS, so a hostname pointing at a
+  private address still passes; what makes that tolerable is that nothing on the
+  box listens on a private interface over HTTPS. Widen this and that reasoning
+  has to be redone.
 - **Every applicant-facing email site checks `DRY_RUN`.** Each email node is fed by a
   render Code node that reads `DRY_RUN`: when true, the message goes to
   `DRY_RUN_RECIPIENT` with the intended recipient named in the subject, and the row
