@@ -92,8 +92,10 @@ The question IDs of `form-ose`, in page order. Page 2 has `repository_url`,
 `project_website`, `licence` and `open_development`. `project_website` is
 optional and absent from any row submitted before it was added, so anything
 reading it must tolerate the key being missing rather than empty. Page 3 has
-`operating_duration`, `fundraising_to_date`, `fundraising_goal` and
-`funding_sources`. Page 4 has
+`legal_entity`, `legal_entity_detail`, `operating_duration`,
+`fundraising_to_date`, `fundraising_goal` and `funding_sources`.
+`legal_entity_detail` is optional and only meaningful when `legal_entity` is
+`Yes`. Page 4 has
 `activities`, `mission_fit` and `notes`.
 
 Page 1 asks only `contact_email` and the collective URL, which are stored as
