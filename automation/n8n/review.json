@@ -204,7 +204,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "58f1702a-b9be-4671-8cd8-88be052a143e"
+      "webhookId": "58f1702a-b9be-4671-8cd8-88be052a143e",
+      "disabled": false
     },
     {
       "id": "19ca996a-b3c0-4599-a060-fc9f416c3016",
@@ -236,7 +237,8 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "webhookId": "1c4f4f7f-0239-4723-b0cf-0b8918123171"
+      "webhookId": "1c4f4f7f-0239-4723-b0cf-0b8918123171",
+      "disabled": false
     }
   ],
   "connections": {
