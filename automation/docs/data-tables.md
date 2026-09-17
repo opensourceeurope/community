@@ -88,10 +88,19 @@ In order through a normal application, plus the escalation branch:
 `page` is the last page these responses cover. `responses` accumulates across
 pages as the applicant progresses, keyed by question ID.
 
-The question IDs of `form-ose`, in page order. Page 2 has `repository_url`,
-`project_website`, `licence` and `open_development`. `project_website` is
-optional and absent from any row submitted before it was added, so anything
-reading it must tolerate the key being missing rather than empty. Page 3 has
+The question IDs of `form-ose`, in page order. Page 1 contributes
+`applicant_type`, the answer to `What are you applying as?`, which is asked on
+every path.
+
+Page 2 depends on that answer. A single project, or a group of projects,
+is asked `repository_url`, `project_website`, `licence` and
+`open_development`. A community, meetup or events collective is asked
+`community_home`, `community_open` and `project_website` instead, because it
+has no codebase to name. A key the applicant was never asked is stored empty,
+and on a row written before its question existed it is missing altogether, so
+anything reading `repository_url`, `licence`, `open_development`,
+`community_home`, `community_open` or `project_website` has to tolerate both.
+Page 3 has
 `legal_entity`, `legal_entity_detail`, `operating_duration`,
 `fundraising_to_date`, `fundraising_goal`, `funding_sources`,
 `expected_expenses` and `payee_countries`.
@@ -99,8 +108,9 @@ reading it must tolerate the key being missing rather than empty. Page 3 has
 `Yes`. Page 4 has
 `activities`, `mission_fit` and `notes`.
 
-Page 1 asks only `contact_email` and the collective URL, which are stored as
-columns, not in `answers`. The questions adapt the documented application
+Page 1 asks `contact_email` and the collective URL, which are stored as
+columns rather than in `answers`, and the applicant type, which is stored in
+`answers` as `applicant_type`. The questions adapt the documented application
 questions and add the open source evidence the advisory emails point
 applicants at: repository, licence, and open development.
 

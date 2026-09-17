@@ -147,10 +147,10 @@ The rules below are the OSE-specific invariants on top of that skill:
   workflow, refresh the exports, and re-validate — a half-updated reference
   fails silently, not loudly.
 - **A new form question lands in five places, not one.** The form pages do not
-  accumulate answers: each page rebuilds the whole answers object by reaching
-  back to the earlier pages by node name. So a field added to page 2 must also
-  go into `Persist page 2`, `Persist page 3` and `Record submission`, and a field
-  added to page 3 into `Persist page 3` and `Record submission`. Then two
+  accumulate answers: every storage node rebuilds the whole answers object from
+  a hardcoded key list. So a field added to page 2 must also go into
+  `Persist page 2`, `Persist page 3` and `Record submission`, and a field added
+  to page 3 into `Persist page 3` and `Record submission`. Then two
   hardcoded label lists read those keys and will silently omit anything missing
   from them: `Render submission thread reply` in apply 4, which is what a
   reviewer reads in Slack, and `Render summary request` in apply 5, which is what
@@ -161,6 +161,18 @@ The rules below are the OSE-specific invariants on top of that skill:
   Leave that element's `elementName` empty and it stays out of the form
   output, which is what keeps it out of `answers` and off the five places
   above.
+- **Page 2 is two nodes, and nothing may reach back past that branch.** The page
+  1 question `What are you applying as?` sends a community, meetup or events
+  applicant to `Form page 2 for communities` and everyone else to `Form page 2`,
+  so on any given run one of the two never executes. A `$('Form page 2')`
+  reference on the community branch resolves to nothing, and the answer is gone
+  with no error anywhere. That is why `Persist page 2` reads its page 2 answers
+  from `$json`, whichever node just ran, and why `Persist page 3` and
+  `Record submission` read them from `Read the stored answers`, the row both
+  branches wrote. Page 3 and page 4 are on every path, so those two are still
+  referenced by node name. A new page 2 question goes on whichever variant it
+  belongs to, and its key still lands in all three storage expressions and both
+  label lists.
 - **The form's field labels are part of the emailed link.** n8n keys prefill
   query parameters on a field's label, so the invitation and reminder emails
   build a link containing the page 1 label `Your collective's Open Collective
