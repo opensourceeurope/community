@@ -227,8 +227,12 @@ The rules below are the OSE-specific invariants on top of that skill:
   instance still runs against production Open Collective data, and DRY_RUN is
   the control that keeps mail off real applicants. It is not a control on state:
   a test run still advances real rows, so an application marked `form_invited`
-  during a test never receives a real invitation afterwards. Clear the
-  timestamps of any row a test touched, or delete the row.
+  during a test never receives a real invitation afterwards. Worse, submitting
+  the form during a rehearsal writes the tester's address into `contact_email`,
+  and the closing email prefers that over `applicant_email`, so the real
+  applicant would never be told the outcome. Delete any row a rehearsal
+  touched rather than trying to repair it: the sweep recreates it from Open
+  Collective, and clearing timestamps alone leaves the address behind.
 - **Email copy lives in `automation/emails/*.md`** and is embedded verbatim
   in the render step of whichever workflow sends it — change both in the same
   PR, and refresh the export of every changed workflow into `automation/n8n/`
