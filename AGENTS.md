@@ -21,6 +21,16 @@ This repository is the home for community-related discussions, governance proces
   over the branch; a worktree pins one branch to one directory.
 - `.claude/scripts/worktree.sh list` / `rm <branch-name>` manage them. `.worktrees/` is
   gitignored.
+- **A squash merge ends the branch. Check before you push to it again.** Pull
+  requests here are squash-merged, so the branch's own commits never appear in
+  `main` and `git log origin/main..HEAD` keeps listing them as if nothing had
+  landed. Work pushed to that branch afterwards belongs to no open pull request
+  and is invisible until someone asks. This has already happened: seven commits
+  sat orphaned while every one of them was live on the n8n instance, so `main`
+  described a pipeline that no longer existed. Before continuing on a branch,
+  run `gh pr view <n> --json state`, and open a new pull request rather than
+  pushing into a merged one. Compare content, not commits: the squashed commits
+  will always look missing.
 
 ## Handling Secrets
 
