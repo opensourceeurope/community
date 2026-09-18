@@ -749,7 +749,7 @@
     },
     {
       "id": "892e0f31-359c-4b29-8046-aa79ed11c1d9",
-      "name": "React with a clipboard on the parent",
+      "name": "React that a decision is needed",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
@@ -765,7 +765,7 @@
           "value": "={{ $('Render submission thread reply').item.json.channel }}"
         },
         "timestamp": "={{ $('Render submission thread reply').item.json.thread_ts }}",
-        "name": "clipboard"
+        "name": "point_right"
       },
       "credentials": {
         "slackApi": {
@@ -1134,18 +1134,7 @@
       "main": [
         [
           {
-            "node": "React with a clipboard on the parent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "React with a clipboard on the parent": {
-      "main": [
-        [
-          {
-            "node": "Ask apply 5 for a summary now",
+            "node": "React that a decision is needed",
             "type": "main",
             "index": 0
           }
@@ -1186,6 +1175,17 @@
         [
           {
             "node": "Form page 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "React that a decision is needed": {
+      "main": [
+        [
+          {
+            "node": "Ask apply 5 for a summary now",
             "type": "main",
             "index": 0
           }
