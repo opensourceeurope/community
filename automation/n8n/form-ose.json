@@ -315,8 +315,13 @@
           "values": [
             {
               "fieldLabel": "Repository URL",
-              "placeholder": "https://github.com/your-project",
+              "placeholder": "https://your-git-host/your-project",
               "requiredField": true
+            },
+            {
+              "fieldLabel": "",
+              "fieldType": "html",
+              "html": "<p>Any public git host is fine. GitHub, GitLab, Codeberg, or your own Forgejo or Gitea instance.</p>"
             },
             {
               "fieldLabel": "Project website (optional)",
