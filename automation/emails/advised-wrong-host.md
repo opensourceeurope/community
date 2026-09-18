@@ -10,18 +10,18 @@ that:
 
 {{ ai_applicant_message }}
 
-That is a machine's reading of a short description — not a decision, and it may
-simply be wrong. A person will review your application either way.
+That is a machine's reading of a short description. It is not a decision, and
+it may simply be wrong. A person will review your application either way.
 
 The next step is the same for everyone: our application form.
 
 {{ form_url }}
 
-If the note above missed the point of your project, the form is exactly where
-to set the record straight — the more detail you give, the better the human
-review. And if the other host really is the better fit, applying there instead
-is completely fine.
+Filling in that form carefully is the single most useful thing you can do. It
+is where a wrong first impression gets corrected, and it is what the human
+review works from. And if the other host really is the better fit, applying
+there instead is completely fine.
 
-Questions or disagreement — reply to this email and a reviewer will read it.
+Questions or disagreement? Reply to this email and a reviewer will read it.
 
 — {{ org_name }}
