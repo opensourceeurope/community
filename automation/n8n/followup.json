@@ -56,7 +56,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1104,
+        1552,
         -208
       ],
       "parameters": {
@@ -71,7 +71,7 @@
           "conditions": [
             {
               "keyName": "slug",
-              "keyValue": "={{ $('Get reviewed rows').item.json.slug }}"
+              "keyValue": "={{ $('Render form invitation').item.json.slug }}"
             }
           ]
         },
@@ -294,7 +294,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
+        1120,
         -208
       ],
       "parameters": {
@@ -309,7 +309,7 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        880,
+        1328,
         -208
       ],
       "parameters": {
@@ -384,7 +384,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1328,
+        1776,
         -208
       ],
       "parameters": {
@@ -398,7 +398,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        1552,
+        2000,
         -208
       ],
       "parameters": {
@@ -569,6 +569,99 @@
       "waitBetweenTries": 5000,
       "webhookId": "8213b850-93b2-407c-9f08-f63b12a808c7",
       "disabled": false
+    },
+    {
+      "id": "fb4dddbe-943d-412f-8621-f63c949e7c26",
+      "name": "Follow-up requested",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        -208
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "notes": "apply 2 calls this when it has written verdicts, so an application reaches the invitation in the same pass rather than waiting for the next sweep. It enters at the invitation branch only. The reminder and the escalation stay on the sweep alone, because running them more often is what would duplicate a reminder email."
+    },
+    {
+      "id": "36da8f06-54c0-476d-b024-185bb9495740",
+      "name": "Claimable for the invitation?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        -208
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "672c44bb-87ef-4a54-b94c-5f20f38b9a4f",
+              "leftValue": "={{ !$json.form_invite_claimed_at || DateTime.fromJSDate(new Date($json.form_invite_claimed_at)) < $now.minus({ minutes: Number($env.STALE_CLAIM_MINUTES || 30) }) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "notes": "A row another run is already working is skipped. A claim older than STALE_CLAIM_MINUTES (30 when unset) is treated as abandoned, so a run that died cannot strand an application forever."
+    },
+    {
+      "id": "5b587c68-7aba-4080-97b6-732f0680e34a",
+      "name": "Claim the row for the invitation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        -208
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "condition": "eq",
+              "keyValue": "={{ $json.slug }}"
+            },
+            {
+              "keyName": "form_invite_claimed_at",
+              "condition": "eq",
+              "keyValue": "={{ $json.form_invite_claimed_at || null }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "form_invite_claimed_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "notes": "A compare-and-swap, not a hopeful write. The second condition is the value this run just read, null included, so only one of several runs can match. A conditional update that matches nothing returns an empty result and emits no items, which silently skips the row. Everything expensive, the email above all, sits downstream of this node."
     }
   ],
   "connections": {
@@ -597,7 +690,7 @@
       "main": [
         [
           {
-            "node": "Render form invitation",
+            "node": "Claimable for the invitation?",
             "type": "main",
             "index": 0
           }
@@ -757,6 +850,39 @@
         [
           {
             "node": "React with an alarm on the parent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claimable for the invitation?": {
+      "main": [
+        [
+          {
+            "node": "Claim the row for the invitation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim the row for the invitation": {
+      "main": [
+        [
+          {
+            "node": "Render form invitation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up requested": {
+      "main": [
+        [
+          {
+            "node": "Get reviewed rows",
             "type": "main",
             "index": 0
           }

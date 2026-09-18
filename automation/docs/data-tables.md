@@ -30,6 +30,7 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 | `applicant_email` | String | intake | The application's `customData` contact email when present, otherwise the first collective admin email visible to the host admin. The `collective.apply` webhook payload carries no application data, so intake reads all of this from the API. Personal data. |
 | `stage` | String | every workflow, as the application progresses | One of the nine stage values below. |
 | `applied_at` | Date | intake | The application's `createdAt` on Open Collective. |
+| `ai_review_claimed_at` | Date | AI review | When apply 2 took this row to work on. A claim, not a result. See "The three claim columns" below. |
 | `ai_verdict` | String | AI review | One of `fits`, `wrong_host`, `not_open_source`, `unclear`. See `automation/prompts/verdict.schema.json`. |
 | `ai_confidence` | Number | AI review | 0 to 1, from the verdict object. |
 | `ai_reasoning` | String | AI review | Reviewer facing explanation from the model. Never shown to the applicant. |
@@ -37,6 +38,7 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 | `ai_model` | String | AI review | The model identifier used for this review (`AI_MODEL`), so old verdicts stay traceable after a model or prompt change. |
 | `ai_reviewed_at` | Date | AI review | When the review ran. |
 | `contact_email` | String | form workflow | Given by the applicant on form page 1. Distinct from `applicant_email`. This is who the applicant says to contact, which may differ from the address the OC application came from. Personal data. |
+| `form_invite_claimed_at` | Date | follow-up | When apply 3 took this row to work on. A claim, not a result. See "The three claim columns" below. |
 | `form_invited_at` | Date | follow-up | When the invitation email was sent. The template varies by verdict, and every reviewed application is invited. |
 | `form_reminded_at` | Date | follow-up | When the `reminder` email was sent, after silence following the invite. Driven by `REMINDER_AFTER_MINUTES` and `SWEEP_CRON`. |
 | `form_page` | Number | form workflow | Which page of the multi page form the applicant has reached. Answers persist per page. |
@@ -49,10 +51,38 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 | `freshdesk_ticket_id` | String | none | Reserved for a possible future Freshdesk integration. No workflow writes it. |
 | `slack_channel_id` | String | intake | The channel holding this application's Slack thread. Written once, by whichever intake workflow created the row. |
 | `slack_thread_ts` | String | intake | The parent message's timestamp, which is the thread anchor. A Slack identifier, not a number: stored as a number it rounds and every reply fails. |
+| `ai_summary_claimed_at` | Date | apply 5 | When apply 5 took this row to work on. A claim, not a result. See "The three claim columns" below. |
 | `ai_summary` | String | apply 5 | The summary posted to the thread: the description, then the gaps as lines. Empty means apply 5 has not succeeded for this row, which is what makes its sweep idempotent. |
 | `ai_summary_model` | String | apply 5 | The model that produced it, so a summary stays traceable across a model change. |
 | `ai_summarised_at` | Date | apply 5 | When the summary was written. |
 | `readme_source` | String | apply 5 | `github`, `gitlab`, `generic` or `none`, so a reviewer can see whether the summary had a README to work from. |
+
+### The three claim columns
+
+`ai_review_claimed_at`, `form_invite_claimed_at` and `ai_summary_claimed_at`
+record that a workflow run has taken a row to work on. Every other timestamp
+here records something that happened to the application. These three record an
+intention, so read them as a lock and never as evidence that a review, an
+invitation or a summary exists. `ai_reviewed_at`, `form_invited_at` and
+`ai_summarised_at` are the columns that say the work was actually done.
+
+apply 2, apply 3 and apply 5 each stamp their column before the expensive step,
+which is the model call in apply 2 and apply 5 and the email in apply 3. The
+stamp is a conditional update whose filter names the value that run just read,
+null included, which makes it a compare and swap rather than a hopeful write.
+Of several runs starting at the same moment exactly one matches the row. The
+rest get an empty result back and skip that row in silence. That is what stops
+two sweeps paying for the same model call or putting a second copy of the same
+message in a thread.
+
+A claim older than `STALE_CLAIM_MINUTES`, 30 minutes when the variable is
+unset, is treated as abandoned and may be claimed again. A run that dies
+partway through therefore delays its application by that window instead of
+stranding it forever.
+
+Nothing ever clears a claim. A row that has been through all three stages keeps
+all three timestamps, and `stage` remains the record of where the application
+actually is.
 
 ### The nine `stage` values
 

@@ -139,7 +139,7 @@ Set up two things before you give Open Collective the URL:
 - `apply 1a — intake` is active. n8n serves the production `/webhook/` path
   only while the workflow is active, and an inactive workflow answers 404.
   Open Collective sends each delivery once, so one that lands on a 404 is
-  lost until the daily catch-up finds it.
+  lost until the catch-up finds it.
 
 Keep `DRY_RUN=true` throughout, so a real applicant cannot receive a test
 message while you wire this up.
@@ -158,7 +158,7 @@ The picker has no entry for `collective.rejected`. The API dispatches that
 activity to webhooks, the dashboard just never offers it. Two ways to cover
 rejections:
 
-- Leave it to the daily catch-up. It fetches decisions from the API, so a
+- Leave it to the catch-up. It fetches decisions from the API, so a
   rejection is recorded and the closing email goes out on the next sweep,
   up to a day after the decision.
 - Create the third webhook through the `createWebhook` GraphQL mutation.
@@ -547,7 +547,7 @@ is effectively lost — keep the copy of record in the shared password vault.
 
 ## The Open Collective host-admin credential
 
-The two intake workflows, `apply 1a — intake` and `apply 1b — daily catch-up`,
+The two intake workflows, `apply 1a — intake` and `apply 1b — catch-up`,
 read pending applications and decisions from the Open Collective GraphQL API.
 They authenticate with a personal token, stored in n8n's credential store
 under the name `oc-host-admin`.
@@ -601,8 +601,8 @@ the credential name in the **Name** field makes every API call anonymous.
    |---|---|
    | `apply 1a — intake` | **Fetch pending applications** |
    | `apply 1a — intake` | **Fetch application status** |
-   | `apply 1b — daily catch-up` | **Fetch pending applications** |
-   | `apply 1b — daily catch-up` | **Fetch application status** |
+   | `apply 1b — catch-up` | **Fetch pending applications** |
+   | `apply 1b — catch-up` | **Fetch application status** |
 
    The workflows reference the credential by name, so once a credential
    named exactly `oc-host-admin` exists, n8n resolves the reference on its
@@ -614,7 +614,7 @@ the credential name in the **Name** field makes every API call anonymous.
 
 ### Confirm by effect
 
-Open `apply 1b — daily catch-up` in the editor and execute the
+Open `apply 1b — catch-up` in the editor and execute the
 **Fetch pending applications** node. Use `apply 1b` for this test, not
 `apply 1a`: the intake workflow starts from the webhook trigger, so an
 execute there waits for a webhook call instead of running. To test inside
@@ -712,9 +712,9 @@ person knows the app already exists instead of creating a second one.
    | `apply 1a — intake` | **Post application parent message to Slack** |
    | `apply 1a — intake` | **Reply with the decision in thread** |
    | `apply 1a — intake` | **React with the decision on the parent** |
-   | `apply 1b — daily catch-up` | **Post application parent message to Slack** |
-   | `apply 1b — daily catch-up` | **Reply with the decision in thread** |
-   | `apply 1b — daily catch-up` | **React with the decision on the parent** |
+   | `apply 1b — catch-up` | **Post application parent message to Slack** |
+   | `apply 1b — catch-up` | **Reply with the decision in thread** |
+   | `apply 1b — catch-up` | **React with the decision on the parent** |
    | `apply 2 — AI review` | **Reply with the AI review in thread** |
    | `apply 2 — AI review` | **React with eyes on the parent** |
    | `apply 3 — follow-up` | **Reply that the invitation was sent** |
@@ -873,7 +873,7 @@ for the next person to find it.
    | Workflow | Node |
    |---|---|
    | `apply 1a — intake` | **Send decision email** |
-   | `apply 1b — daily catch-up` | **Send decision email** |
+   | `apply 1b — catch-up` | **Send decision email** |
    | `apply 3 — follow-up` | **Send form invitation** |
    | `apply 3 — follow-up` | **Send reminder** |
    | `apply 4 — application form` | **Send confirmation email** |
