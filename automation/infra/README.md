@@ -722,7 +722,7 @@ person knows the app already exists instead of creating a second one.
    | `apply 3 — follow-up` | **Reply that the applicant went silent** |
    | `apply 3 — follow-up` | **React with an alarm on the parent** |
    | `apply 4 — application form` | **Reply that the form was submitted** |
-   | `apply 4 — application form` | **React with a clipboard on the parent** |
+   | `apply 4 — application form` | **React that a decision is needed** |
    | `apply 5 — application summary` | **Reply with the summary in thread** |
 
    Open each workflow, open the node, pick `slack-bot` under
