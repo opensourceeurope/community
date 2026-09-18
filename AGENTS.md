@@ -204,6 +204,15 @@ The rules below are the OSE-specific invariants on top of that skill:
   referenced by node name. A new page 2 question goes on whichever variant it
   belongs to, and its key still lands in all three storage expressions and both
   label lists.
+- **You cannot check the form by fetching it, and n8n filters what it renders.**
+  The form is a client-rendered app, so the served HTML contains none of the
+  questions, the styling or the custom HTML. Grepping it proves nothing about
+  what an applicant sees, and claiming otherwise has already been done here and
+  been wrong. n8n also filters both the `customCss` and the Custom HTML
+  elements before rendering: a raw `<svg>` is stripped, which is why the
+  wordmark is a percent-encoded data URI. So anything beyond plain text in a
+  form field is verified by opening the page, not by reading the export back.
+  Saving without an error only proves n8n stored it.
 - **The form's field labels are part of the emailed link.** n8n keys prefill
   query parameters on a field's label, so the invitation and reminder emails
   build a link containing the page 1 label `Your collective's Open Collective
