@@ -449,7 +449,7 @@
             },
             {
               "fieldType": "html",
-              "html": "<p>It is important for us to know as it helps us understand the need of your collective.</p>"
+              "html": "<details><summary><small>Why we ask</small></summary><small>It is important for us to know as it helps us understand the need of your collective.</small></details>"
             },
             {
               "fieldLabel": "In which countries are most of the people who will be paid or reimbursed for expenses?",
@@ -458,7 +458,7 @@
             },
             {
               "fieldType": "html",
-              "html": "<p>It is important for us to know as it can be harder to send money to some countries. If you don't know, just let us know where you and your team are located.</p>"
+              "html": "<details><summary><small>Why we ask</small></summary><small>It is important for us to know as it can be harder to send money to some countries. If you don't know, just let us know where you and your team are located.</small></details>"
             }
           ]
         },
