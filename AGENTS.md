@@ -254,6 +254,17 @@ The rules below are the OSE-specific invariants on top of that skill:
   Run it locally before you push. Each check is there because that defect
   reached main at least once. It reads the exports, so it only sees what you
   exported: refresh them first or it is checking yesterday's workflow.
+- **There is no staging. Editing an active workflow publishes it.** One n8n
+  instance runs this pipeline and it is production. A save against an active
+  workflow becomes the running version immediately, so a change is live before
+  its pull request exists. The PR is the record, not the gate: it exists so the
+  exports match what is running, which is what a restore rebuilds from. Two
+  things follow. Never leave a workflow saved in a state that would be wrong if
+  a sweep fired that minute, which means giving a callee its trigger before
+  giving a caller its hand-off, and writing each workflow in one atomic update
+  rather than a sequence of partial ones. And refresh the exports in the same
+  sitting: a change that is live but unexported is a change that a restore
+  silently undoes.
 - **Never activate a workflow without asking.** New and changed workflows are
   deployed inactive; activation is the user's explicit call, every time.
 

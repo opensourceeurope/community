@@ -4,12 +4,15 @@ Hi,
 
 Thanks for applying to {{ org_name }} with {{ collective_name }}.
 
-One step left: please fill in our application form, which asks the things we need in
-order to review your project properly.
+An automated first read of your public Open Collective page raised nothing to pass on.
+That is not a decision. A person reviews every application.
+
+One step left: our application form. What you write there is what the human review works
+from, so the more detail you give, the better.
 
 {{ form_url }}
 
-It takes about ten minutes. If anything in it is unclear, reply to this email and a
-human will get back to you.
+It takes about ten minutes. If anything is unclear, reply to this email and a human will
+get back to you.
 
 — {{ org_name }}

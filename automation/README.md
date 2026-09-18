@@ -256,6 +256,21 @@ placeholders are `collective_name`, `org_name`, `form_url` and
 `ai_applicant_message`. See "Filling the email and prompt templates" in
 [`docs/data-tables.md`](docs/data-tables.md) for where each value comes from.
 
+Which invitation an applicant receives depends on the verdict, and the mapping
+is not one template per verdict:
+
+| Verdict | Template | Carries the AI note |
+|---|---|---|
+| `fits` | `step2-invite.md` | no |
+| `wrong_host` | `advised-wrong-host.md` | yes |
+| `not_open_source` | `advised-not-open-source.md` | yes |
+| `unclear` | `advised-not-open-source.md` | yes |
+
+`unclear` shares the not-open-source template because the useful advice is the
+same, which is to show the evidence in the form. A `fits` verdict still
+produces an `ai_applicant_message`, but nothing sends it: that template exists
+to get the applicant to the form without a machine's opinion in the way.
+
 These files are the source of truth. The workflow that sends each message
 embeds it verbatim, so an edit here also means updating that workflow and its
 export.
