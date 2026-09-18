@@ -104,7 +104,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
+        1120,
         0
       ],
       "parameters": {
@@ -118,7 +118,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
+        1344,
         0
       ],
       "parameters": {
@@ -132,7 +132,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
+        1568,
         0
       ],
       "parameters": {
@@ -146,7 +146,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        1344,
+        1792,
         0
       ],
       "parameters": {
@@ -177,7 +177,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1568,
+        2016,
         0
       ],
       "parameters": {
@@ -191,7 +191,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1792,
+        2240,
         0
       ],
       "parameters": {
@@ -205,7 +205,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        2016,
+        2464,
         0
       ],
       "parameters": {
@@ -243,7 +243,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        2352,
+        2800,
         0
       ],
       "parameters": {
@@ -283,13 +283,92 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2128,
+        2576,
         0
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
         "jsCode": "// The Slack node continues on error so one unreachable row cannot starve the others in the\n// same sweep. That means a failed post arrives here as an error object with no message.ts.\n// Writing ai_summary for it would record a summary that nobody can read, and the sweep\n// selects on ai_summary being empty, so the row would never be retried. Drop those items:\n// the row keeps an empty summary and the next scheduled run tries again.\nconst rendered = $('Render summary thread reply').all();\nreturn $input.all()\n  .map((item, index) => ({ item, source: rendered[index] ? rendered[index].json : null }))\n  .filter(({ item, source }) => Boolean(source) && Boolean(item.json && item.json.message && item.json.message.ts))\n  .map(({ source }) => ({ json: source }));\n"
       }
+    },
+    {
+      "id": "cdd22a0b-6089-457c-88cc-a226e4aab510",
+      "name": "Claimable for a summary?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "5a360b51-8a7a-49b2-b7cd-36b9e179c194",
+              "leftValue": "={{ !$json.ai_summary_claimed_at || DateTime.fromJSDate(new Date($json.ai_summary_claimed_at)) < $now.minus({ minutes: Number($env.STALE_CLAIM_MINUTES || 30) }) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "notes": "A row another run is already working is skipped. A claim older than STALE_CLAIM_MINUTES (30 when unset) is treated as abandoned, so a run that died cannot strand an application forever."
+    },
+    {
+      "id": "843e6782-6f4a-4d04-8ec6-3a4a43a2281b",
+      "name": "Claim the row for the summary",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "condition": "eq",
+              "keyValue": "={{ $json.slug }}"
+            },
+            {
+              "keyName": "ai_summary_claimed_at",
+              "condition": "eq",
+              "keyValue": "={{ $json.ai_summary_claimed_at || null }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ai_summary_claimed_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "notes": "A compare-and-swap, not a hopeful write. The second condition is the value this run just read, null included, so only one of several runs can match. A conditional update that matches nothing returns an empty result and emits no items, which silently skips the row. Two runs overlapping is how one application got two summaries in its thread. It also bounds a row whose Slack parent post failed: with no thread anchor its summary is discarded at the end, and the claim turns that from a README fetch and a model call on every tick into one attempt per stale window."
     }
   ],
   "connections": {
@@ -330,7 +409,7 @@
       "main": [
         [
           {
-            "node": "Choose the repository URL",
+            "node": "Claimable for a summary?",
             "type": "main",
             "index": 0
           }
@@ -419,6 +498,28 @@
         [
           {
             "node": "Store the summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claimable for a summary?": {
+      "main": [
+        [
+          {
+            "node": "Claim the row for the summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim the row for the summary": {
+      "main": [
+        [
+          {
+            "node": "Choose the repository URL",
             "type": "main",
             "index": 0
           }

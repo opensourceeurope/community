@@ -4,7 +4,7 @@
     {
       "id": "11a2b3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c",
       "name": "Review schedule",
-      "notes": "Runs on SWEEP_CRON. The stage filter (applied → reviewed) is the only re-review guard, and the only one needed: a row is charged for exactly one model call.",
+      "notes": "Runs on SWEEP_CRON, and apply 1a and 1b also call this workflow directly when they have created rows. The stage filter (applied to reviewed) keeps a row to one model call across sweeps. The claim below is what keeps two runs of the same minute from both paying for it.",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.4,
       "position": [
@@ -58,7 +58,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        660,
+        1100,
         0
       ],
       "parameters": {
@@ -75,7 +75,7 @@
       "maxTries": 3,
       "waitBetweenTries": 5000,
       "position": [
-        880,
+        1320,
         0
       ],
       "parameters": {
@@ -103,7 +103,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
+        1540,
         0
       ],
       "parameters": {
@@ -116,7 +116,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1320,
+        1760,
         0
       ],
       "parameters": {
@@ -160,7 +160,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1540,
+        1980,
         0
       ],
       "parameters": {
@@ -174,7 +174,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        1760,
+        2200,
         0
       ],
       "parameters": {
@@ -213,7 +213,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        1980,
+        2420,
         0
       ],
       "parameters": {
@@ -239,6 +239,127 @@
       "waitBetweenTries": 5000,
       "webhookId": "1c4f4f7f-0239-4723-b0cf-0b8918123171",
       "disabled": false
+    },
+    {
+      "id": "b2b34194-c93d-4c51-8f49-1019801c4fbb",
+      "name": "Review requested",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        180
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "notes": "apply 1a and apply 1b call this when they have created rows, so a new application is reviewed in the same pass rather than waiting for the next sweep. The schedule above is the safety net: a hand-off that never arrives costs one sweep interval, not an application."
+    },
+    {
+      "id": "2765fa22-bb97-4475-9302-30985c6260ed",
+      "name": "Claimable for review?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "9785b714-d3d3-49ec-92f4-a679a61f5f3a",
+              "leftValue": "={{ !$json.ai_review_claimed_at || DateTime.fromJSDate(new Date($json.ai_review_claimed_at)) < $now.minus({ minutes: Number($env.STALE_CLAIM_MINUTES || 30) }) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "notes": "A row another run is already working is skipped. A claim older than STALE_CLAIM_MINUTES (30 when unset) is treated as abandoned, so a run that died cannot strand an application forever."
+    },
+    {
+      "id": "6a557ca1-c3d4-4718-8f8f-427f8094220d",
+      "name": "Claim the row for review",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "condition": "eq",
+              "keyValue": "={{ $json.slug }}"
+            },
+            {
+              "keyName": "ai_review_claimed_at",
+              "condition": "eq",
+              "keyValue": "={{ $json.ai_review_claimed_at || null }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ai_review_claimed_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "notes": "A compare-and-swap, not a hopeful write. The second condition is the value this run just read, null included, so only one of several runs can match. A conditional update that matches nothing returns an empty result and emits no items, which silently skips the row. The model call sits downstream of this node, so a row is never paid for twice."
+    },
+    {
+      "id": "d127efce-62fd-452b-bd06-f8384671ace4",
+      "name": "Ask apply 3 to follow up now",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1980,
+        180
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "4HTkfX1viOXGmObT",
+          "cachedResultName": "apply 3 — follow-up: form invitation by verdict, one reminder, then Slack escalation"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "notes": "Fire and forget. It never waits and it never fails this workflow, so a verdict is written and posted whatever happens downstream. apply 3 reads the rows itself, so nothing is passed. Its own schedule still covers a hand-off that is lost.",
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -257,7 +378,7 @@
       "main": [
         [
           {
-            "node": "Build review request",
+            "node": "Claimable for review?",
             "type": "main",
             "index": 0
           }
@@ -304,6 +425,11 @@
             "node": "Render AI review thread reply",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Ask apply 3 to follow up now",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -324,6 +450,39 @@
         [
           {
             "node": "React with eyes on the parent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claimable for review?": {
+      "main": [
+        [
+          {
+            "node": "Claim the row for review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim the row for review": {
+      "main": [
+        [
+          {
+            "node": "Build review request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review requested": {
+      "main": [
+        [
+          {
+            "node": "Get rows awaiting review",
             "type": "main",
             "index": 0
           }

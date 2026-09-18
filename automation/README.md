@@ -46,10 +46,11 @@ a troubleshooting table of failures already hit in practice.
 coordinate through one Data table (`ose_applications`, keyed by collective
 slug). The row is the record: a workflow reads state from it and writes state
 back, rather than handing work to another workflow and trusting it to arrive.
-The one direct call is apply 4 to apply 5, which exists to make a summary
-immediate, and it is safe only because apply 5's schedule recovers anything
-that call loses. Each workflow sends its own emails and Slack messages, and
-every applicant-facing email checks `DRY_RUN` first.
+A workflow does start the next one directly, four times over, but the call
+carries no data and the caller never waits for it. It only saves the
+application a wait for the next tick, and every stage keeps its own schedule
+to recover a call that is lost. Each workflow sends its own emails and Slack
+messages, and every applicant-facing email checks `DRY_RUN` first.
 
 The automation serves Open Source Europe only. Open Collective Europe appears
 in one place: the AI review may suggest that a project fits OCE better.
@@ -61,8 +62,8 @@ the workflow list reads in pipeline order. The export files use short names.
 |---|---|---|---|
 | `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | Treats every OC webhook as a ping, because the payload carries no application data. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
 | `apply 1b — daily catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
-| `apply 2 — AI review` | `review.json` | `SWEEP_CRON` | Writes an advisory verdict on every row at stage `applied`. |
-| `apply 3 — follow-up` | `followup.json` | `SWEEP_CRON` | Sends the form invitation for every reviewed row. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
+| `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`. |
+| `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
 | `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. Answers persist after every page, and a submission puts them in the application's Slack thread. |
 | `apply 5 — application summary` | `summary.json` | A direct call from apply 4, and `SUMMARY_CRON` as the catch-up | Reads a submitted form and the project's README, then posts a description and the gaps a reviewer should ask about into the thread. Advisory, like the review: it never recommends a decision. |
 
@@ -83,18 +84,24 @@ flowchart TD
     A5 --> END(["Applicant receives<br>the closing email"])
 ```
 
-Each sweep advances an application by one stage, and all three sweeps share
-`SWEEP_CRON`. They fire at the same moment and do not call each other, so a
-fresh application does not reach the invitation email on the first tick: the
-catch-up creates the row while the AI review is already running and sees
-nothing yet. The verdict lands on the second tick and the invitation on the
-third. At the default `0 7 * * *` that is three mornings.
+An application moves through in one pass. Whichever intake creates the row
+starts the AI review as soon as the row has its Slack thread anchor, the
+review starts the follow-up as soon as it has written the verdict, and the
+invitation is sent in that same run. An application no longer waits a morning
+per stage.
 
-This only bites on an application's first run, and it is the price of
-workflows that coordinate through the row rather than calling each other: any
-one of them can fail without stranding the application. To move an
-application through in one sitting, click Execute on the sweeps in order,
-`apply 1b`, then `apply 2`, then `apply 3`.
+The schedules are what make that safe rather than fragile. Every stage keeps
+the cron it always had and still selects the rows its own stage owns, so a
+hand-off that never lands costs one sweep interval and nothing more. No stage
+waits for the stage it started, and a hand-off that fails is not an error for
+the caller.
+
+Sweeps landing together is also why every stage claims its row before working
+it. Three schedules on one cron means three runs over the same rows at the
+same moment, which is how one application got two summaries in its thread. A
+stage now stamps its claim column with a conditional update that only one run
+can win, and the runs that lose skip the row in silence. See "The three claim
+columns" in [`docs/data-tables.md`](docs/data-tables.md).
 
 `apply 1b — daily catch-up` exists because Open Collective delivers each
 webhook event only once. If the server is unreachable at that moment, the

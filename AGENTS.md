@@ -137,14 +137,32 @@ The rules below are the OSE-specific invariants on top of that skill:
   have one. Without it the row records something the thread never received, and
   because the sweeps select on that same field being empty, it is never retried.
 - **The row is the record, and anything triggered directly also has a sweep.**
-  Workflows coordinate through the `ose_applications` data table. apply 5 runs on
-  `SUMMARY_CRON` as its catch-up, and apply 4 calls it directly so that a summary
-  is immediate, which requires apply 5 to be activated first: n8n refuses to save
-  an active workflow that references a sub-workflow that has never been
-  activated. The sweep is what makes a direct trigger safe to add: a failure in
-  the hand-off must never lose an application. Stages move forward
-  only; writes are idempotent, so insert only when the slug is new and guard
-  terminal updates on the current stage.
+  Workflows coordinate through the `ose_applications` data table, and a hand-off
+  passes no data because the callee selects its own rows. Four hand-offs move an
+  application through in one pass: apply 1a and apply 1b call apply 2 once the
+  row has its Slack thread anchor, apply 2 calls apply 3 once it has written
+  verdicts, and apply 4 calls apply 5 so that a summary is immediate. Each one is
+  an Execute Workflow node with `waitForSubWorkflow` false and
+  `onError: continueRegularOutput`, so nothing blocks on a later stage and a
+  failed hand-off never fails the caller. Adding one requires the callee to be
+  activated first: n8n refuses to save an active workflow that references a
+  sub-workflow that has never been activated. Every stage keeps its schedule,
+  and that is what makes a direct trigger safe to add: a lost hand-off must cost
+  one sweep interval, never an application. Stages move forward only; writes are
+  idempotent, so insert only when the slug is new and guard terminal updates on
+  the current stage.
+- **A stage claims its row before it does the work.** Between selecting the
+  candidate rows and the first expensive step, the model call in apply 2 and
+  apply 5 or the email in apply 3, the workflow stamps its claim column with a
+  conditional update whose filter names the value it just read, null included.
+  That makes it a compare and swap rather than a hopeful write: a non-empty
+  result means this run won the row and does the work, an empty result means
+  another run claimed it first and the row is skipped in silence. Without it,
+  sweeps sharing one cron work the same rows in parallel, which is how one
+  application got two summaries in its thread. A claim older than
+  `STALE_CLAIM_MINUTES` is claimable again, so a run that dies cannot strand an
+  application. The three claim columns, and what separates a claim from a
+  result, are in `automation/docs/data-tables.md`.
 - **An active workflow cannot reference an unpublished sub-workflow.** n8n only
   creates a published version of a workflow the first time it is activated, and
   saving a change to an active workflow requires every sub-workflow its Execute
