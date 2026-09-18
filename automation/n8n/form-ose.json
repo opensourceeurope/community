@@ -765,7 +765,7 @@
           "value": "={{ $('Render submission thread reply').item.json.channel }}"
         },
         "timestamp": "={{ $('Render submission thread reply').item.json.thread_ts }}",
-        "name": "point_right"
+        "name": "point_up_2"
       },
       "credentials": {
         "slackApi": {
