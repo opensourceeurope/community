@@ -61,7 +61,7 @@ the workflow list reads in pipeline order. The export files use short names.
 | Workflow on the instance | Export | Trigger | What it does |
 |---|---|---|---|
 | `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | Treats every OC webhook as a ping, because the payload carries no application data. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
-| `apply 1b — daily catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
+| `apply 1b — catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
 | `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`. |
 | `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
 | `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. Answers persist after every page, and a submission puts them in the application's Slack thread. |
@@ -73,7 +73,7 @@ One application flows through the workflows in this order:
 flowchart TD
     START(["Applicant applies to OSE<br>on Open Collective"])
     START -->|"webhook"| A1a["apply 1a — intake<br>creates the application row"]
-    A1b["apply 1b — daily catch-up<br>asks the OC API for anything<br>the webhook missed"]
+    A1b["apply 1b — catch-up<br>asks the OC API for anything<br>the webhook missed"]
     A1a --> A2["apply 2 — AI review<br>writes the advisory verdict"]
     A1b --> A2
     A2 --> A3["apply 3 — follow-up<br>emails the form invitation<br>(reminds and escalates if it stays quiet)"]
@@ -103,7 +103,7 @@ stage now stamps its claim column with a conditional update that only one run
 can win, and the runs that lose skip the row in silence. See "The three claim
 columns" in [`docs/data-tables.md`](docs/data-tables.md).
 
-`apply 1b — daily catch-up` exists because Open Collective delivers each
+`apply 1b — catch-up` exists because Open Collective delivers each
 webhook event only once. If the server is unreachable at that moment, the
 event is lost and the application would never enter the pipeline. The
 catch-up asks the Open Collective API once a day for pending applications
@@ -241,7 +241,7 @@ invitation afterwards. Clear the timestamps of any row a test touched, or
 delete the row.
 
 One more thing about timers: they only fire when the sweep runs. A 5 minute
-reminder threshold on a daily sweep still takes a day to fire. Shorten
+reminder threshold on an hourly sweep still takes an hour to fire. Shorten
 `SWEEP_CRON` together with the thresholds, or click Execute on the sweep
 workflow in the n8n UI.
 

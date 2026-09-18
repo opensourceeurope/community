@@ -1,5 +1,5 @@
 {
-  "name": "apply 1b — daily catch-up: fetch applications and decisions the webhook missed",
+  "name": "apply 1b — catch-up: fetch applications and decisions the webhook missed",
   "nodes": [
     {
       "id": "a1b2c3d4-e5f6-4a7b-8c9d-1e2f3a4b5c6d",
