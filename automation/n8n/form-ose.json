@@ -314,14 +314,9 @@
         "formFields": {
           "values": [
             {
-              "fieldLabel": "Repository URL",
+              "fieldLabel": "Repository URL. Any public git host is fine. GitHub, GitLab, Codeberg, or your own Forgejo or Gitea instance.",
               "placeholder": "https://your-git-host/your-project",
               "requiredField": true
-            },
-            {
-              "fieldLabel": "",
-              "fieldType": "html",
-              "html": "<p>Any public git host is fine. GitHub, GitLab, Codeberg, or your own Forgejo or Gitea instance.</p>"
             },
             {
               "fieldLabel": "Project website (optional)",
@@ -382,7 +377,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "form_page": 2,
-            "answers": "={{ JSON.stringify({ page: 2, submitted_at: $now.toISO(), responses: { applicant_type: $('Form page 1').item.json['What are you applying as?'] || '', repository_url: $json['Repository URL'] || '', project_website: $json['Project website (optional)'] || '', licence: $json['Licence'] || '', open_development: $json['How does development happen in the open?'] || '', community_home: $json[\"Where can we see the community's work?\"] || '', community_open: $json['How is the community run in the open?'] || '' } }) }}"
+            "answers": "={{ JSON.stringify({ page: 2, submitted_at: $now.toISO(), responses: { applicant_type: $('Form page 1').item.json['What are you applying as?'] || '', repository_url: $json['Repository URL. Any public git host is fine. GitHub, GitLab, Codeberg, or your own Forgejo or Gitea instance.'] || '', project_website: $json['Project website (optional)'] || '', licence: $json['Licence'] || '', open_development: $json['How does development happen in the open?'] || '', community_home: $json[\"Where can we see the community's work?\"] || '', community_open: $json['How is the community run in the open?'] || '' } }) }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -418,52 +413,14 @@
               "requiredField": true
             },
             {
-              "fieldLabel": "If yes, what kind and in which country?",
-              "fieldType": "text",
-              "placeholder": "e.g. a German e.V., a Dutch stichting"
-            },
-            {
               "fieldLabel": "How long has the project been operating?",
               "placeholder": "e.g. two years, since 2021…",
               "requiredField": true
-            },
-            {
-              "fieldLabel": "How much have you raised so far, if anything?",
-              "placeholder": "Leave empty if you haven't started fundraising"
-            },
-            {
-              "fieldLabel": "What is your target fundraising amount?",
-              "placeholder": "A rough yearly figure is fine",
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "Who do you expect will fund the project?",
-              "fieldType": "textarea",
-              "placeholder": "Companies using it, individual donors, grants…",
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "What do you expect to be your expenses?",
-              "fieldType": "textarea",
-              "requiredField": true
-            },
-            {
-              "fieldType": "html",
-              "html": "<details><summary><small>Why we ask</small></summary><small>It is important for us to know as it helps us understand the need of your collective.</small></details>"
-            },
-            {
-              "fieldLabel": "In which countries are most of the people who will be paid or reimbursed for expenses?",
-              "fieldType": "text",
-              "requiredField": true
-            },
-            {
-              "fieldType": "html",
-              "html": "<details><summary><small>Why we ask</small></summary><small>It is important for us to know as it can be harder to send money to some countries. If you don't know, just let us know where you and your team are located.</small></details>"
             }
           ]
         },
         "options": {
-          "formTitle": "Operations and funding",
+          "formTitle": "Operations",
           "formDescription": "Concise answers are fine — a sentence or two each.",
           "buttonLabel": "Continue",
           "customCss": "@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap');\n\n/* Open Source Europe form styling.\n   Tokens mirror chat/styles.css in opensourceeurope/ose-knowledge-mcp, which\n   documents them against opensourceeurope.org. Keep the two in step. */\n:root {\n  --font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;\n  --font-weight-normal: 400;\n  --font-weight-bold: 600;\n  --font-size-header: 24px;\n  --font-size-label: 14px;\n  --font-size-input: 15px;\n  --font-size-paragraph: 15px;\n\n  --color-background: #0A242B;\n  --color-card-bg: #0E282F;\n  --color-card-border: rgba(255, 255, 255, 0.16);\n  --color-card-shadow: rgba(0, 0, 0, 0.30);\n\n  --color-header: #FFFFFF;\n  --color-header-subtext: rgba(255, 255, 255, 0.75);\n  --color-label: rgba(255, 255, 255, 0.75);\n  --color-link: #9FE7F5;\n  --color-html-text: rgba(255, 255, 255, 0.75);\n  --color-html-link: #9FE7F5;\n\n  --color-input-border: rgba(255, 255, 255, 0.16);\n  --color-input-text: #FFFFFF;\n  --color-focus-border: #9FE7F5;\n\n  /* Orange on white fails contrast, so the button carries dark ink text. */\n  --color-submit-btn-bg: #F27F0C;\n  --color-submit-btn-text: #0A242B;\n\n  --color-error: #F7AD1A;\n  --color-required: #F7AD1A;\n\n  --border-radius-card: 24px;\n  --card-border-radius: 24px;\n  --border-radius-input: 12px;\n\n  --container-width: 520px;\n  --box-shadow-card: 0 4px 24px 0 var(--color-card-shadow);\n}\n\n/* The wordmark, above the card, on every page of the form. The form is a\n   client-rendered app whose inner class names are not stable, so this hangs off\n   body rather than a component class. Embedded as a data URI so the form has no\n   external dependency: the file is chat/ose-logo.svg from the same repo as the\n   tokens above, white on transparent. */\nbody::before {\n  content: \"\";\n  display: block;\n  width: 119px;\n  height: 50px;\n  margin: 32px auto 4px;\n  background: url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='119' height='50' viewBox='0 0 119 50'%3E%3Cg clip-path='url(%23clip0_4657_431)'%3E%3Cpath d='M65.94 5.77C65.14 4.75 63.86 4.25 62.53 4.25C61.20 4.25 59.88 4.79 59.11 5.77C58.32 6.75 58.04 7.99 58.04 9.21C58.04 10.43 58.30 11.67 59.11 12.67C59.92 13.69 61.16 14.20 62.53 14.20C63.89 14.20 65.12 13.72 65.94 12.67C66.73 11.65 67.01 10.46 67.01 9.21C67.01 7.95 66.75 6.78 65.94 5.77ZM64.91 11.88C64.36 12.60 63.47 12.98 62.52 12.98C61.57 12.98 60.66 12.60 60.14 11.88C59.58 11.17 59.40 10.19 59.40 9.21C59.40 8.23 59.58 7.27 60.14 6.55C60.66 5.83 61.57 5.47 62.52 5.47C63.47 5.47 64.36 5.83 64.91 6.55C65.47 7.27 65.64 8.26 65.64 9.21C65.64 10.15 65.47 11.17 64.91 11.88Z' fill='%23FFFFFF'/%3E%3Cpath d='M81.17 11.88C81.71 12.60 82.62 12.98 83.57 12.98C84.24 12.98 84.85 12.83 85.38 12.50C85.87 12.17 86.25 11.73 86.53 11.17L87.75 11.62C87.36 12.48 86.75 13.14 86.03 13.58C85.31 14 84.45 14.21 83.61 14.21C82.26 14.21 80.95 13.68 80.16 12.67C79.37 11.67 79.09 10.45 79.09 9.26C79.09 8.08 79.37 6.76 80.16 5.77C80.98 4.75 82.21 4.25 83.58 4.25C84.94 4.25 86.08 4.72 86.90 5.75C87.73 6.78 87.95 8.14 87.92 9.59H80.47C80.50 10.43 80.70 11.25 81.17 11.88ZM81.19 6.50C80.75 7.06 80.56 7.76 80.49 8.49H86.57C86.52 7.70 86.36 7.04 85.92 6.48C85.39 5.78 84.48 5.42 83.57 5.42C82.65 5.42 81.74 5.76 81.18 6.50H81.19Z' fill='%23FFFFFF'/%3E%3Cpath d='M64.56 24.49C64.07 23.21 63.05 22.64 61.79 22.62C60.63 22.58 59.53 23.09 59.53 23.98C59.53 24.77 60.10 25.08 61.07 25.35C61.56 25.49 62.16 25.64 63.01 25.87C64.59 26.29 65.82 27.20 65.82 28.65C65.82 29.46 65.35 30.33 64.61 30.77C63.87 31.25 62.94 31.39 62.02 31.39C60.91 31.39 59.93 31.15 59.07 30.36C58.56 29.88 58.23 29.26 58.04 28.72L59.21 28.33C59.39 28.79 59.61 29.17 59.98 29.52C60.51 29.99 61.24 30.22 62.01 30.22C62.66 30.22 63.48 30.08 63.94 29.77C64.34 29.50 64.57 29.10 64.57 28.63C64.57 27.70 63.68 27.36 62.62 27.06C61.73 26.80 61.26 26.67 60.68 26.5C60.08 26.31 59.43 26.08 58.94 25.61C58.47 25.19 58.28 24.54 58.28 24.00C58.28 23.04 58.96 22.20 59.82 21.82C60.50 21.51 61.19 21.44 61.83 21.45C62.50 21.45 63.20 21.59 63.83 21.91C64.72 22.36 65.53 23.29 65.79 24.18L64.55 24.49L64.56 24.49Z' fill='%23FFFFFF'/%3E%3Cpath d='M68.29 29.87C67.48 28.87 67.22 27.65 67.22 26.41C67.22 25.17 67.50 23.95 68.29 22.97C69.06 21.99 70.34 21.45 71.71 21.45C73.07 21.45 74.32 21.96 75.12 22.97C75.93 23.98 76.19 25.21 76.19 26.41C76.19 27.61 75.91 28.86 75.12 29.87C74.30 30.92 73.07 31.41 71.71 31.41C70.34 31.41 69.10 30.90 68.29 29.87ZM74.09 23.75C73.55 23.04 72.65 22.67 71.71 22.67C70.76 22.67 69.85 23.04 69.32 23.75C68.76 24.47 68.59 25.47 68.59 26.41C68.59 27.36 68.76 28.37 69.32 29.08C69.85 29.80 70.76 30.19 71.71 30.19C72.65 30.19 73.55 29.80 74.09 29.08C74.65 28.37 74.83 27.39 74.83 26.41C74.83 25.43 74.65 24.47 74.09 23.75Z' fill='%23FFFFFF'/%3E%3Cpath d='M86.08 21.71V31.14H84.92V29.82C84.80 30.01 84.64 30.20 84.46 30.38C83.84 31.03 82.94 31.32 82.10 31.36C81.17 31.43 80.21 31.25 79.42 30.62C78.10 29.64 77.93 27.97 77.94 26.29V21.71H79.24V26.25C79.24 27.72 79.40 28.94 80.35 29.64C80.86 30.01 81.49 30.19 82.19 30.15C82.80 30.14 83.38 29.92 83.80 29.54C84.25 29.14 84.55 28.56 84.67 27.92C84.76 27.51 84.78 27.06 84.78 26.57V21.71H86.08V21.71Z' fill='%23FFFFFF'/%3E%3Cpath d='M101.92 24.47C101.73 23.94 101.32 23.44 100.85 23.14C100.38 22.81 99.82 22.67 99.22 22.67C98.27 22.67 97.41 23.04 96.87 23.78C96.31 24.49 96.15 25.47 96.13 26.43C96.15 27.39 96.31 28.37 96.87 29.09C97.41 29.81 98.27 30.19 99.22 30.19C99.81 30.19 100.39 30.05 100.88 29.72C101.35 29.42 101.67 28.99 101.90 28.46L103.18 28.83C102.86 29.60 102.35 30.30 101.69 30.73C100.97 31.20 100.20 31.42 99.22 31.42C97.80 31.42 96.64 30.93 95.84 29.88C95.03 28.86 94.79 27.64 94.77 26.44C94.78 25.19 95.05 23.97 95.84 22.97C96.66 21.94 97.80 21.45 99.24 21.45C100.13 21.45 100.86 21.63 101.59 22.06C102.31 22.52 102.92 23.22 103.18 24.06L101.92 24.47V24.47Z' fill='%23FFFFFF'/%3E%3Cpath d='M106.30 29.08C106.84 29.80 107.75 30.18 108.70 30.18C109.36 30.18 109.98 30.03 110.50 29.69C110.99 29.36 111.38 28.93 111.66 28.37L112.87 28.82C112.48 29.68 111.87 30.34 111.16 30.78C110.44 31.20 109.58 31.41 108.74 31.41C107.39 31.41 106.07 30.88 105.28 29.87C104.50 28.87 104.21 27.65 104.21 26.46C104.21 25.28 104.50 23.96 105.28 22.97C106.11 21.95 107.33 21.44 108.70 21.44C110.07 21.44 111.21 21.92 112.03 22.95C112.86 23.98 113.08 25.34 113.05 26.79H105.59C105.63 27.63 105.83 28.45 106.30 29.08ZM106.31 23.70C105.88 24.26 105.69 24.96 105.61 25.69H111.69C111.64 24.90 111.48 24.24 111.04 23.68C110.52 22.98 109.61 22.61 108.69 22.61C107.78 22.61 106.87 22.96 106.31 23.70H106.31Z' fill='%23FFFFFF'/%3E%3Cpath d='M60.00 43.88C60.54 44.59 61.45 44.98 62.40 44.98C63.07 44.98 63.68 44.82 64.20 44.49C64.69 44.16 65.08 43.72 65.36 43.17L66.57 43.62C66.19 44.47 65.57 45.14 64.86 45.58C64.14 46.00 63.28 46.20 62.44 46.20C61.09 46.20 59.77 45.68 58.99 44.67C58.20 43.67 57.91 42.44 57.91 41.26C57.91 40.07 58.20 38.76 58.99 37.76C59.81 36.75 61.03 36.24 62.40 36.24C63.77 36.24 64.91 36.71 65.73 37.75C66.56 38.78 66.78 40.14 66.75 41.59H59.30C59.33 42.43 59.53 43.25 60.00 43.88ZM60.01 38.50C59.58 39.06 59.39 39.75 59.31 40.49H65.39C65.34 39.70 65.18 39.04 64.74 38.48C64.22 37.78 63.31 37.41 62.39 37.41C61.48 37.41 60.57 37.76 60.01 38.50H60.01Z' fill='%23FFFFFF'/%3E%3Cpath d='M76.65 36.50V45.94H75.49V44.61C75.37 44.81 75.21 45 75.04 45.17C74.41 45.82 73.51 46.12 72.67 46.15C71.74 46.22 70.78 46.05 69.99 45.42C68.68 44.44 68.50 42.76 68.52 41.08V36.51H69.81V41.05C69.81 42.52 69.97 43.74 70.92 44.44C71.43 44.81 72.06 44.98 72.76 44.95C73.37 44.93 73.95 44.72 74.37 44.34C74.83 43.94 75.12 43.36 75.25 42.71C75.34 42.31 75.35 41.86 75.35 41.36V36.51H76.65V36.50Z' fill='%23FFFFFF'/%3E%3Cpath d='M86.41 44.67C85.60 43.67 85.34 42.44 85.34 41.21C85.34 39.97 85.62 38.75 86.41 37.77C87.18 36.79 88.46 36.25 89.82 36.25C91.19 36.25 92.43 36.75 93.24 37.77C94.05 38.78 94.31 40.00 94.31 41.21C94.31 42.41 94.03 43.65 93.24 44.67C92.42 45.71 91.19 46.20 89.82 46.20C88.46 46.20 87.21 45.69 86.41 44.67ZM92.21 38.55C91.66 37.83 90.77 37.46 89.82 37.46C88.88 37.46 87.97 37.83 87.44 38.55C86.88 39.26 86.70 40.26 86.70 41.20C86.70 42.15 86.88 43.16 87.44 43.88C87.97 44.59 88.88 44.98 89.82 44.98C90.77 44.98 91.66 44.59 92.21 43.88C92.77 43.16 92.94 42.18 92.94 41.20C92.94 40.22 92.77 39.26 92.21 38.55Z' fill='%23FFFFFF'/%3E%3Cpath d='M108.47 43.88C109.01 44.59 109.92 44.98 110.87 44.98C111.54 44.98 112.15 44.82 112.68 44.49C113.17 44.16 113.55 43.72 113.83 43.17L115.04 43.62C114.66 44.47 114.04 45.14 113.33 45.58C112.61 46.00 111.75 46.20 110.91 46.20C109.56 46.20 108.24 45.68 107.46 44.67C106.67 43.67 106.39 42.44 106.39 41.26C106.39 40.07 106.67 38.76 107.46 37.76C108.28 36.75 109.51 36.24 110.87 36.24C112.24 36.24 113.38 36.71 114.20 37.75C115.03 38.78 115.25 40.14 115.22 41.59H107.77C107.80 42.43 108.00 43.25 108.47 43.88ZM108.49 38.50C108.05 39.06 107.86 39.75 107.78 40.49H113.87C113.81 39.70 113.65 39.04 113.22 38.48C112.69 37.78 111.78 37.41 110.86 37.41C109.95 37.41 109.04 37.76 108.48 38.50H108.49Z' fill='%23FFFFFF'/%3E%3Cpath d='M77.77 9.31C77.77 8.07 77.50 6.83 76.67 5.78C75.90 4.79 74.69 4.24 73.38 4.24C73.35 4.24 73.10 4.24 73.07 4.24C71.96 4.24 70.80 4.63 69.96 5.37C69.56 5.72 69.25 6.18 69.06 6.68C68.85 7.26 68.85 7.87 68.85 8.47C68.83 10.16 68.85 10.62 68.85 11.67V18.22H70.12V13.29C70.93 14.03 72.01 14.41 73.19 14.41H73.33C74.66 14.41 75.87 13.87 76.67 12.86C76.87 12.60 77.04 12.33 77.18 12.04C77.61 11.20 77.77 10.28 77.77 9.31ZM73.22 12.98C72.27 12.98 71.36 12.60 70.83 11.88C70.27 11.17 70.10 10.19 70.10 9.21C70.10 8.23 70.27 7.27 70.83 6.55C71.36 5.83 72.27 5.47 73.22 5.47C74.00 5.47 74.74 5.72 75.29 6.21C75.39 6.31 75.50 6.42 75.59 6.55C76.11 7.25 76.30 8.22 76.30 9.20C76.30 10.18 76.13 11.18 75.60 11.88C75.06 12.59 74.17 12.98 73.22 12.98V12.98Z' fill='%23FFFFFF'/%3E%3Cpath d='M96.19 5.03C95.45 4.44 94.55 4.25 93.67 4.29C92.79 4.25 91.89 4.43 91.14 5.03C89.82 6.01 89.65 7.69 89.67 9.36V13.94H90.96V9.40C90.96 7.93 91.12 6.71 92.07 6.01C92.51 5.69 93.06 5.52 93.67 5.51C94.27 5.52 94.82 5.69 95.26 6.01C96.21 6.71 96.37 7.93 96.37 9.40V13.94H97.67V9.36C97.68 7.69 97.51 6.01 96.19 5.03Z' fill='%23FFFFFF'/%3E%3Cpath d='M10.09 15.68C13.53 15.68 16.32 12.90 16.32 9.47C16.32 6.04 13.53 3.26 10.09 3.26C6.65 3.26 3.86 6.04 3.86 9.47C3.86 12.90 6.65 15.68 10.09 15.68Z' fill='%23FFFFFF'/%3E%3Cpath d='M24.91 15.68C28.35 15.68 31.14 12.90 31.14 9.47C31.14 6.04 28.35 3.26 24.91 3.26C21.46 3.26 18.67 6.04 18.67 9.47C18.67 12.90 21.46 15.68 24.91 15.68Z' fill='%23FFFFFF'/%3E%3Cpath d='M39.72 15.68C43.16 15.68 45.95 12.90 45.95 9.47C45.95 6.04 43.16 3.26 39.72 3.26C36.28 3.26 33.49 6.04 33.49 9.47C33.49 12.90 36.28 15.68 39.72 15.68Z' fill='%23FFFFFF'/%3E%3Cpath d='M24.91 31.19C28.35 31.19 31.14 28.41 31.14 24.98C31.14 21.55 28.35 18.77 24.91 18.77C21.46 18.77 18.67 21.55 18.67 24.98C18.67 28.41 21.46 31.19 24.91 31.19Z' fill='%23FFFFFF'/%3E%3Cpath d='M10.09 31.19C13.53 31.19 16.32 28.41 16.32 24.98C16.32 21.55 13.53 18.77 10.09 18.77C6.65 18.77 3.86 21.55 3.86 24.98C3.86 28.41 6.65 31.19 10.09 31.19Z' fill='%23FFFFFF'/%3E%3Cpath d='M10.09 46.70C13.53 46.70 16.32 43.92 16.32 40.49C16.32 37.06 13.53 34.28 10.09 34.28C6.65 34.28 3.86 37.06 3.86 40.49C3.86 43.92 6.65 46.70 10.09 46.70Z' fill='%23FFFFFF'/%3E%3Cpath d='M24.91 46.70C28.35 46.70 31.14 43.92 31.14 40.49C31.14 37.06 28.35 34.28 24.91 34.28C21.46 34.28 18.67 37.06 18.67 40.49C18.67 43.92 21.46 46.70 24.91 46.70Z' fill='%23FFFFFF'/%3E%3Cpath d='M39.72 46.70C43.16 46.70 45.95 43.92 45.95 40.49C45.95 37.06 43.16 34.28 39.72 34.28C36.28 34.28 33.49 37.06 33.49 40.49C33.49 43.92 36.28 46.70 39.72 46.70Z' fill='%23FFFFFF'/%3E%3Cpath d='M104.97 41.08C104.97 39.85 104.70 38.61 103.87 37.56C103.10 36.57 101.89 36.02 100.58 36.02C100.55 36.02 100.30 36.02 100.27 36.02C99.16 36.02 98.00 36.41 97.16 37.15C96.76 37.5 96.45 37.96 96.26 38.46C96.05 39.04 96.05 39.65 96.05 40.25C96.03 41.94 96.05 42.40 96.05 43.45V50H97.33V45.07C98.13 45.81 99.21 46.19 100.39 46.19H100.53C101.86 46.19 103.07 45.65 103.87 44.64C104.07 44.38 104.24 44.11 104.38 43.82C104.81 42.98 104.97 42.06 104.97 41.08ZM100.42 44.76C99.47 44.76 98.56 44.38 98.03 43.66C97.47 42.94 97.30 41.97 97.30 40.99C97.30 40.01 97.47 39.05 98.03 38.33C98.56 37.61 99.47 37.25 100.42 37.25C101.20 37.25 101.94 37.5 102.49 37.99C102.59 38.09 102.70 38.20 102.79 38.33C103.31 39.03 103.50 40.00 103.50 40.98C103.50 41.96 103.33 42.96 102.80 43.66C102.26 44.37 101.37 44.76 100.42 44.76V44.76Z' fill='%23FFFFFF'/%3E%3Cpath d='M93.92 21.83C93.50 21.71 93.06 21.66 92.62 21.66C91.48 21.66 90.18 22.24 89.45 23.09C89.08 23.52 88.81 24.03 88.63 24.57C88.46 25.09 88.43 25.64 88.41 26.19C88.4 26.74 88.37 27.30 88.36 27.86C88.35 28.44 88.34 29.02 88.34 29.61C88.34 29.90 88.34 30.20 88.34 30.5C88.34 30.64 88.34 30.78 88.34 30.93C88.34 31.00 88.30 31.31 88.34 31.36H89.67V26.86C89.67 26.39 89.67 25.94 89.72 25.53C89.81 24.94 89.99 24.38 90.35 23.93C90.86 23.25 91.69 22.97 92.59 22.91C92.94 22.88 93.05 22.89 93.59 22.97C93.59 22.93 93.59 23 93.59 22.97C93.70 23.00 93.81 23.03 93.92 23.07V21.83L93.92 21.83Z' fill='%23FFFFFF'/%3E%3Cpath d='M84.40 36.56C83.97 36.44 83.53 36.39 83.09 36.39C81.95 36.39 80.65 36.96 79.92 37.81C79.55 38.25 79.28 38.76 79.11 39.30C78.94 39.82 78.90 40.37 78.88 40.92C78.87 41.47 78.85 42.03 78.83 42.58C78.82 43.17 78.82 43.75 78.82 44.33C78.82 44.63 78.82 44.92 78.82 45.22C78.82 45.37 78.82 45.51 78.82 45.65C78.82 45.72 78.77 46.04 78.82 46.08H80.14V41.59C80.14 41.11 80.15 40.67 80.19 40.25C80.28 39.66 80.46 39.11 80.82 38.66C81.34 37.97 82.16 37.70 83.06 37.63C83.41 37.61 83.53 37.62 84.06 37.69C84.06 37.66 84.06 37.72 84.06 37.69C84.18 37.72 84.29 37.75 84.39 37.79V36.55L84.40 36.56Z' fill='%23FFFFFF'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_4657_431'%3E%3Crect width='119' height='50' fill='%23FFFFFF'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E\") no-repeat center center;\n  background-size: contain;\n}\n\n/* The variables above do not reach the input surfaces, which stay light. */\ninput, textarea, select {\n  background-color: rgba(255, 255, 255, 0.08) !important;\n  color: #FFFFFF !important;\n  border-color: rgba(255, 255, 255, 0.16) !important;\n}\n\ninput::placeholder, textarea::placeholder {\n  color: rgba(255, 255, 255, 0.45) !important;\n}\n\ninput:focus, textarea:focus, select:focus {\n  border-color: #9FE7F5 !important;\n  box-shadow: 0 0 0 2px rgba(159, 231, 245, 0.25) !important;\n}\n\nselect option {\n  background-color: #0E282F;\n  color: #FFFFFF;\n}\n\na {\n  color: #9FE7F5;\n}",
@@ -501,7 +458,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "form_page": 3,
-            "answers": "={{ (() => { const page2 = JSON.parse($('Read the stored answers').item.json.answers || '{}').responses || {}; return JSON.stringify({ page: 3, submitted_at: $now.toISO(), responses: { applicant_type: page2.applicant_type || '', repository_url: page2.repository_url || '', project_website: page2.project_website || '', licence: page2.licence || '', open_development: page2.open_development || '', community_home: page2.community_home || '', community_open: page2.community_open || '', legal_entity: $json['Is the project already registered as a legal entity?'] || '', legal_entity_detail: $json['If yes, what kind and in which country?'] || '', operating_duration: $json['How long has the project been operating?'] || '', fundraising_to_date: $json['How much have you raised so far, if anything?'] || '', fundraising_goal: $json['What is your target fundraising amount?'] || '', funding_sources: $json['Who do you expect will fund the project?'] || '', expected_expenses: $json['What do you expect to be your expenses?'] || '', payee_countries: $json['In which countries are most of the people who will be paid or reimbursed for expenses?'] || '' } }); })() }}"
+            "answers": "={{ (() => { const page2 = JSON.parse($('Read the stored answers').item.json.answers || '{}').responses || {}; return JSON.stringify({ page: 3, submitted_at: $now.toISO(), responses: { applicant_type: page2.applicant_type || '', repository_url: page2.repository_url || '', project_website: page2.project_website || '', licence: page2.licence || '', open_development: page2.open_development || '', community_home: page2.community_home || '', community_open: page2.community_open || '', legal_entity: $json['Is the project already registered as a legal entity?'] || '', operating_duration: $json['How long has the project been operating?'] || '' } }); })() }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -511,11 +468,11 @@
     },
     {
       "id": "091a2b3c-4d5e-46f7-8ec1-e7f8a9b0c1d2",
-      "name": "Form page 4",
+      "name": "Form page 5",
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        2656,
+        3552,
         -224
       ],
       "parameters": {
@@ -557,7 +514,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        2880,
+        3776,
         -224
       ],
       "parameters": {
@@ -579,10 +536,10 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "form_page": 4,
+            "form_page": 5,
             "form_submitted_at": "={{ $now.toISO() }}",
             "stage": "form_submitted",
-            "answers": "={{ (() => { const page2 = JSON.parse($('Read the stored answers').item.json.answers || '{}').responses || {}; return JSON.stringify({ page: 4, submitted_at: $now.toISO(), responses: { applicant_type: page2.applicant_type || '', repository_url: page2.repository_url || '', project_website: page2.project_website || '', licence: page2.licence || '', open_development: page2.open_development || '', community_home: page2.community_home || '', community_open: page2.community_open || '', legal_entity: $('Form page 3').item.json['Is the project already registered as a legal entity?'] || '', legal_entity_detail: $('Form page 3').item.json['If yes, what kind and in which country?'] || '', operating_duration: $('Form page 3').item.json['How long has the project been operating?'] || '', fundraising_to_date: $('Form page 3').item.json['How much have you raised so far, if anything?'] || '', fundraising_goal: $('Form page 3').item.json['What is your target fundraising amount?'] || '', funding_sources: $('Form page 3').item.json['Who do you expect will fund the project?'] || '', expected_expenses: $('Form page 3').item.json['What do you expect to be your expenses?'] || '', payee_countries: $('Form page 3').item.json['In which countries are most of the people who will be paid or reimbursed for expenses?'] || '', activities: $json['What does the project do?'] || '', mission_fit: $json['How does the project further open source in Europe?'] || '', notes: $json['Anything else we should know?'] || '' } }); })() }}"
+            "answers": "={{ (() => { const prior = JSON.parse($('Read the stored answers again').item.json.answers || '{}').responses || {}; return JSON.stringify({ page: 5, submitted_at: $now.toISO(), responses: { applicant_type: prior.applicant_type || '', repository_url: prior.repository_url || '', project_website: prior.project_website || '', licence: prior.licence || '', open_development: prior.open_development || '', community_home: prior.community_home || '', community_open: prior.community_open || '', legal_entity: prior.legal_entity || '', legal_entity_detail: prior.legal_entity_detail || '', operating_duration: prior.operating_duration || '', fundraising_to_date: prior.fundraising_to_date || '', fundraising_goal: prior.fundraising_goal || '', funding_sources: prior.funding_sources || '', expected_expenses: prior.expected_expenses || '', payee_countries: prior.payee_countries || '', activities: $json['What does the project do?'] || '', mission_fit: $json['How does the project further open source in Europe?'] || '', notes: $json['Anything else we should know?'] || '' } }); })() }}"
           },
           "matchingColumns": [],
           "schema": []
@@ -596,7 +553,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        3536,
+        4432,
         -320
       ],
       "parameters": {
@@ -634,7 +591,7 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        3760,
+        4656,
         -320
       ],
       "parameters": {
@@ -654,7 +611,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3088,
+        3984,
         -224
       ],
       "parameters": {
@@ -669,7 +626,7 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        3312,
+        4208,
         -224
       ],
       "parameters": {
@@ -699,7 +656,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3536,
+        4432,
         -96
       ],
       "parameters": {
@@ -714,7 +671,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        3760,
+        4656,
         -96
       ],
       "parameters": {
@@ -753,7 +710,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        3968,
+        4864,
         -96
       ],
       "parameters": {
@@ -786,7 +743,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        4176,
+        5072,
         -96
       ],
       "parameters": {
@@ -925,6 +882,219 @@
         "limit": 1
       },
       "notes": "Page 2 is now one of two nodes, so a later page cannot reach back to it by name: on the branch that did not run, the reference yields nothing and the answer disappears with no error. The row is what both branches wrote, so page 3 and the final write read page 2's answers from here."
+    },
+    {
+      "id": "3c4d5e6f-7081-4923-9a1b-2c3d4e5f6071",
+      "name": "Which legal shape?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2656,
+        -224
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "9a1b2c3d-4e5f-4607-8192-a3b4c5d6e7f0",
+                    "leftValue": "={{ $('Form page 3').item.json['Is the project already registered as a legal entity?'] }}",
+                    "rightValue": "Yes",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "registered"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "not registered"
+        }
+      }
+    },
+    {
+      "id": "6f708192-a3b4-4c56-8d4e-5f6071829304",
+      "name": "Persist page 4",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3104,
+        -224
+      ],
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "keyValue": "={{ $('Derive slug').item.json.slug }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "form_page": 4,
+            "answers": "={{ (() => { const page2 = JSON.parse($('Read the stored answers').item.json.answers || '{}').responses || {}; return JSON.stringify({ page: 4, submitted_at: $now.toISO(), responses: { applicant_type: page2.applicant_type || '', repository_url: page2.repository_url || '', project_website: page2.project_website || '', licence: page2.licence || '', open_development: page2.open_development || '', community_home: page2.community_home || '', community_open: page2.community_open || '', legal_entity: $('Form page 3').item.json['Is the project already registered as a legal entity?'] || '', legal_entity_detail: $json['What kind of entity, and in which country?'] || '', operating_duration: $('Form page 3').item.json['How long has the project been operating?'] || '', fundraising_to_date: $json['How much have you raised so far, if anything?'] || '', fundraising_goal: $json['What is your target fundraising amount?'] || '', funding_sources: $json['Who do you expect will fund the project?'] || '', expected_expenses: $json['What do you expect to be your expenses? It is important for us to know as it helps us understand the need of your collective.'] || '', payee_countries: $json[\"In which countries are most of the people who will be paid or reimbursed for expenses? It is important for us to know as it can be harder to send money to some countries. If you don't know, just let us know where you and your team are located.\"] || '' } }); })() }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "708192a3-b4c5-4d67-9e5f-607182930415",
+      "name": "Read the stored answers again",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3328,
+        -224
+      ],
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "keyValue": "={{ $('Derive slug').item.json.slug }}"
+            }
+          ]
+        },
+        "limit": 1
+      }
+    },
+    {
+      "id": "4d5e6f70-8192-4a34-8b2c-3d4e5f607182",
+      "name": "Form page 4 registered",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        2880,
+        -336
+      ],
+      "parameters": {
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "What kind of entity, and in which country?",
+              "fieldType": "text",
+              "placeholder": "e.g. a German e.V., a Dutch stichting",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "How much have you raised so far, if anything?",
+              "placeholder": "Leave empty if you haven't started fundraising"
+            },
+            {
+              "fieldLabel": "What is your target fundraising amount?",
+              "placeholder": "A rough yearly figure is fine",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Who do you expect will fund the project?",
+              "fieldType": "textarea",
+              "placeholder": "Companies using it, individual donors, grants…",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "What do you expect to be your expenses? It is important for us to know as it helps us understand the need of your collective.",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "In which countries are most of the people who will be paid or reimbursed for expenses? It is important for us to know as it can be harder to send money to some countries. If you don't know, just let us know where you and your team are located.",
+              "fieldType": "text",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "formTitle": "Funding",
+          "formDescription": "How the project is funded, and what the money would be spent on.",
+          "buttonLabel": "Continue",
+          "customCss": "@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap');\n\n/* Open Source Europe form styling.\n   Tokens mirror chat/styles.css in opensourceeurope/ose-knowledge-mcp, which\n   documents them against opensourceeurope.org. Keep the two in step. */\n:root {\n  --font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;\n  --font-weight-normal: 400;\n  --font-weight-bold: 600;\n  --font-size-header: 24px;\n  --font-size-label: 14px;\n  --font-size-input: 15px;\n  --font-size-paragraph: 15px;\n\n  --color-background: #0A242B;\n  --color-card-bg: #0E282F;\n  --color-card-border: rgba(255, 255, 255, 0.16);\n  --color-card-shadow: rgba(0, 0, 0, 0.30);\n\n  --color-header: #FFFFFF;\n  --color-header-subtext: rgba(255, 255, 255, 0.75);\n  --color-label: rgba(255, 255, 255, 0.75);\n  --color-link: #9FE7F5;\n  --color-html-text: rgba(255, 255, 255, 0.75);\n  --color-html-link: #9FE7F5;\n\n  --color-input-border: rgba(255, 255, 255, 0.16);\n  --color-input-text: #FFFFFF;\n  --color-focus-border: #9FE7F5;\n\n  /* Orange on white fails contrast, so the button carries dark ink text. */\n  --color-submit-btn-bg: #F27F0C;\n  --color-submit-btn-text: #0A242B;\n\n  --color-error: #F7AD1A;\n  --color-required: #F7AD1A;\n\n  --border-radius-card: 24px;\n  --card-border-radius: 24px;\n  --border-radius-input: 12px;\n\n  --container-width: 520px;\n  --box-shadow-card: 0 4px 24px 0 var(--color-card-shadow);\n}\n\n/* The wordmark, above the card, on every page of the form. The form is a\n   client-rendered app whose inner class names are not stable, so this hangs off\n   body rather than a component class. Embedded as a data URI so the form has no\n   external dependency: the file is chat/ose-logo.svg from the same repo as the\n   tokens above, white on transparent. */\nbody::before {\n  content: \"\";\n  display: block;\n  width: 119px;\n  height: 50px;\n  margin: 32px auto 4px;\n  background: url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='119' height='50' viewBox='0 0 119 50'%3E%3Cg clip-path='url(%23clip0_4657_431)'%3E%3Cpath d='M65.94 5.77C65.14 4.75 63.86 4.25 62.53 4.25C61.20 4.25 59.88 4.79 59.11 5.77C58.32 6.75 58.04 7.99 58.04 9.21C58.04 10.43 58.30 11.67 59.11 12.67C59.92 13.69 61.16 14.20 62.53 14.20C63.89 14.20 65.12 13.72 65.94 12.67C66.73 11.65 67.01 10.46 67.01 9.21C67.01 7.95 66.75 6.78 65.94 5.77ZM64.91 11.88C64.36 12.60 63.47 12.98 62.52 12.98C61.57 12.98 60.66 12.60 60.14 11.88C59.58 11.17 59.40 10.19 59.40 9.21C59.40 8.23 59.58 7.27 60.14 6.55C60.66 5.83 61.57 5.47 62.52 5.47C63.47 5.47 64.36 5.83 64.91 6.55C65.47 7.27 65.64 8.26 65.64 9.21C65.64 10.15 65.47 11.17 64.91 11.88Z' fill='%23FFFFFF'/%3E%3Cpath d='M81.17 11.88C81.71 12.60 82.62 12.98 83.57 12.98C84.24 12.98 84.85 12.83 85.38 12.50C85.87 12.17 86.25 11.73 86.53 11.17L87.75 11.62C87.36 12.48 86.75 13.14 86.03 13.58C85.31 14 84.45 14.21 83.61 14.21C82.26 14.21 80.95 13.68 80.16 12.67C79.37 11.67 79.09 10.45 79.09 9.26C79.09 8.08 79.37 6.76 80.16 5.77C80.98 4.75 82.21 4.25 83.58 4.25C84.94 4.25 86.08 4.72 86.90 5.75C87.73 6.78 87.95 8.14 87.92 9.59H80.47C80.50 10.43 80.70 11.25 81.17 11.88ZM81.19 6.50C80.75 7.06 80.56 7.76 80.49 8.49H86.57C86.52 7.70 86.36 7.04 85.92 6.48C85.39 5.78 84.48 5.42 83.57 5.42C82.65 5.42 81.74 5.76 81.18 6.50H81.19Z' fill='%23FFFFFF'/%3E%3Cpath d='M64.56 24.49C64.07 23.21 63.05 22.64 61.79 22.62C60.63 22.58 59.53 23.09 59.53 23.98C59.53 24.77 60.10 25.08 61.07 25.35C61.56 25.49 62.16 25.64 63.01 25.87C64.59 26.29 65.82 27.20 65.82 28.65C65.82 29.46 65.35 30.33 64.61 30.77C63.87 31.25 62.94 31.39 62.02 31.39C60.91 31.39 59.93 31.15 59.07 30.36C58.56 29.88 58.23 29.26 58.04 28.72L59.21 28.33C59.39 28.79 59.61 29.17 59.98 29.52C60.51 29.99 61.24 30.22 62.01 30.22C62.66 30.22 63.48 30.08 63.94 29.77C64.34 29.50 64.57 29.10 64.57 28.63C64.57 27.70 63.68 27.36 62.62 27.06C61.73 26.80 61.26 26.67 60.68 26.5C60.08 26.31 59.43 26.08 58.94 25.61C58.47 25.19 58.28 24.54 58.28 24.00C58.28 23.04 58.96 22.20 59.82 21.82C60.50 21.51 61.19 21.44 61.83 21.45C62.50 21.45 63.20 21.59 63.83 21.91C64.72 22.36 65.53 23.29 65.79 24.18L64.55 24.49L64.56 24.49Z' fill='%23FFFFFF'/%3E%3Cpath d='M68.29 29.87C67.48 28.87 67.22 27.65 67.22 26.41C67.22 25.17 67.50 23.95 68.29 22.97C69.06 21.99 70.34 21.45 71.71 21.45C73.07 21.45 74.32 21.96 75.12 22.97C75.93 23.98 76.19 25.21 76.19 26.41C76.19 27.61 75.91 28.86 75.12 29.87C74.30 30.92 73.07 31.41 71.71 31.41C70.34 31.41 69.10 30.90 68.29 29.87ZM74.09 23.75C73.55 23.04 72.65 22.67 71.71 22.67C70.76 22.67 69.85 23.04 69.32 23.75C68.76 24.47 68.59 25.47 68.59 26.41C68.59 27.36 68.76 28.37 69.32 29.08C69.85 29.80 70.76 30.19 71.71 30.19C72.65 30.19 73.55 29.80 74.09 29.08C74.65 28.37 74.83 27.39 74.83 26.41C74.83 25.43 74.65 24.47 74.09 23.75Z' fill='%23FFFFFF'/%3E%3Cpath d='M86.08 21.71V31.14H84.92V29.82C84.80 30.01 84.64 30.20 84.46 30.38C83.84 31.03 82.94 31.32 82.10 31.36C81.17 31.43 80.21 31.25 79.42 30.62C78.10 29.64 77.93 27.97 77.94 26.29V21.71H79.24V26.25C79.24 27.72 79.40 28.94 80.35 29.64C80.86 30.01 81.49 30.19 82.19 30.15C82.80 30.14 83.38 29.92 83.80 29.54C84.25 29.14 84.55 28.56 84.67 27.92C84.76 27.51 84.78 27.06 84.78 26.57V21.71H86.08V21.71Z' fill='%23FFFFFF'/%3E%3Cpath d='M101.92 24.47C101.73 23.94 101.32 23.44 100.85 23.14C100.38 22.81 99.82 22.67 99.22 22.67C98.27 22.67 97.41 23.04 96.87 23.78C96.31 24.49 96.15 25.47 96.13 26.43C96.15 27.39 96.31 28.37 96.87 29.09C97.41 29.81 98.27 30.19 99.22 30.19C99.81 30.19 100.39 30.05 100.88 29.72C101.35 29.42 101.67 28.99 101.90 28.46L103.18 28.83C102.86 29.60 102.35 30.30 101.69 30.73C100.97 31.20 100.20 31.42 99.22 31.42C97.80 31.42 96.64 30.93 95.84 29.88C95.03 28.86 94.79 27.64 94.77 26.44C94.78 25.19 95.05 23.97 95.84 22.97C96.66 21.94 97.80 21.45 99.24 21.45C100.13 21.45 100.86 21.63 101.59 22.06C102.31 22.52 102.92 23.22 103.18 24.06L101.92 24.47V24.47Z' fill='%23FFFFFF'/%3E%3Cpath d='M106.30 29.08C106.84 29.80 107.75 30.18 108.70 30.18C109.36 30.18 109.98 30.03 110.50 29.69C110.99 29.36 111.38 28.93 111.66 28.37L112.87 28.82C112.48 29.68 111.87 30.34 111.16 30.78C110.44 31.20 109.58 31.41 108.74 31.41C107.39 31.41 106.07 30.88 105.28 29.87C104.50 28.87 104.21 27.65 104.21 26.46C104.21 25.28 104.50 23.96 105.28 22.97C106.11 21.95 107.33 21.44 108.70 21.44C110.07 21.44 111.21 21.92 112.03 22.95C112.86 23.98 113.08 25.34 113.05 26.79H105.59C105.63 27.63 105.83 28.45 106.30 29.08ZM106.31 23.70C105.88 24.26 105.69 24.96 105.61 25.69H111.69C111.64 24.90 111.48 24.24 111.04 23.68C110.52 22.98 109.61 22.61 108.69 22.61C107.78 22.61 106.87 22.96 106.31 23.70H106.31Z' fill='%23FFFFFF'/%3E%3Cpath d='M60.00 43.88C60.54 44.59 61.45 44.98 62.40 44.98C63.07 44.98 63.68 44.82 64.20 44.49C64.69 44.16 65.08 43.72 65.36 43.17L66.57 43.62C66.19 44.47 65.57 45.14 64.86 45.58C64.14 46.00 63.28 46.20 62.44 46.20C61.09 46.20 59.77 45.68 58.99 44.67C58.20 43.67 57.91 42.44 57.91 41.26C57.91 40.07 58.20 38.76 58.99 37.76C59.81 36.75 61.03 36.24 62.40 36.24C63.77 36.24 64.91 36.71 65.73 37.75C66.56 38.78 66.78 40.14 66.75 41.59H59.30C59.33 42.43 59.53 43.25 60.00 43.88ZM60.01 38.50C59.58 39.06 59.39 39.75 59.31 40.49H65.39C65.34 39.70 65.18 39.04 64.74 38.48C64.22 37.78 63.31 37.41 62.39 37.41C61.48 37.41 60.57 37.76 60.01 38.50H60.01Z' fill='%23FFFFFF'/%3E%3Cpath d='M76.65 36.50V45.94H75.49V44.61C75.37 44.81 75.21 45 75.04 45.17C74.41 45.82 73.51 46.12 72.67 46.15C71.74 46.22 70.78 46.05 69.99 45.42C68.68 44.44 68.50 42.76 68.52 41.08V36.51H69.81V41.05C69.81 42.52 69.97 43.74 70.92 44.44C71.43 44.81 72.06 44.98 72.76 44.95C73.37 44.93 73.95 44.72 74.37 44.34C74.83 43.94 75.12 43.36 75.25 42.71C75.34 42.31 75.35 41.86 75.35 41.36V36.51H76.65V36.50Z' fill='%23FFFFFF'/%3E%3Cpath d='M86.41 44.67C85.60 43.67 85.34 42.44 85.34 41.21C85.34 39.97 85.62 38.75 86.41 37.77C87.18 36.79 88.46 36.25 89.82 36.25C91.19 36.25 92.43 36.75 93.24 37.77C94.05 38.78 94.31 40.00 94.31 41.21C94.31 42.41 94.03 43.65 93.24 44.67C92.42 45.71 91.19 46.20 89.82 46.20C88.46 46.20 87.21 45.69 86.41 44.67ZM92.21 38.55C91.66 37.83 90.77 37.46 89.82 37.46C88.88 37.46 87.97 37.83 87.44 38.55C86.88 39.26 86.70 40.26 86.70 41.20C86.70 42.15 86.88 43.16 87.44 43.88C87.97 44.59 88.88 44.98 89.82 44.98C90.77 44.98 91.66 44.59 92.21 43.88C92.77 43.16 92.94 42.18 92.94 41.20C92.94 40.22 92.77 39.26 92.21 38.55Z' fill='%23FFFFFF'/%3E%3Cpath d='M108.47 43.88C109.01 44.59 109.92 44.98 110.87 44.98C111.54 44.98 112.15 44.82 112.68 44.49C113.17 44.16 113.55 43.72 113.83 43.17L115.04 43.62C114.66 44.47 114.04 45.14 113.33 45.58C112.61 46.00 111.75 46.20 110.91 46.20C109.56 46.20 108.24 45.68 107.46 44.67C106.67 43.67 106.39 42.44 106.39 41.26C106.39 40.07 106.67 38.76 107.46 37.76C108.28 36.75 109.51 36.24 110.87 36.24C112.24 36.24 113.38 36.71 114.20 37.75C115.03 38.78 115.25 40.14 115.22 41.59H107.77C107.80 42.43 108.00 43.25 108.47 43.88ZM108.49 38.50C108.05 39.06 107.86 39.75 107.78 40.49H113.87C113.81 39.70 113.65 39.04 113.22 38.48C112.69 37.78 111.78 37.41 110.86 37.41C109.95 37.41 109.04 37.76 108.48 38.50H108.49Z' fill='%23FFFFFF'/%3E%3Cpath d='M77.77 9.31C77.77 8.07 77.50 6.83 76.67 5.78C75.90 4.79 74.69 4.24 73.38 4.24C73.35 4.24 73.10 4.24 73.07 4.24C71.96 4.24 70.80 4.63 69.96 5.37C69.56 5.72 69.25 6.18 69.06 6.68C68.85 7.26 68.85 7.87 68.85 8.47C68.83 10.16 68.85 10.62 68.85 11.67V18.22H70.12V13.29C70.93 14.03 72.01 14.41 73.19 14.41H73.33C74.66 14.41 75.87 13.87 76.67 12.86C76.87 12.60 77.04 12.33 77.18 12.04C77.61 11.20 77.77 10.28 77.77 9.31ZM73.22 12.98C72.27 12.98 71.36 12.60 70.83 11.88C70.27 11.17 70.10 10.19 70.10 9.21C70.10 8.23 70.27 7.27 70.83 6.55C71.36 5.83 72.27 5.47 73.22 5.47C74.00 5.47 74.74 5.72 75.29 6.21C75.39 6.31 75.50 6.42 75.59 6.55C76.11 7.25 76.30 8.22 76.30 9.20C76.30 10.18 76.13 11.18 75.60 11.88C75.06 12.59 74.17 12.98 73.22 12.98V12.98Z' fill='%23FFFFFF'/%3E%3Cpath d='M96.19 5.03C95.45 4.44 94.55 4.25 93.67 4.29C92.79 4.25 91.89 4.43 91.14 5.03C89.82 6.01 89.65 7.69 89.67 9.36V13.94H90.96V9.40C90.96 7.93 91.12 6.71 92.07 6.01C92.51 5.69 93.06 5.52 93.67 5.51C94.27 5.52 94.82 5.69 95.26 6.01C96.21 6.71 96.37 7.93 96.37 9.40V13.94H97.67V9.36C97.68 7.69 97.51 6.01 96.19 5.03Z' fill='%23FFFFFF'/%3E%3Cpath d='M10.09 15.68C13.53 15.68 16.32 12.90 16.32 9.47C16.32 6.04 13.53 3.26 10.09 3.26C6.65 3.26 3.86 6.04 3.86 9.47C3.86 12.90 6.65 15.68 10.09 15.68Z' fill='%23FFFFFF'/%3E%3Cpath d='M24.91 15.68C28.35 15.68 31.14 12.90 31.14 9.47C31.14 6.04 28.35 3.26 24.91 3.26C21.46 3.26 18.67 6.04 18.67 9.47C18.67 12.90 21.46 15.68 24.91 15.68Z' fill='%23FFFFFF'/%3E%3Cpath d='M39.72 15.68C43.16 15.68 45.95 12.90 45.95 9.47C45.95 6.04 43.16 3.26 39.72 3.26C36.28 3.26 33.49 6.04 33.49 9.47C33.49 12.90 36.28 15.68 39.72 15.68Z' fill='%23FFFFFF'/%3E%3Cpath d='M24.91 31.19C28.35 31.19 31.14 28.41 31.14 24.98C31.14 21.55 28.35 18.77 24.91 18.77C21.46 18.77 18.67 21.55 18.67 24.98C18.67 28.41 21.46 31.19 24.91 31.19Z' fill='%23FFFFFF'/%3E%3Cpath d='M10.09 31.19C13.53 31.19 16.32 28.41 16.32 24.98C16.32 21.55 13.53 18.77 10.09 18.77C6.65 18.77 3.86 21.55 3.86 24.98C3.86 28.41 6.65 31.19 10.09 31.19Z' fill='%23FFFFFF'/%3E%3Cpath d='M10.09 46.70C13.53 46.70 16.32 43.92 16.32 40.49C16.32 37.06 13.53 34.28 10.09 34.28C6.65 34.28 3.86 37.06 3.86 40.49C3.86 43.92 6.65 46.70 10.09 46.70Z' fill='%23FFFFFF'/%3E%3Cpath d='M24.91 46.70C28.35 46.70 31.14 43.92 31.14 40.49C31.14 37.06 28.35 34.28 24.91 34.28C21.46 34.28 18.67 37.06 18.67 40.49C18.67 43.92 21.46 46.70 24.91 46.70Z' fill='%23FFFFFF'/%3E%3Cpath d='M39.72 46.70C43.16 46.70 45.95 43.92 45.95 40.49C45.95 37.06 43.16 34.28 39.72 34.28C36.28 34.28 33.49 37.06 33.49 40.49C33.49 43.92 36.28 46.70 39.72 46.70Z' fill='%23FFFFFF'/%3E%3Cpath d='M104.97 41.08C104.97 39.85 104.70 38.61 103.87 37.56C103.10 36.57 101.89 36.02 100.58 36.02C100.55 36.02 100.30 36.02 100.27 36.02C99.16 36.02 98.00 36.41 97.16 37.15C96.76 37.5 96.45 37.96 96.26 38.46C96.05 39.04 96.05 39.65 96.05 40.25C96.03 41.94 96.05 42.40 96.05 43.45V50H97.33V45.07C98.13 45.81 99.21 46.19 100.39 46.19H100.53C101.86 46.19 103.07 45.65 103.87 44.64C104.07 44.38 104.24 44.11 104.38 43.82C104.81 42.98 104.97 42.06 104.97 41.08ZM100.42 44.76C99.47 44.76 98.56 44.38 98.03 43.66C97.47 42.94 97.30 41.97 97.30 40.99C97.30 40.01 97.47 39.05 98.03 38.33C98.56 37.61 99.47 37.25 100.42 37.25C101.20 37.25 101.94 37.5 102.49 37.99C102.59 38.09 102.70 38.20 102.79 38.33C103.31 39.03 103.50 40.00 103.50 40.98C103.50 41.96 103.33 42.96 102.80 43.66C102.26 44.37 101.37 44.76 100.42 44.76V44.76Z' fill='%23FFFFFF'/%3E%3Cpath d='M93.92 21.83C93.50 21.71 93.06 21.66 92.62 21.66C91.48 21.66 90.18 22.24 89.45 23.09C89.08 23.52 88.81 24.03 88.63 24.57C88.46 25.09 88.43 25.64 88.41 26.19C88.4 26.74 88.37 27.30 88.36 27.86C88.35 28.44 88.34 29.02 88.34 29.61C88.34 29.90 88.34 30.20 88.34 30.5C88.34 30.64 88.34 30.78 88.34 30.93C88.34 31.00 88.30 31.31 88.34 31.36H89.67V26.86C89.67 26.39 89.67 25.94 89.72 25.53C89.81 24.94 89.99 24.38 90.35 23.93C90.86 23.25 91.69 22.97 92.59 22.91C92.94 22.88 93.05 22.89 93.59 22.97C93.59 22.93 93.59 23 93.59 22.97C93.70 23.00 93.81 23.03 93.92 23.07V21.83L93.92 21.83Z' fill='%23FFFFFF'/%3E%3Cpath d='M84.40 36.56C83.97 36.44 83.53 36.39 83.09 36.39C81.95 36.39 80.65 36.96 79.92 37.81C79.55 38.25 79.28 38.76 79.11 39.30C78.94 39.82 78.90 40.37 78.88 40.92C78.87 41.47 78.85 42.03 78.83 42.58C78.82 43.17 78.82 43.75 78.82 44.33C78.82 44.63 78.82 44.92 78.82 45.22C78.82 45.37 78.82 45.51 78.82 45.65C78.82 45.72 78.77 46.04 78.82 46.08H80.14V41.59C80.14 41.11 80.15 40.67 80.19 40.25C80.28 39.66 80.46 39.11 80.82 38.66C81.34 37.97 82.16 37.70 83.06 37.63C83.41 37.61 83.53 37.62 84.06 37.69C84.06 37.66 84.06 37.72 84.06 37.69C84.18 37.72 84.29 37.75 84.39 37.79V36.55L84.40 36.56Z' fill='%23FFFFFF'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_4657_431'%3E%3Crect width='119' height='50' fill='%23FFFFFF'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E\") no-repeat center center;\n  background-size: contain;\n}\n\n/* The variables above do not reach the input surfaces, which stay light. */\ninput, textarea, select {\n  background-color: rgba(255, 255, 255, 0.08) !important;\n  color: #FFFFFF !important;\n  border-color: rgba(255, 255, 255, 0.16) !important;\n}\n\ninput::placeholder, textarea::placeholder {\n  color: rgba(255, 255, 255, 0.45) !important;\n}\n\ninput:focus, textarea:focus, select:focus {\n  border-color: #9FE7F5 !important;\n  box-shadow: 0 0 0 2px rgba(159, 231, 245, 0.25) !important;\n}\n\nselect option {\n  background-color: #0E282F;\n  color: #FFFFFF;\n}\n\na {\n  color: #9FE7F5;\n}",
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "cd97f8b0-a75e-4ebc-8be1-ea26bc19d031"
+    },
+    {
+      "id": "5e6f7081-92a3-4b45-9c3d-4e5f60718293",
+      "name": "Form page 4",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        2880,
+        -112
+      ],
+      "parameters": {
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "How much have you raised so far, if anything?",
+              "placeholder": "Leave empty if you haven't started fundraising"
+            },
+            {
+              "fieldLabel": "What is your target fundraising amount?",
+              "placeholder": "A rough yearly figure is fine",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Who do you expect will fund the project?",
+              "fieldType": "textarea",
+              "placeholder": "Companies using it, individual donors, grants…",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "What do you expect to be your expenses? It is important for us to know as it helps us understand the need of your collective.",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "In which countries are most of the people who will be paid or reimbursed for expenses? It is important for us to know as it can be harder to send money to some countries. If you don't know, just let us know where you and your team are located.",
+              "fieldType": "text",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "formTitle": "Funding",
+          "formDescription": "How the project is funded, and what the money would be spent on.",
+          "buttonLabel": "Continue",
+          "customCss": "@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap');\n\n/* Open Source Europe form styling.\n   Tokens mirror chat/styles.css in opensourceeurope/ose-knowledge-mcp, which\n   documents them against opensourceeurope.org. Keep the two in step. */\n:root {\n  --font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;\n  --font-weight-normal: 400;\n  --font-weight-bold: 600;\n  --font-size-header: 24px;\n  --font-size-label: 14px;\n  --font-size-input: 15px;\n  --font-size-paragraph: 15px;\n\n  --color-background: #0A242B;\n  --color-card-bg: #0E282F;\n  --color-card-border: rgba(255, 255, 255, 0.16);\n  --color-card-shadow: rgba(0, 0, 0, 0.30);\n\n  --color-header: #FFFFFF;\n  --color-header-subtext: rgba(255, 255, 255, 0.75);\n  --color-label: rgba(255, 255, 255, 0.75);\n  --color-link: #9FE7F5;\n  --color-html-text: rgba(255, 255, 255, 0.75);\n  --color-html-link: #9FE7F5;\n\n  --color-input-border: rgba(255, 255, 255, 0.16);\n  --color-input-text: #FFFFFF;\n  --color-focus-border: #9FE7F5;\n\n  /* Orange on white fails contrast, so the button carries dark ink text. */\n  --color-submit-btn-bg: #F27F0C;\n  --color-submit-btn-text: #0A242B;\n\n  --color-error: #F7AD1A;\n  --color-required: #F7AD1A;\n\n  --border-radius-card: 24px;\n  --card-border-radius: 24px;\n  --border-radius-input: 12px;\n\n  --container-width: 520px;\n  --box-shadow-card: 0 4px 24px 0 var(--color-card-shadow);\n}\n\n/* The wordmark, above the card, on every page of the form. The form is a\n   client-rendered app whose inner class names are not stable, so this hangs off\n   body rather than a component class. Embedded as a data URI so the form has no\n   external dependency: the file is chat/ose-logo.svg from the same repo as the\n   tokens above, white on transparent. */\nbody::before {\n  content: \"\";\n  display: block;\n  width: 119px;\n  height: 50px;\n  margin: 32px auto 4px;\n  background: url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='119' height='50' viewBox='0 0 119 50'%3E%3Cg clip-path='url(%23clip0_4657_431)'%3E%3Cpath d='M65.94 5.77C65.14 4.75 63.86 4.25 62.53 4.25C61.20 4.25 59.88 4.79 59.11 5.77C58.32 6.75 58.04 7.99 58.04 9.21C58.04 10.43 58.30 11.67 59.11 12.67C59.92 13.69 61.16 14.20 62.53 14.20C63.89 14.20 65.12 13.72 65.94 12.67C66.73 11.65 67.01 10.46 67.01 9.21C67.01 7.95 66.75 6.78 65.94 5.77ZM64.91 11.88C64.36 12.60 63.47 12.98 62.52 12.98C61.57 12.98 60.66 12.60 60.14 11.88C59.58 11.17 59.40 10.19 59.40 9.21C59.40 8.23 59.58 7.27 60.14 6.55C60.66 5.83 61.57 5.47 62.52 5.47C63.47 5.47 64.36 5.83 64.91 6.55C65.47 7.27 65.64 8.26 65.64 9.21C65.64 10.15 65.47 11.17 64.91 11.88Z' fill='%23FFFFFF'/%3E%3Cpath d='M81.17 11.88C81.71 12.60 82.62 12.98 83.57 12.98C84.24 12.98 84.85 12.83 85.38 12.50C85.87 12.17 86.25 11.73 86.53 11.17L87.75 11.62C87.36 12.48 86.75 13.14 86.03 13.58C85.31 14 84.45 14.21 83.61 14.21C82.26 14.21 80.95 13.68 80.16 12.67C79.37 11.67 79.09 10.45 79.09 9.26C79.09 8.08 79.37 6.76 80.16 5.77C80.98 4.75 82.21 4.25 83.58 4.25C84.94 4.25 86.08 4.72 86.90 5.75C87.73 6.78 87.95 8.14 87.92 9.59H80.47C80.50 10.43 80.70 11.25 81.17 11.88ZM81.19 6.50C80.75 7.06 80.56 7.76 80.49 8.49H86.57C86.52 7.70 86.36 7.04 85.92 6.48C85.39 5.78 84.48 5.42 83.57 5.42C82.65 5.42 81.74 5.76 81.18 6.50H81.19Z' fill='%23FFFFFF'/%3E%3Cpath d='M64.56 24.49C64.07 23.21 63.05 22.64 61.79 22.62C60.63 22.58 59.53 23.09 59.53 23.98C59.53 24.77 60.10 25.08 61.07 25.35C61.56 25.49 62.16 25.64 63.01 25.87C64.59 26.29 65.82 27.20 65.82 28.65C65.82 29.46 65.35 30.33 64.61 30.77C63.87 31.25 62.94 31.39 62.02 31.39C60.91 31.39 59.93 31.15 59.07 30.36C58.56 29.88 58.23 29.26 58.04 28.72L59.21 28.33C59.39 28.79 59.61 29.17 59.98 29.52C60.51 29.99 61.24 30.22 62.01 30.22C62.66 30.22 63.48 30.08 63.94 29.77C64.34 29.50 64.57 29.10 64.57 28.63C64.57 27.70 63.68 27.36 62.62 27.06C61.73 26.80 61.26 26.67 60.68 26.5C60.08 26.31 59.43 26.08 58.94 25.61C58.47 25.19 58.28 24.54 58.28 24.00C58.28 23.04 58.96 22.20 59.82 21.82C60.50 21.51 61.19 21.44 61.83 21.45C62.50 21.45 63.20 21.59 63.83 21.91C64.72 22.36 65.53 23.29 65.79 24.18L64.55 24.49L64.56 24.49Z' fill='%23FFFFFF'/%3E%3Cpath d='M68.29 29.87C67.48 28.87 67.22 27.65 67.22 26.41C67.22 25.17 67.50 23.95 68.29 22.97C69.06 21.99 70.34 21.45 71.71 21.45C73.07 21.45 74.32 21.96 75.12 22.97C75.93 23.98 76.19 25.21 76.19 26.41C76.19 27.61 75.91 28.86 75.12 29.87C74.30 30.92 73.07 31.41 71.71 31.41C70.34 31.41 69.10 30.90 68.29 29.87ZM74.09 23.75C73.55 23.04 72.65 22.67 71.71 22.67C70.76 22.67 69.85 23.04 69.32 23.75C68.76 24.47 68.59 25.47 68.59 26.41C68.59 27.36 68.76 28.37 69.32 29.08C69.85 29.80 70.76 30.19 71.71 30.19C72.65 30.19 73.55 29.80 74.09 29.08C74.65 28.37 74.83 27.39 74.83 26.41C74.83 25.43 74.65 24.47 74.09 23.75Z' fill='%23FFFFFF'/%3E%3Cpath d='M86.08 21.71V31.14H84.92V29.82C84.80 30.01 84.64 30.20 84.46 30.38C83.84 31.03 82.94 31.32 82.10 31.36C81.17 31.43 80.21 31.25 79.42 30.62C78.10 29.64 77.93 27.97 77.94 26.29V21.71H79.24V26.25C79.24 27.72 79.40 28.94 80.35 29.64C80.86 30.01 81.49 30.19 82.19 30.15C82.80 30.14 83.38 29.92 83.80 29.54C84.25 29.14 84.55 28.56 84.67 27.92C84.76 27.51 84.78 27.06 84.78 26.57V21.71H86.08V21.71Z' fill='%23FFFFFF'/%3E%3Cpath d='M101.92 24.47C101.73 23.94 101.32 23.44 100.85 23.14C100.38 22.81 99.82 22.67 99.22 22.67C98.27 22.67 97.41 23.04 96.87 23.78C96.31 24.49 96.15 25.47 96.13 26.43C96.15 27.39 96.31 28.37 96.87 29.09C97.41 29.81 98.27 30.19 99.22 30.19C99.81 30.19 100.39 30.05 100.88 29.72C101.35 29.42 101.67 28.99 101.90 28.46L103.18 28.83C102.86 29.60 102.35 30.30 101.69 30.73C100.97 31.20 100.20 31.42 99.22 31.42C97.80 31.42 96.64 30.93 95.84 29.88C95.03 28.86 94.79 27.64 94.77 26.44C94.78 25.19 95.05 23.97 95.84 22.97C96.66 21.94 97.80 21.45 99.24 21.45C100.13 21.45 100.86 21.63 101.59 22.06C102.31 22.52 102.92 23.22 103.18 24.06L101.92 24.47V24.47Z' fill='%23FFFFFF'/%3E%3Cpath d='M106.30 29.08C106.84 29.80 107.75 30.18 108.70 30.18C109.36 30.18 109.98 30.03 110.50 29.69C110.99 29.36 111.38 28.93 111.66 28.37L112.87 28.82C112.48 29.68 111.87 30.34 111.16 30.78C110.44 31.20 109.58 31.41 108.74 31.41C107.39 31.41 106.07 30.88 105.28 29.87C104.50 28.87 104.21 27.65 104.21 26.46C104.21 25.28 104.50 23.96 105.28 22.97C106.11 21.95 107.33 21.44 108.70 21.44C110.07 21.44 111.21 21.92 112.03 22.95C112.86 23.98 113.08 25.34 113.05 26.79H105.59C105.63 27.63 105.83 28.45 106.30 29.08ZM106.31 23.70C105.88 24.26 105.69 24.96 105.61 25.69H111.69C111.64 24.90 111.48 24.24 111.04 23.68C110.52 22.98 109.61 22.61 108.69 22.61C107.78 22.61 106.87 22.96 106.31 23.70H106.31Z' fill='%23FFFFFF'/%3E%3Cpath d='M60.00 43.88C60.54 44.59 61.45 44.98 62.40 44.98C63.07 44.98 63.68 44.82 64.20 44.49C64.69 44.16 65.08 43.72 65.36 43.17L66.57 43.62C66.19 44.47 65.57 45.14 64.86 45.58C64.14 46.00 63.28 46.20 62.44 46.20C61.09 46.20 59.77 45.68 58.99 44.67C58.20 43.67 57.91 42.44 57.91 41.26C57.91 40.07 58.20 38.76 58.99 37.76C59.81 36.75 61.03 36.24 62.40 36.24C63.77 36.24 64.91 36.71 65.73 37.75C66.56 38.78 66.78 40.14 66.75 41.59H59.30C59.33 42.43 59.53 43.25 60.00 43.88ZM60.01 38.50C59.58 39.06 59.39 39.75 59.31 40.49H65.39C65.34 39.70 65.18 39.04 64.74 38.48C64.22 37.78 63.31 37.41 62.39 37.41C61.48 37.41 60.57 37.76 60.01 38.50H60.01Z' fill='%23FFFFFF'/%3E%3Cpath d='M76.65 36.50V45.94H75.49V44.61C75.37 44.81 75.21 45 75.04 45.17C74.41 45.82 73.51 46.12 72.67 46.15C71.74 46.22 70.78 46.05 69.99 45.42C68.68 44.44 68.50 42.76 68.52 41.08V36.51H69.81V41.05C69.81 42.52 69.97 43.74 70.92 44.44C71.43 44.81 72.06 44.98 72.76 44.95C73.37 44.93 73.95 44.72 74.37 44.34C74.83 43.94 75.12 43.36 75.25 42.71C75.34 42.31 75.35 41.86 75.35 41.36V36.51H76.65V36.50Z' fill='%23FFFFFF'/%3E%3Cpath d='M86.41 44.67C85.60 43.67 85.34 42.44 85.34 41.21C85.34 39.97 85.62 38.75 86.41 37.77C87.18 36.79 88.46 36.25 89.82 36.25C91.19 36.25 92.43 36.75 93.24 37.77C94.05 38.78 94.31 40.00 94.31 41.21C94.31 42.41 94.03 43.65 93.24 44.67C92.42 45.71 91.19 46.20 89.82 46.20C88.46 46.20 87.21 45.69 86.41 44.67ZM92.21 38.55C91.66 37.83 90.77 37.46 89.82 37.46C88.88 37.46 87.97 37.83 87.44 38.55C86.88 39.26 86.70 40.26 86.70 41.20C86.70 42.15 86.88 43.16 87.44 43.88C87.97 44.59 88.88 44.98 89.82 44.98C90.77 44.98 91.66 44.59 92.21 43.88C92.77 43.16 92.94 42.18 92.94 41.20C92.94 40.22 92.77 39.26 92.21 38.55Z' fill='%23FFFFFF'/%3E%3Cpath d='M108.47 43.88C109.01 44.59 109.92 44.98 110.87 44.98C111.54 44.98 112.15 44.82 112.68 44.49C113.17 44.16 113.55 43.72 113.83 43.17L115.04 43.62C114.66 44.47 114.04 45.14 113.33 45.58C112.61 46.00 111.75 46.20 110.91 46.20C109.56 46.20 108.24 45.68 107.46 44.67C106.67 43.67 106.39 42.44 106.39 41.26C106.39 40.07 106.67 38.76 107.46 37.76C108.28 36.75 109.51 36.24 110.87 36.24C112.24 36.24 113.38 36.71 114.20 37.75C115.03 38.78 115.25 40.14 115.22 41.59H107.77C107.80 42.43 108.00 43.25 108.47 43.88ZM108.49 38.50C108.05 39.06 107.86 39.75 107.78 40.49H113.87C113.81 39.70 113.65 39.04 113.22 38.48C112.69 37.78 111.78 37.41 110.86 37.41C109.95 37.41 109.04 37.76 108.48 38.50H108.49Z' fill='%23FFFFFF'/%3E%3Cpath d='M77.77 9.31C77.77 8.07 77.50 6.83 76.67 5.78C75.90 4.79 74.69 4.24 73.38 4.24C73.35 4.24 73.10 4.24 73.07 4.24C71.96 4.24 70.80 4.63 69.96 5.37C69.56 5.72 69.25 6.18 69.06 6.68C68.85 7.26 68.85 7.87 68.85 8.47C68.83 10.16 68.85 10.62 68.85 11.67V18.22H70.12V13.29C70.93 14.03 72.01 14.41 73.19 14.41H73.33C74.66 14.41 75.87 13.87 76.67 12.86C76.87 12.60 77.04 12.33 77.18 12.04C77.61 11.20 77.77 10.28 77.77 9.31ZM73.22 12.98C72.27 12.98 71.36 12.60 70.83 11.88C70.27 11.17 70.10 10.19 70.10 9.21C70.10 8.23 70.27 7.27 70.83 6.55C71.36 5.83 72.27 5.47 73.22 5.47C74.00 5.47 74.74 5.72 75.29 6.21C75.39 6.31 75.50 6.42 75.59 6.55C76.11 7.25 76.30 8.22 76.30 9.20C76.30 10.18 76.13 11.18 75.60 11.88C75.06 12.59 74.17 12.98 73.22 12.98V12.98Z' fill='%23FFFFFF'/%3E%3Cpath d='M96.19 5.03C95.45 4.44 94.55 4.25 93.67 4.29C92.79 4.25 91.89 4.43 91.14 5.03C89.82 6.01 89.65 7.69 89.67 9.36V13.94H90.96V9.40C90.96 7.93 91.12 6.71 92.07 6.01C92.51 5.69 93.06 5.52 93.67 5.51C94.27 5.52 94.82 5.69 95.26 6.01C96.21 6.71 96.37 7.93 96.37 9.40V13.94H97.67V9.36C97.68 7.69 97.51 6.01 96.19 5.03Z' fill='%23FFFFFF'/%3E%3Cpath d='M10.09 15.68C13.53 15.68 16.32 12.90 16.32 9.47C16.32 6.04 13.53 3.26 10.09 3.26C6.65 3.26 3.86 6.04 3.86 9.47C3.86 12.90 6.65 15.68 10.09 15.68Z' fill='%23FFFFFF'/%3E%3Cpath d='M24.91 15.68C28.35 15.68 31.14 12.90 31.14 9.47C31.14 6.04 28.35 3.26 24.91 3.26C21.46 3.26 18.67 6.04 18.67 9.47C18.67 12.90 21.46 15.68 24.91 15.68Z' fill='%23FFFFFF'/%3E%3Cpath d='M39.72 15.68C43.16 15.68 45.95 12.90 45.95 9.47C45.95 6.04 43.16 3.26 39.72 3.26C36.28 3.26 33.49 6.04 33.49 9.47C33.49 12.90 36.28 15.68 39.72 15.68Z' fill='%23FFFFFF'/%3E%3Cpath d='M24.91 31.19C28.35 31.19 31.14 28.41 31.14 24.98C31.14 21.55 28.35 18.77 24.91 18.77C21.46 18.77 18.67 21.55 18.67 24.98C18.67 28.41 21.46 31.19 24.91 31.19Z' fill='%23FFFFFF'/%3E%3Cpath d='M10.09 31.19C13.53 31.19 16.32 28.41 16.32 24.98C16.32 21.55 13.53 18.77 10.09 18.77C6.65 18.77 3.86 21.55 3.86 24.98C3.86 28.41 6.65 31.19 10.09 31.19Z' fill='%23FFFFFF'/%3E%3Cpath d='M10.09 46.70C13.53 46.70 16.32 43.92 16.32 40.49C16.32 37.06 13.53 34.28 10.09 34.28C6.65 34.28 3.86 37.06 3.86 40.49C3.86 43.92 6.65 46.70 10.09 46.70Z' fill='%23FFFFFF'/%3E%3Cpath d='M24.91 46.70C28.35 46.70 31.14 43.92 31.14 40.49C31.14 37.06 28.35 34.28 24.91 34.28C21.46 34.28 18.67 37.06 18.67 40.49C18.67 43.92 21.46 46.70 24.91 46.70Z' fill='%23FFFFFF'/%3E%3Cpath d='M39.72 46.70C43.16 46.70 45.95 43.92 45.95 40.49C45.95 37.06 43.16 34.28 39.72 34.28C36.28 34.28 33.49 37.06 33.49 40.49C33.49 43.92 36.28 46.70 39.72 46.70Z' fill='%23FFFFFF'/%3E%3Cpath d='M104.97 41.08C104.97 39.85 104.70 38.61 103.87 37.56C103.10 36.57 101.89 36.02 100.58 36.02C100.55 36.02 100.30 36.02 100.27 36.02C99.16 36.02 98.00 36.41 97.16 37.15C96.76 37.5 96.45 37.96 96.26 38.46C96.05 39.04 96.05 39.65 96.05 40.25C96.03 41.94 96.05 42.40 96.05 43.45V50H97.33V45.07C98.13 45.81 99.21 46.19 100.39 46.19H100.53C101.86 46.19 103.07 45.65 103.87 44.64C104.07 44.38 104.24 44.11 104.38 43.82C104.81 42.98 104.97 42.06 104.97 41.08ZM100.42 44.76C99.47 44.76 98.56 44.38 98.03 43.66C97.47 42.94 97.30 41.97 97.30 40.99C97.30 40.01 97.47 39.05 98.03 38.33C98.56 37.61 99.47 37.25 100.42 37.25C101.20 37.25 101.94 37.5 102.49 37.99C102.59 38.09 102.70 38.20 102.79 38.33C103.31 39.03 103.50 40.00 103.50 40.98C103.50 41.96 103.33 42.96 102.80 43.66C102.26 44.37 101.37 44.76 100.42 44.76V44.76Z' fill='%23FFFFFF'/%3E%3Cpath d='M93.92 21.83C93.50 21.71 93.06 21.66 92.62 21.66C91.48 21.66 90.18 22.24 89.45 23.09C89.08 23.52 88.81 24.03 88.63 24.57C88.46 25.09 88.43 25.64 88.41 26.19C88.4 26.74 88.37 27.30 88.36 27.86C88.35 28.44 88.34 29.02 88.34 29.61C88.34 29.90 88.34 30.20 88.34 30.5C88.34 30.64 88.34 30.78 88.34 30.93C88.34 31.00 88.30 31.31 88.34 31.36H89.67V26.86C89.67 26.39 89.67 25.94 89.72 25.53C89.81 24.94 89.99 24.38 90.35 23.93C90.86 23.25 91.69 22.97 92.59 22.91C92.94 22.88 93.05 22.89 93.59 22.97C93.59 22.93 93.59 23 93.59 22.97C93.70 23.00 93.81 23.03 93.92 23.07V21.83L93.92 21.83Z' fill='%23FFFFFF'/%3E%3Cpath d='M84.40 36.56C83.97 36.44 83.53 36.39 83.09 36.39C81.95 36.39 80.65 36.96 79.92 37.81C79.55 38.25 79.28 38.76 79.11 39.30C78.94 39.82 78.90 40.37 78.88 40.92C78.87 41.47 78.85 42.03 78.83 42.58C78.82 43.17 78.82 43.75 78.82 44.33C78.82 44.63 78.82 44.92 78.82 45.22C78.82 45.37 78.82 45.51 78.82 45.65C78.82 45.72 78.77 46.04 78.82 46.08H80.14V41.59C80.14 41.11 80.15 40.67 80.19 40.25C80.28 39.66 80.46 39.11 80.82 38.66C81.34 37.97 82.16 37.70 83.06 37.63C83.41 37.61 83.53 37.62 84.06 37.69C84.06 37.66 84.06 37.72 84.06 37.69C84.18 37.72 84.29 37.75 84.39 37.79V36.55L84.40 36.56Z' fill='%23FFFFFF'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_4657_431'%3E%3Crect width='119' height='50' fill='%23FFFFFF'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E\") no-repeat center center;\n  background-size: contain;\n}\n\n/* The variables above do not reach the input surfaces, which stay light. */\ninput, textarea, select {\n  background-color: rgba(255, 255, 255, 0.08) !important;\n  color: #FFFFFF !important;\n  border-color: rgba(255, 255, 255, 0.16) !important;\n}\n\ninput::placeholder, textarea::placeholder {\n  color: rgba(255, 255, 255, 0.45) !important;\n}\n\ninput:focus, textarea:focus, select:focus {\n  border-color: #9FE7F5 !important;\n  box-shadow: 0 0 0 2px rgba(159, 231, 245, 0.25) !important;\n}\n\nselect option {\n  background-color: #0E282F;\n  color: #FFFFFF;\n}\n\na {\n  color: #9FE7F5;\n}",
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "7be6163e-8845-4d5f-99ea-842593890f1e"
     }
   ],
   "connections": {
@@ -1052,7 +1222,7 @@
       "main": [
         [
           {
-            "node": "Form page 4",
+            "node": "Which legal shape?",
             "type": "main",
             "index": 0
           }
@@ -1063,7 +1233,7 @@
       "main": [
         [
           {
-            "node": "Record submission",
+            "node": "Persist page 4",
             "type": "main",
             "index": 0
           }
@@ -1186,6 +1356,68 @@
         [
           {
             "node": "Ask apply 5 for a summary now",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which legal shape?": {
+      "main": [
+        [
+          {
+            "node": "Form page 4 registered",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Form page 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Form page 4 registered": {
+      "main": [
+        [
+          {
+            "node": "Persist page 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist page 4": {
+      "main": [
+        [
+          {
+            "node": "Read the stored answers again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the stored answers again": {
+      "main": [
+        [
+          {
+            "node": "Form page 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Form page 5": {
+      "main": [
+        [
+          {
+            "node": "Record submission",
             "type": "main",
             "index": 0
           }

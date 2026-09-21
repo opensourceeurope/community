@@ -115,8 +115,8 @@ In order through a normal application, plus the escalation branch:
 }
 ```
 
-`page` is the last page these responses cover. `responses` accumulates across
-pages as the applicant progresses, keyed by question ID.
+`page` is the last page these responses cover, 1 to 5. `responses`
+accumulates across pages as the applicant progresses, keyed by question ID.
 
 The question IDs of `form-ose`, in page order. Page 1 contributes
 `applicant_type`, the answer to `What are you applying as?`, which is asked on
@@ -130,13 +130,17 @@ has no codebase to name. A key the applicant was never asked is stored empty,
 and on a row written before its question existed it is missing altogether, so
 anything reading `repository_url`, `licence`, `open_development`,
 `community_home`, `community_open` or `project_website` has to tolerate both.
-Page 3 has
-`legal_entity`, `legal_entity_detail`, `operating_duration`,
+Page 3 has `legal_entity` and `operating_duration`.
+
+Page 4 depends on the `legal_entity` answer, the way page 2 depends on the
+applicant type. An applicant who answered `Yes` is asked
+`legal_entity_detail` first, and is required to answer it. Everyone else gets
+a page that does not carry the question at all, so on that branch
+`legal_entity_detail` is stored empty. Both branches then ask
 `fundraising_to_date`, `fundraising_goal`, `funding_sources`,
 `expected_expenses` and `payee_countries`.
-`legal_entity_detail` is optional and only meaningful when `legal_entity` is
-`Yes`. Page 4 has
-`activities`, `mission_fit` and `notes`.
+
+Page 5 has `activities`, `mission_fit` and `notes`.
 
 Page 1 asks `contact_email` and the collective URL, which are stored as
 columns rather than in `answers`, and the applicant type, which is stored in
