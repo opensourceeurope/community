@@ -55,6 +55,15 @@ messages, and every applicant-facing email checks `DRY_RUN` first.
 The automation serves Open Source Europe only. Open Collective Europe appears
 in one place: the AI review may suggest that a project fits OCE better.
 
+What OSE hosts is read broadly, and the review is written to match. Software
+projects, and equally the communities, meetups, conferences, events, archives
+and educational work that grow open source and the people doing it. A group
+that maintains no repository of its own belongs here just as much as a library
+does, which is why the form asks what kind of applicant someone is rather than
+assuming a codebase. The review may only suggest OCE when the work has no
+connection to open source at all, and it is told to answer `unclear` rather
+than redirect whenever it is weighing the two.
+
 On the instance the workflows are named `apply <step>` plus a description, so
 the workflow list reads in pipeline order. The export files use short names.
 
