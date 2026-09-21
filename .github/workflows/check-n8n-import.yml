@@ -1,0 +1,28 @@
+# Boots the n8n version production runs and imports every export in
+# automation/n8n into it, so a pull request finds out here that an export names
+# a node the pinned n8n build does not have. The image tag is read out of
+# automation/infra/docker-compose.yml by the script, and the container is
+# thrown away with the runner. Nothing in this job reaches the live instance.
+name: check the exports load on n8n
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Boot n8n and import the exports
+        run: automation/test/n8n-import-check.sh
