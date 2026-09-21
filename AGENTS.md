@@ -207,18 +207,26 @@ The rules below are the OSE-specific invariants on top of that skill:
   Leave that element's `elementName` empty and it stays out of the form
   output, which is what keeps it out of `answers` and off the five places
   above.
-- **Page 2 is two nodes, and nothing may reach back past that branch.** The page
-  1 question `What are you applying as?` sends a community, meetup or events
-  applicant to `Form page 2 for communities` and everyone else to `Form page 2`,
-  so on any given run one of the two never executes. A `$('Form page 2')`
-  reference on the community branch resolves to nothing, and the answer is gone
-  with no error anywhere. That is why `Persist page 2` reads its page 2 answers
-  from `$json`, whichever node just ran, and why `Persist page 3` and
-  `Record submission` read them from `Read the stored answers`, the row both
-  branches wrote. Page 3 and page 4 are on every path, so those two are still
-  referenced by node name. A new page 2 question goes on whichever variant it
-  belongs to, and its key still lands in all three storage expressions and both
-  label lists.
+- **Two form pages are branched, and nothing may reach back past a branch.**
+  Page 2 splits on the page 1 question `What are you applying as?`, and page 4
+  splits on the page 3 question `Is the project already registered as a legal
+  entity?`. On any given run one node of each pair never executes, so a
+  `$('Form page 2')` or `$('Form page 4')` reference resolves to nothing on the
+  other branch and the answer is gone with no error anywhere. Two rules follow.
+  A persist node reads its own page from `$json`, which is whichever variant
+  just ran, so one expression serves both. Anything needing an earlier page
+  reads it from the row, through `Read the stored answers` before page 3 and
+  `Read the stored answers again` before page 5, never by node name. Pages 1, 3
+  and 5 are on every path and may still be referenced by name. A new question
+  goes on whichever variant it belongs to, and its key still lands in every
+  storage expression downstream and in both label lists.
+- **A form field's label is its lookup key.** Storage expressions read
+  `$json['the exact label']`, so renaming a field silently breaks every
+  expression that reads it and the answer vanishes when the applicant clicks
+  Continue. Rename and update the readers in the same change, and check by
+  walking the connection graph to see which pages can feed each storage node
+  rather than by trusting validation, which does not catch this. A label
+  containing an apostrophe uses `$json["..."]`.
 - **You cannot check the form by fetching it, and n8n filters what it renders.**
   The form is a client-rendered app, so the served HTML contains none of the
   questions, the styling or the custom HTML. Grepping it proves nothing about
