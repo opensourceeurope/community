@@ -162,6 +162,50 @@ runs the same command on every pull request and on pushes to main, so refresh
 the exports with `scripts/export-workflows.py` in the same pull request as any
 workflow change.
 
+## Loading the exports on a real n8n
+
+`check-workflows.py` reads the exports as files. It cannot say whether n8n
+accepts them. The defect it misses is a node type, or a `typeVersion`, that the
+n8n version in `infra/docker-compose.yml` does not have. An export like that
+passes every file check, then opens in the editor as an unresolved node with
+its parameters gone.
+
+[`test/n8n-import-check.sh`](test/n8n-import-check.sh) boots that n8n version in
+Docker and imports the exports into it. Run it from the repository root:
+
+```bash
+automation/test/n8n-import-check.sh
+```
+
+It needs Docker and `python3`, and nothing else. It runs
+`scripts/check-workflows.py` first, so one command covers both.
+
+The image tag is read out of
+[`infra/docker-compose.yml`](infra/docker-compose.yml) at run time. The check
+therefore uses the build the deployment uses, and one upgrade moves both. The
+script names the compose file and stops if that line is missing, appears more
+than once, or no longer points at an `x.y.z` release.
+
+The instance is a throwaway. It keeps its state in SQLite rather than Postgres,
+its encryption key is a fixed public string, and it holds no credential. The
+container is removed when the script exits. It never reaches
+automation.opensourceeurope.org and it activates nothing.
+
+Three defects fail the check:
+
+1. An export n8n rejects. Each file goes in on its own, so the message names
+   the file.
+2. A node type the build does not register. Every `type` in every export must
+   be one the packaged nodes provide.
+3. A `typeVersion` the node does not offer. The message lists the versions that
+   node does have.
+
+The check proves the exports load. It does not run a workflow, because that
+needs credentials and live Open Collective data.
+
+[`.github/workflows/check-n8n-import.yml`](../.github/workflows/check-n8n-import.yml)
+runs the same command on every pull request and on pushes to main.
+
 ## Configuration
 
 [`.env.example`](.env.example) documents every variable, with its production
