@@ -192,11 +192,13 @@ The rules below are the OSE-specific invariants on top of that skill:
   changed, that same change must update **every** data table node in **every**
   workflow, refresh the exports, and re-validate — a half-updated reference
   fails silently, not loudly.
-- **A new form question lands in five places, not one.** The form pages do not
+- **A new form question lands in six places, not one.** The form pages do not
   accumulate answers: every storage node rebuilds the whole answers object from
   a hardcoded key list. So a field added to page 2 must also go into
   `Persist page 2`, `Persist page 3` and `Record submission`, and a field added
-  to page 3 into `Persist page 3` and `Record submission`. Then two
+  to page 3 into `Persist page 3` and `Record submission`. It also goes into the
+  field list `Form page 6` builds, or the applicant never sees the question
+  again and cannot correct their answer to it. Then two
   hardcoded label lists read those keys and will silently omit anything missing
   from them: `Render submission thread reply` in apply 4, which is what a
   reviewer reads in Slack, and `Render summary request` in apply 5, which is what
@@ -205,8 +207,24 @@ The rules below are the OSE-specific invariants on top of that skill:
   no description property, so a question that needs a line of explanation is
   two entries: the field, then a Custom HTML element holding the sentence.
   Leave that element's `elementName` empty and it stays out of the form
-  output, which is what keeps it out of `answers` and off the five places
+  output, which is what keeps it out of `answers` and off the six places
   above.
+- **The last page is built from the row, and it is the only way back.** n8n form
+  pages move forward only. There is no back button and no option to add one, so
+  `Form page 6` stands in for one. It shows the whole application with every
+  answer prefilled through `defaultValue`, and the applicant corrects anything
+  there before sending it. It is also the only form node here that sets
+  `defineForm: json`. Its field list is an expression over
+  `Read the stored answers again` rather than a fixed list, which is what lets
+  one node cover both page 2 variants and both legal shapes. Four answers appear
+  as text instead of fields. Three are what the earlier branches switched on: the
+  page 1 dropdown, the Open Collective URL, and whether the project is a
+  registered legal entity. Changing one of those on the last page cannot go back
+  and ask the questions it would have changed. The fourth is the contact address,
+  which `Mark form started` has already written to the row. `Record submission`
+  reads every answer from that page with `??` and not `||`. An optional answer
+  the applicant deliberately cleared then stays cleared, and the row is the
+  fallback only for fields the page did not show.
 - **Two form pages are branched, and nothing may reach back past a branch.**
   Page 2 splits on the page 1 question `What are you applying as?`, and page 4
   splits on the page 3 question `Is the project already registered as a legal
