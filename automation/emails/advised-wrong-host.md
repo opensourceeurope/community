@@ -14,7 +14,8 @@ that:
 That is a machine's reading of a short description. It is not a decision, and
 it may simply be wrong. A person will review your application either way.
 
-The next step is the same for everyone: our application form.
+The next step is the same for everyone. Please fill in the application form
+linked below.
 
 {{ form_url }}
 

@@ -261,8 +261,10 @@ message. The first line is `Subject: ` followed by the subject. After a blank
 line, the rest of the file is the body.
 
 Subject and body support `{{ placeholder }}` interpolation. The available
-placeholders are `collective_name`, `org_name`, `form_url` and
-`ai_applicant_message`. See "Filling the email and prompt templates" in
+placeholders are `collective_name`, `collective_url`, `org_name`, `form_url`
+and `ai_applicant_message`. The last of those arrives already quoted, each line
+prefixed with `> `, so an applicant can see where our words stop and the
+automated read begins. See "Filling the email and prompt templates" in
 [`docs/data-tables.md`](docs/data-tables.md) for where each value comes from.
 
 Which invitation an applicant receives depends on the verdict, and the mapping
