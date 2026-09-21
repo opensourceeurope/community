@@ -254,6 +254,24 @@ reminder threshold on an hourly sweep still takes an hour to fire. Shorten
 `SWEEP_CRON` together with the thresholds, or click Execute on the sweep
 workflow in the n8n UI.
 
+## Checking the pull request description
+
+[`.github/scripts/check-pr-body.py`](../.github/scripts/check-pr-body.py) fails a
+pull request whose description is missing or over 350 prose words. It runs on
+edit as well as open, so trimming clears it without pushing again.
+
+It counts prose only. Fenced code blocks, tables, headings, URLs and the AI
+disclosure line are all excluded, so putting detail into a table or a code block
+costs nothing and is the intended way to keep a long change readable. The limit
+was calibrated against every description in this repository: it passes the ones
+that were useful and fails the three that sprawled.
+
+Run it locally with the body in a file:
+
+```bash
+python3 .github/scripts/check-pr-body.py my-description.md
+```
+
 ## Email templates
 
 Files in `automation/emails/` are plain text email templates, one file per
