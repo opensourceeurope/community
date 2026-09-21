@@ -2,7 +2,8 @@ Subject: Your application to {{ org_name }} for {{ collective_name }} — next s
 
 Hi,
 
-Thanks for applying to {{ org_name }} with {{ collective_name }}.
+Thanks for applying to {{ org_name }} with {{ collective_name }}
+({{ collective_url }}).
 
 Before a person reviews your application, an automated check reads what is
 currently on your Open Collective page. Its first impression, based only on
