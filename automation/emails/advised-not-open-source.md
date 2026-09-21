@@ -20,10 +20,8 @@ linked below.
 
 {{ form_url }}
 
-Filling in that form carefully is the single most useful thing you can do. It
-is where a wrong first impression gets corrected. If your project is open
-source and the note above could not tell, show it there: a repository link,
-the licence, how development happens in the open.
+The more detail you give in the form, the better the human review: a
+repository link, the licence, and how development happens in the open.
 
 Questions or disagreement? Reply to this email and a reviewer will read it.
 

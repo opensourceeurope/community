@@ -19,10 +19,8 @@ linked below.
 
 {{ form_url }}
 
-Filling in that form carefully is the single most useful thing you can do. It
-is where a wrong first impression gets corrected, and it is what the human
-review works from. And if the other host really is the better fit, applying
-there instead is completely fine.
+The more detail you give in the form, the better the human review. And if the
+other host really is the better fit, applying there instead is completely fine.
 
 Questions or disagreement? Reply to this email and a reviewer will read it.
 
