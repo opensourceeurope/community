@@ -5,6 +5,11 @@ This repository is the home for community-related discussions, governance proces
 ## Authorship Rules
 
 - **NEVER add `Co-Authored-By:` with yourself as a co-author of any commit.** Agents are assistants and tools — they are not authors. Only humans can be authors of commits.
+- **Keep the pull request description under 350 prose words.** CI enforces it
+  (`.github/scripts/check-pr-body.py`), and the limit was calibrated against every
+  description in this repository. Code blocks, tables, headings and URLs are not
+  counted, so move detail into them rather than cutting the evidence. An empty or
+  near-empty description fails too.
 - AI assistance disclosure belongs in the pull request description using the exact format below — not in commit authorship metadata:
   ```
   Generated-by: <Agent Name and Version> following [AI Policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md)
