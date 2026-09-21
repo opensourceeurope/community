@@ -5,6 +5,11 @@ This repository is the home for community-related discussions, governance proces
 ## Authorship Rules
 
 - **NEVER add `Co-Authored-By:` with yourself as a co-author of any commit.** Agents are assistants and tools — they are not authors. Only humans can be authors of commits.
+- **Keep the pull request description under 350 prose words.** CI enforces it
+  (`.github/scripts/check-pr-body.py`), and the limit was calibrated against every
+  description in this repository. Code blocks, tables, headings and URLs are not
+  counted, so move detail into them rather than cutting the evidence. An empty or
+  near-empty description fails too.
 - AI assistance disclosure belongs in the pull request description using the exact format below — not in commit authorship metadata:
   ```
   Generated-by: <Agent Name and Version> following [AI Policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md)
@@ -21,6 +26,16 @@ This repository is the home for community-related discussions, governance proces
   over the branch; a worktree pins one branch to one directory.
 - `.claude/scripts/worktree.sh list` / `rm <branch-name>` manage them. `.worktrees/` is
   gitignored.
+- **A squash merge ends the branch. Check before you push to it again.** Pull
+  requests here are squash-merged, so the branch's own commits never appear in
+  `main` and `git log origin/main..HEAD` keeps listing them as if nothing had
+  landed. Work pushed to that branch afterwards belongs to no open pull request
+  and is invisible until someone asks. This has already happened: seven commits
+  sat orphaned while every one of them was live on the n8n instance, so `main`
+  described a pipeline that no longer existed. Before continuing on a branch,
+  run `gh pr view <n> --json state`, and open a new pull request rather than
+  pushing into a merged one. Compare content, not commits: the squashed commits
+  will always look missing.
 
 ## Handling Secrets
 
@@ -204,6 +219,15 @@ The rules below are the OSE-specific invariants on top of that skill:
   referenced by node name. A new page 2 question goes on whichever variant it
   belongs to, and its key still lands in all three storage expressions and both
   label lists.
+- **You cannot check the form by fetching it, and n8n filters what it renders.**
+  The form is a client-rendered app, so the served HTML contains none of the
+  questions, the styling or the custom HTML. Grepping it proves nothing about
+  what an applicant sees, and claiming otherwise has already been done here and
+  been wrong. n8n also filters both the `customCss` and the Custom HTML
+  elements before rendering: a raw `<svg>` is stripped, which is why the
+  wordmark is a percent-encoded data URI. So anything beyond plain text in a
+  form field is verified by opening the page, not by reading the export back.
+  Saving without an error only proves n8n stored it.
 - **The form's field labels are part of the emailed link.** n8n keys prefill
   query parameters on a field's label, so the invitation and reminder emails
   build a link containing the page 1 label `Your collective's Open Collective
@@ -218,8 +242,12 @@ The rules below are the OSE-specific invariants on top of that skill:
   instance still runs against production Open Collective data, and DRY_RUN is
   the control that keeps mail off real applicants. It is not a control on state:
   a test run still advances real rows, so an application marked `form_invited`
-  during a test never receives a real invitation afterwards. Clear the
-  timestamps of any row a test touched, or delete the row.
+  during a test never receives a real invitation afterwards. Worse, submitting
+  the form during a rehearsal writes the tester's address into `contact_email`,
+  and the closing email prefers that over `applicant_email`, so the real
+  applicant would never be told the outcome. Delete any row a rehearsal
+  touched rather than trying to repair it: the sweep recreates it from Open
+  Collective, and clearing timestamps alone leaves the address behind.
 - **Email copy lives in `automation/emails/*.md`** and is embedded verbatim
   in the render step of whichever workflow sends it — change both in the same
   PR, and refresh the export of every changed workflow into `automation/n8n/`

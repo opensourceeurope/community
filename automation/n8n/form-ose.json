@@ -315,8 +315,13 @@
           "values": [
             {
               "fieldLabel": "Repository URL",
-              "placeholder": "https://github.com/your-project",
+              "placeholder": "https://your-git-host/your-project",
               "requiredField": true
+            },
+            {
+              "fieldLabel": "",
+              "fieldType": "html",
+              "html": "<p>Any public git host is fine. GitHub, GitLab, Codeberg, or your own Forgejo or Gitea instance.</p>"
             },
             {
               "fieldLabel": "Project website (optional)",
@@ -444,7 +449,7 @@
             },
             {
               "fieldType": "html",
-              "html": "<p>It is important for us to know as it helps us understand the need of your collective.</p>"
+              "html": "<details><summary><small>Why we ask</small></summary><small>It is important for us to know as it helps us understand the need of your collective.</small></details>"
             },
             {
               "fieldLabel": "In which countries are most of the people who will be paid or reimbursed for expenses?",
@@ -453,7 +458,7 @@
             },
             {
               "fieldType": "html",
-              "html": "<p>It is important for us to know as it can be harder to send money to some countries. If you don't know, just let us know where you and your team are located.</p>"
+              "html": "<details><summary><small>Why we ask</small></summary><small>It is important for us to know as it can be harder to send money to some countries. If you don't know, just let us know where you and your team are located.</small></details>"
             }
           ]
         },
@@ -744,7 +749,7 @@
     },
     {
       "id": "892e0f31-359c-4b29-8046-aa79ed11c1d9",
-      "name": "React with a clipboard on the parent",
+      "name": "React that a decision is needed",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
@@ -760,7 +765,7 @@
           "value": "={{ $('Render submission thread reply').item.json.channel }}"
         },
         "timestamp": "={{ $('Render submission thread reply').item.json.thread_ts }}",
-        "name": "clipboard"
+        "name": "point_up_2"
       },
       "credentials": {
         "slackApi": {
@@ -1129,18 +1134,7 @@
       "main": [
         [
           {
-            "node": "React with a clipboard on the parent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "React with a clipboard on the parent": {
-      "main": [
-        [
-          {
-            "node": "Ask apply 5 for a summary now",
+            "node": "React that a decision is needed",
             "type": "main",
             "index": 0
           }
@@ -1181,6 +1175,17 @@
         [
           {
             "node": "Form page 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "React that a decision is needed": {
+      "main": [
+        [
+          {
+            "node": "Ask apply 5 for a summary now",
             "type": "main",
             "index": 0
           }

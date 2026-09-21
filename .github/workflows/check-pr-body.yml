@@ -1,0 +1,29 @@
+# Fails a pull request whose description is missing, or long enough that nobody
+# will read it. Calibrated against every description in this repository so far:
+# the limit passes the ones that were useful and fails the three that sprawled.
+# Runs on edit as well as open, so trimming clears it without a new push.
+name: check the pull request description
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Check the description
+        env:
+          # Through the environment, never interpolated into the run script: a
+          # description is attacker-controlled text and ${{ }} would execute it.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 .github/scripts/check-pr-body.py

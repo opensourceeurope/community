@@ -55,6 +55,15 @@ messages, and every applicant-facing email checks `DRY_RUN` first.
 The automation serves Open Source Europe only. Open Collective Europe appears
 in one place: the AI review may suggest that a project fits OCE better.
 
+What OSE hosts is read broadly, and the review is written to match. Software
+projects, and equally the communities, meetups, conferences, events, archives
+and educational work that grow open source and the people doing it. A group
+that maintains no repository of its own belongs here just as much as a library
+does, which is why the form asks what kind of applicant someone is rather than
+assuming a codebase. The review may only suggest OCE when the work has no
+connection to open source at all, and it is told to answer `unclear` rather
+than redirect whenever it is weighing the two.
+
 On the instance the workflows are named `apply <step>` plus a description, so
 the workflow list reads in pipeline order. The export files use short names.
 
@@ -245,6 +254,24 @@ reminder threshold on an hourly sweep still takes an hour to fire. Shorten
 `SWEEP_CRON` together with the thresholds, or click Execute on the sweep
 workflow in the n8n UI.
 
+## Checking the pull request description
+
+[`.github/scripts/check-pr-body.py`](../.github/scripts/check-pr-body.py) fails a
+pull request whose description is missing or over 350 prose words. It runs on
+edit as well as open, so trimming clears it without pushing again.
+
+It counts prose only. Fenced code blocks, tables, headings, URLs and the AI
+disclosure line are all excluded, so putting detail into a table or a code block
+costs nothing and is the intended way to keep a long change readable. The limit
+was calibrated against every description in this repository: it passes the ones
+that were useful and fails the three that sprawled.
+
+Run it locally with the body in a file:
+
+```bash
+python3 .github/scripts/check-pr-body.py my-description.md
+```
+
 ## Email templates
 
 Files in `automation/emails/` are plain text email templates, one file per
@@ -252,8 +279,10 @@ message. The first line is `Subject: ` followed by the subject. After a blank
 line, the rest of the file is the body.
 
 Subject and body support `{{ placeholder }}` interpolation. The available
-placeholders are `collective_name`, `org_name`, `form_url` and
-`ai_applicant_message`. See "Filling the email and prompt templates" in
+placeholders are `collective_name`, `collective_url`, `org_name`, `form_url`
+and `ai_applicant_message`. The last of those arrives already quoted, each line
+prefixed with `> `, so an applicant can see where our words stop and the
+automated read begins. See "Filling the email and prompt templates" in
 [`docs/data-tables.md`](docs/data-tables.md) for where each value comes from.
 
 Which invitation an applicant receives depends on the verdict, and the mapping
