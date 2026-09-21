@@ -32,6 +32,7 @@ below that runs all three containers. Nothing else.
 | Give the workflows Open Collective access | [The Open Collective host-admin credential](#the-open-collective-host-admin-credential) |
 | Let the workflows post to Slack | [The Slack credential](#the-slack-credential) |
 | Let the workflows send email | [The SMTP credential](#the-smtp-credential) |
+| Ship a workflow change from `main` | [Deploying the workflows on merge](#deploying-the-workflows-on-merge) |
 | Something is broken | [Troubleshooting](#troubleshooting) |
 | Get in when SSH refuses you | [Getting into the box](#getting-into-the-box) |
 | Point Open Collective at this box | [Registering the Open Collective webhook](#registering-the-open-collective-webhook) |
@@ -425,6 +426,116 @@ when the container is recreated:
 ```bash
 docker compose up -d n8n           # recreates with the new .env values
 ```
+
+## Deploying the workflows on merge
+
+A merge to `main` reaches the instance because the box pulls it. No n8n API key
+sits in a GitHub secret, and nothing has to be opened inbound for a deploy.
+
+`ose-deploy-workflows.timer` runs `deploy-workflows.sh` every 10 minutes. The
+script fast-forwards `~/community` to `origin/main` and runs the same six export
+checks that CI runs on every pull request. It then pushes each file in
+`automation/n8n/` into the running n8n over the public API.
+
+Each export goes to the workflow of the same name, updated in place. The
+workflow keeps its id, so every Execute Workflow node that calls it keeps
+working, and a second run in a row changes nothing.
+
+Four things the script cannot do, and what stops it:
+
+| It never | What stops it |
+|---|---|
+| Activates or deactivates a workflow | `active` is read-only in the public API, and the deploy key needs no activation scope |
+| Adds a second workflow under a name the instance already has | It matches by name and updates the workflow it matched |
+| Reads or writes a credential | An export names a credential by id, and the script never calls the credential endpoints |
+| Deploys a branch or local edits | It stops unless the checkout is on `main` and clean |
+
+### The API key the box uses
+
+The deploy calls the instance's own public API, so the key belongs on the box,
+in `~/.n8n-api-key`, mode 600. Keep it out of `.env`: every variable in that
+file is injected into the n8n container, and nothing in the container reads
+this key.
+
+Create the key in the n8n UI under **Settings**, **n8n API**. Where the dialog
+offers scopes, give it `workflow:list`, `workflow:read` and `workflow:update`
+and nothing else. A key without `workflow:activate` cannot start a workflow even
+if something asks it to.
+
+Write the key into a file that is already mode 600, and check its length rather
+than its content:
+
+```bash
+touch ~/.n8n-api-key && chmod 600 ~/.n8n-api-key
+nano ~/.n8n-api-key    # paste the key as one line, no quotes
+wc -c ~/.n8n-api-key   # the key length plus one for the newline
+```
+
+### Install the timer
+
+The script runs `python3`, which nothing else on this box installs. Prove the
+deploy works before handing it to systemd:
+
+```bash
+sudo apt-get install -y python3
+~/community/automation/infra/deploy-workflows.sh --dry-run
+```
+
+The dry run reads the instance, prints the commits it would fast-forward past
+and the workflows it would change, and writes nothing. Then install the units:
+
+```bash
+sudo cp ~/community/automation/infra/systemd/ose-deploy-workflows.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now ose-deploy-workflows.timer
+```
+
+When a unit file changes in git, copy it again and run
+`sudo systemctl daemon-reload`. A `git pull` picks up the script on its own,
+because the service runs it out of the checkout.
+
+### See what it did
+
+```bash
+systemctl list-timers ose-deploy-workflows.timer    # when it fires next
+sudo systemctl start ose-deploy-workflows.service   # run one now
+journalctl -u ose-deploy-workflows.service -n 50    # what the last runs changed
+```
+
+A run prints the commits it fast-forwarded past, then one line per export. An
+updated export names the nodes that changed, and every line says whether that
+workflow is active. This unit logs to the journal. The backup unit redirects its
+output to a file instead, which is why `journalctl -u ose-backup.service` shows
+nothing.
+
+### Turn it off
+
+```bash
+sudo systemctl disable --now ose-deploy-workflows.timer
+```
+
+Merges to `main` stop reaching the instance, and nothing else changes. Deploy by
+hand with `~/community/automation/infra/deploy-workflows.sh` whenever you want
+one. To remove it completely, delete both unit files from
+`/etc/systemd/system/` and run `sudo systemctl daemon-reload`.
+
+### An export the instance does not have
+
+The run reports that file as failed, exits non-zero, and deploys the rest. A
+name with no match is either a new workflow or one that was renamed in the n8n
+UI, and the script cannot tell which. Guessing wrong leaves two copies of one
+pipeline stage on the instance.
+
+Deploy that file once by hand, then let the timer take over again:
+
+```bash
+~/community/automation/infra/deploy-workflows.sh --allow-create
+```
+
+The new workflow arrives inactive, with an id of its own. An Execute Workflow
+node names its target by id, so open any hand-off into the new workflow in the
+n8n UI and point it at the id that now exists. Then add that id to the map in
+`automation/scripts/export-workflows.py`, or the next export skips the file.
 
 ## Setting the credentials that are not generated here
 
@@ -1146,6 +1257,8 @@ under a different key leaves the credentials in the database but unreadable.
 | `apply.` returns 404 | No workflow serves `/form/apply-ose` yet | Expected until the form exists |
 | n8n log mentions SQLite | The `DB_TYPE` block is not taking effect | Fix before storing anything — migrating out of SQLite later is painful |
 | `.env` has the variable, `docker compose up -d n8n` says `Running`, `printenv` in the container prints nothing | The compose file on the box predates the variable, so compose never passes it. `docker compose config \| grep <VAR>` prints nothing | `git pull --ff-only` in `~/community`, then `docker compose up -d n8n` and expect `Recreated` |
+| `deploy-workflows.sh` stops with `the checkout is on ...` | The box was left on a feature branch, so the deploy refuses to fast-forward it | `git -C ~/community checkout main`, then run the deploy again |
+| The same workflow reports `updated` on every deploy run | It is being edited in the n8n UI, and each run puts the exported version back over the edit | Export the instance's version with `automation/scripts/export-workflows.py` and open a pull request for it |
 | Disk filling | Execution history unpruned | Check `EXECUTIONS_DATA_PRUNE=true` and `EXECUTIONS_DATA_MAX_AGE` |
 | Credentials all broken after a restore | `N8N_ENCRYPTION_KEY` differs from the one in use when the dump was taken | Restore the original key; there is no recovery without it |
 | Every `ovhcloud` command returns `INVALID_CREDENTIAL` (403) | The consumer key in `~/.ovh.conf` was revoked, expired or rotated | `ovhcloud login` |

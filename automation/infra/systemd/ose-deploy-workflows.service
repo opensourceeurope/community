@@ -1,0 +1,13 @@
+[Unit]
+Description=Deploy the n8n workflow exports on this box from origin/main
+Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=debian
+ExecStart=/home/debian/community/automation/infra/deploy-workflows.sh
+# No StandardOutput=append: here. The backup unit has one, and it replaces the
+# journal, so a failed run leaves journalctl reporting "No entries".

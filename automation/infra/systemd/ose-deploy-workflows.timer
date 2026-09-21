@@ -1,0 +1,13 @@
+[Unit]
+Description=Look for new n8n workflow exports on origin/main every 10 minutes
+Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
+
+[Timer]
+OnCalendar=*:0/10
+# Deploy a merge that landed while the box was down, instead of waiting for
+# the next merge to carry it in.
+Persistent=true
+RandomizedDelaySec=1m
+
+[Install]
+WantedBy=timers.target

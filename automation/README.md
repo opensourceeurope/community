@@ -40,6 +40,11 @@ The deployment lives on one VPS: n8n on Postgres behind Caddy.
 installation from a fresh box, SSH recovery, backups, restore, upgrades, and
 a troubleshooting table of failures already hit in practice.
 
+A merge to `main` reaches that instance on its own. The box pulls the commit
+every 10 minutes and syncs the exports in `automation/n8n/` into the running
+n8n, updating each workflow in place and leaving its active state alone. See
+[Deploying the workflows on merge](infra/README.md#deploying-the-workflows-on-merge).
+
 ## The workflows
 
 `automation/n8n/` holds the export of every workflow. Six workflows
