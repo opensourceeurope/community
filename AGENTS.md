@@ -109,7 +109,8 @@ The rules below are the OSE-specific invariants on top of that skill:
   make.** apply 5 fetches a README from the repository they named, which is the
   only place the pipeline reaches a host of someone else's choosing. It is
   `https` only, never an IP literal, never `localhost` or a `.local` or
-  `.internal` name, and no redirects at all: a repository link resolves in one
+  `.internal` name, never a port or a `user@host` prefix, never a `.` or `..`
+  path segment, and no redirects at all: a repository link resolves in one
   hop or it does not resolve, because every host check runs on the first URL and
   a redirect would hand the applicant's server the choice of where the request
   lands. The body is fetched as text so that nothing parses it, and only its
@@ -119,6 +120,20 @@ The rules below are the OSE-specific invariants on top of that skill:
   private address still passes; what makes that tolerable is that nothing on the
   box listens on a private interface over HTTPS. Widen this and that reasoning
   has to be redone.
+- **A Code node has no `URL`, no `fetch` and no `crypto`.** The sandbox gives you
+  `Buffer`, `require`, `atob`, `TextEncoder` and the ECMAScript built-ins, and
+  leaves out thirteen globals a Node script would have: `URL`, `URLSearchParams`,
+  `fetch`, `AbortController`, `structuredClone`, `crypto`, `process`,
+  `queueMicrotask`, `performance`, `Blob`, `Headers`, `Request` and `Response`.
+  Reaching for one throws `ReferenceError`, and that is harmless until something
+  catches it. apply 5 wrapped `new URL()` in the `try/catch` meant for a
+  malformed URL, so the error became "the applicant sent a bad link": every
+  repository was refused and no README was ever fetched, for days, without one
+  failed execution. So never wrap a global in a `try/catch` that also handles bad
+  input, and parse a URL with a regex the way `Derive slug` in apply 4 and
+  `Choose the repository URL` in apply 5 do. The line parses under plain `node`
+  and `validate_workflow` says nothing, so the only way to see this is to run the
+  node inside n8n. `automation/test/readme-fetch.py` does that in a container.
 - **Every applicant-facing email site checks `DRY_RUN`, and the check fails safe.** Each
   email node is fed by a render Code node that reads `DRY_RUN`: the pipeline suppresses
   applicant email unless the variable is explicitly and exactly `false`, after trimming
