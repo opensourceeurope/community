@@ -2,7 +2,7 @@
 """Check the n8n workflow exports for the invariants in AGENTS.md.
 
 Every check here exists because the defect it looks for reached main at least
-once. There are deliberately only six. See --help for what each one covers.
+once. There are deliberately only seven. See --help for what each one covers.
 
 Standard library only: no dependencies, no network, no n8n API key.
 """

@@ -277,7 +277,9 @@ The rules below are the OSE-specific invariants on top of that skill:
   build a link containing the page 1 label `Your collective's Open Collective
   URL`, percent-encoded. Rename that field and the prefill stops working
   silently: the form still loads, just empty. Change the label and the two
-  render nodes in apply 3 in the same PR.
+  render nodes in apply 3 in the same PR. `check-workflows.py` check 7 fails a
+  rename that leaves either one behind, and it covers the dropdown options the
+  Switch nodes compare against for the same reason.
 - **Timers are derived from timestamps** by the scheduled runs, never from
   Wait nodes.
 - **Config comes from the env vars in `automation/.env.example`**; credentials
