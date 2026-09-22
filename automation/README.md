@@ -171,37 +171,26 @@ passes every file check, then opens in the editor as an unresolved node with
 its parameters gone.
 
 [`test/n8n-import-check.sh`](test/n8n-import-check.sh) boots that n8n version in
-Docker and imports the exports into it. Run it from the repository root:
+Docker and imports every export into it. It needs Docker and `python3`, and it
+runs `scripts/check-workflows.py` first, so one command covers both.
+
+Run it from the repository root:
 
 ```bash
 automation/test/n8n-import-check.sh
 ```
 
-It needs Docker and `python3`, and nothing else. It runs
-`scripts/check-workflows.py` first, so one command covers both.
+It fails on an export n8n rejects, on a node type the build does not register,
+and on a `typeVersion` the node does not offer. Each file goes in on its own,
+so the message names the file.
 
-The image tag is read out of
-[`infra/docker-compose.yml`](infra/docker-compose.yml) at run time. The check
-therefore uses the build the deployment uses, and one upgrade moves both. The
-script names the compose file and stops if that line is missing, appears more
-than once, or no longer points at an `x.y.z` release.
+The image tag comes from [`infra/docker-compose.yml`](infra/docker-compose.yml)
+at run time, so the check and the deployment cannot drift.
 
-The instance is a throwaway. It keeps its state in SQLite rather than Postgres,
-its encryption key is a fixed public string, and it holds no credential. The
-container is removed when the script exits. It never reaches
-automation.opensourceeurope.org and it activates nothing.
-
-Three defects fail the check:
-
-1. An export n8n rejects. Each file goes in on its own, so the message names
-   the file.
-2. A node type the build does not register. Every `type` in every export must
-   be one the packaged nodes provide.
-3. A `typeVersion` the node does not offer. The message lists the versions that
-   node does have.
-
-The check proves the exports load. It does not run a workflow, because that
-needs credentials and live Open Collective data.
+The container is new every run and holds no credential. The script removes it
+on exit. The check never reaches automation.opensourceeurope.org and it
+activates nothing. It proves the exports load, but it does not run a workflow,
+because that needs credentials and live Open Collective data.
 
 [`.github/workflows/check-n8n-import.yml`](../.github/workflows/check-n8n-import.yml)
 runs the same command on every pull request and on pushes to main.
