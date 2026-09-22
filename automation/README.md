@@ -187,8 +187,9 @@ passes every file check, then opens in the editor as an unresolved node with
 its parameters gone.
 
 [`test/n8n-import-check.sh`](test/n8n-import-check.sh) boots that n8n version in
-Docker and imports every export into it. It needs Docker and `python3`, and it
-runs `scripts/check-workflows.py` first, so one command covers both.
+Docker and imports every export into it. It needs Docker, `python3` and
+`curl`, and it runs `scripts/check-workflows.py` first, so one command covers
+both.
 
 Run it from the repository root:
 
@@ -197,8 +198,9 @@ automation/test/n8n-import-check.sh
 ```
 
 It fails on an export n8n rejects, on a node type the build does not register,
-and on a `typeVersion` the node does not offer. Each file goes in on its own,
-so the message names the file.
+on a `typeVersion` the node does not offer, and on a workflow that the import
+reported as successful but that `n8n list:workflow` does not show afterwards.
+Each file goes in on its own, so the message names the file.
 
 The image tag comes from [`infra/docker-compose.yml`](infra/docker-compose.yml)
 at run time, so the check and the deployment cannot drift.
