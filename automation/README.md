@@ -165,6 +165,39 @@ runs the same command on every pull request and on pushes to main, so refresh
 the exports with `scripts/export-workflows.py` in the same pull request as any
 workflow change.
 
+## Loading the exports on a real n8n
+
+`check-workflows.py` reads the exports as files. It cannot say whether n8n
+accepts them. The defect it misses is a node type, or a `typeVersion`, that the
+n8n version in `infra/docker-compose.yml` does not have. An export like that
+passes every file check, then opens in the editor as an unresolved node with
+its parameters gone.
+
+[`test/n8n-import-check.sh`](test/n8n-import-check.sh) boots that n8n version in
+Docker and imports every export into it. It needs Docker and `python3`, and it
+runs `scripts/check-workflows.py` first, so one command covers both.
+
+Run it from the repository root:
+
+```bash
+automation/test/n8n-import-check.sh
+```
+
+It fails on an export n8n rejects, on a node type the build does not register,
+and on a `typeVersion` the node does not offer. Each file goes in on its own,
+so the message names the file.
+
+The image tag comes from [`infra/docker-compose.yml`](infra/docker-compose.yml)
+at run time, so the check and the deployment cannot drift.
+
+The container is new every run and holds no credential. The script removes it
+on exit. The check never reaches automation.opensourceeurope.org and it
+activates nothing. It proves the exports load, but it does not run a workflow,
+because that needs credentials and live Open Collective data.
+
+[`.github/workflows/check-n8n-import.yml`](../.github/workflows/check-n8n-import.yml)
+runs the same command on every pull request and on pushes to main.
+
 ## Testing the README fetch
 
 [`test/readme-fetch.py`](test/readme-fetch.py) runs the two README nodes of

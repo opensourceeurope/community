@@ -20,15 +20,28 @@ Needs docker and a network. Prints one line per case and exits non-zero if any c
 """
 import json
 import os
+import re
 import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 EXPORT = os.path.join(ROOT, "automation", "n8n", "summary.json")
 FIXTURES = os.path.join(ROOT, "automation", "test", "fixtures", "readme-fetch.json")
-IMAGE = os.environ.get("N8N_TEST_IMAGE", "docker.n8n.io/n8nio/n8n:latest")
+COMPOSE = os.path.join(ROOT, "automation", "infra", "docker-compose.yml")
 WORKFLOW_ID = "readmefetchtest"
 NODES = ("Choose the repository URL", "Fetch the README")
+
+
+def image():
+    """The pinned n8n image production runs, unless the caller overrides it."""
+    override = os.environ.get("N8N_TEST_IMAGE")
+    if override:
+        return override
+    for line in open(COMPOSE):
+        match = re.match(r"^\s*image:\s*(docker\.n8n\.io/n8nio/n8n:\S+)\s*$", line)
+        if match:
+            return match.group(1)
+    raise SystemExit(f"{COMPOSE}: no n8n image line found")
 
 
 def node_code(name):
@@ -83,9 +96,11 @@ def run(workdir):
                f"n8n execute --id={WORKFLOW_ID} 2>/dev/null")
     result = subprocess.run(
         ["docker", "run", "--rm",
+         "--user", f"{os.getuid()}:{os.getgid()}",
          "-v", f"{workdir}:/data", "-v", f"{state}:/home/node/.n8n",
-         "-e", "N8N_DIAGNOSTICS_ENABLED=false", "-e", "N8N_RUNNERS_ENABLED=true",
-         "--entrypoint", "sh", IMAGE, "-c", command],
+         "-e", "HOME=/home/node", "-e", "N8N_DIAGNOSTICS_ENABLED=false",
+         "-e", "N8N_RUNNERS_ENABLED=true",
+         "--entrypoint", "sh", image(), "-c", command],
         capture_output=True, text=True, timeout=900)
     if "{" not in result.stdout:
         raise SystemExit("n8n produced no execution result:\n"
