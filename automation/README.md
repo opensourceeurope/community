@@ -165,6 +165,37 @@ runs the same command on every pull request and on pushes to main, so refresh
 the exports with `scripts/export-workflows.py` in the same pull request as any
 workflow change.
 
+## Testing the README fetch
+
+[`test/readme-fetch.py`](test/readme-fetch.py) runs the two README nodes of
+apply 5, `Choose the repository URL` and `Fetch the README`, inside a real n8n
+Code node sandbox and checks what they bring back.
+
+The sandbox is the point. A Code node has no `URL` global, so `new URL()` throws
+a `ReferenceError` there while the same line parses correctly under plain
+`node`. The parser caught that alongside a genuinely malformed URL and refused
+the repository either way, so no README was ever fetched and nothing failed
+anywhere to say so. Only a test that runs the code where n8n runs it sees that.
+
+It reads both node bodies out of `n8n/summary.json` rather than keeping a copy,
+so it tests what is committed and cannot drift from it. Nine of the twenty-two
+fixtures reach GitHub, GitLab and Codeberg over the network on purpose: a
+candidate URL that no longer matches a repository host's API is the other half
+of what this catches. The other thirteen must come back empty. Nine of those are
+refusals: `http`, a port, a userinfo prefix, an IP literal, `localhost`, a
+`.local` and an `.internal` name, an encoded slash and a `..` segment. Three name
+no repository at all: an owner with no repository after it, an empty answer set,
+and answers that are not json. The last is a community whose link is a website
+rather than a repository, which is followed no further.
+
+```bash
+python3 automation/test/readme-fetch.py
+```
+
+It needs docker and a network, and it never touches the live instance. It prints
+one line per case and exits non-zero if any case failed. CI does not run it: it
+would call three repository hosts on every pull request.
+
 ## Configuration
 
 [`.env.example`](.env.example) documents every variable, with its production
