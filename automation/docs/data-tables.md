@@ -115,7 +115,7 @@ In order through a normal application, plus the escalation branch:
 }
 ```
 
-`page` is the last page these responses cover, 1 to 5. `responses`
+`page` is the last page these responses cover, 1 to 6. `responses`
 accumulates across pages as the applicant progresses, keyed by question ID.
 
 The question IDs of `form-ose`, in page order. Page 1 contributes
@@ -141,6 +141,11 @@ a page that does not carry the question at all, so on that branch
 `expected_expenses` and `payee_countries`.
 
 Page 5 has `activities`, `mission_fit` and `notes`.
+
+Page 6 shows every answer back for correction, and asks one question of its
+own: `form_feedback`, where the applicant says how the form could be better.
+It is optional, and it is not part of the application. The summary prompt in
+apply 5 names the keys it sends to the model, and this one is not among them.
 
 Page 1 asks `contact_email` and the collective URL, which are stored as
 columns rather than in `answers`, and the applicant type, which is stored in
