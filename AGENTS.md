@@ -109,7 +109,8 @@ The rules below are the OSE-specific invariants on top of that skill:
   make.** apply 5 fetches a README from the repository they named, which is the
   only place the pipeline reaches a host of someone else's choosing. It is
   `https` only, never an IP literal, never `localhost` or a `.local` or
-  `.internal` name, and no redirects at all: a repository link resolves in one
+  `.internal` name, never a port or a `user@host` prefix, never a `.` or `..`
+  path segment, and no redirects at all: a repository link resolves in one
   hop or it does not resolve, because every host check runs on the first URL and
   a redirect would hand the applicant's server the choice of where the request
   lands. The body is fetched as text so that nothing parses it, and only its
@@ -119,6 +120,20 @@ The rules below are the OSE-specific invariants on top of that skill:
   private address still passes; what makes that tolerable is that nothing on the
   box listens on a private interface over HTTPS. Widen this and that reasoning
   has to be redone.
+- **A Code node has no `URL`, no `fetch` and no `crypto`.** The sandbox gives you
+  `Buffer`, `require`, `atob`, `TextEncoder` and the ECMAScript built-ins, and
+  leaves out thirteen globals a Node script would have: `URL`, `URLSearchParams`,
+  `fetch`, `AbortController`, `structuredClone`, `crypto`, `process`,
+  `queueMicrotask`, `performance`, `Blob`, `Headers`, `Request` and `Response`.
+  Reaching for one throws `ReferenceError`, and that is harmless until something
+  catches it. apply 5 wrapped `new URL()` in the `try/catch` meant for a
+  malformed URL, so the error became "the applicant sent a bad link": every
+  repository was refused and no README was ever fetched, for days, without one
+  failed execution. So never wrap a global in a `try/catch` that also handles bad
+  input, and parse a URL with a regex the way `Derive slug` in apply 4 and
+  `Choose the repository URL` in apply 5 do. The line parses under plain `node`
+  and `validate_workflow` says nothing, so the only way to see this is to run the
+  node inside n8n. `automation/test/readme-fetch.py` does that in a container.
 - **Every applicant-facing email site checks `DRY_RUN`, and the check fails safe.** Each
   email node is fed by a render Code node that reads `DRY_RUN`: the pipeline suppresses
   applicant email unless the variable is explicitly and exactly `false`, after trimming
@@ -202,7 +217,10 @@ The rules below are the OSE-specific invariants on top of that skill:
   hardcoded label lists read those keys and will silently omit anything missing
   from them: `Render submission thread reply` in apply 4, which is what a
   reviewer reads in Slack, and `Render summary request` in apply 5, which is what
-  the model is told. Miss one storage expression and the answer vanishes when the
+  the model is told. A question that is not about the application is the
+  exception, and there is one: `form_feedback` belongs in the Slack list alone,
+  and `check-workflows.py` fails if the summary list carries it. Miss one
+  storage expression and the answer vanishes when the
   applicant clicks to the next page, with no error anywhere. A form field has
   no description property, so a question that needs a line of explanation is
   two entries: the field, then a Custom HTML element holding the sentence.

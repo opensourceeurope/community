@@ -1,0 +1,178 @@
+[
+  {
+    "case": "github, from the form answer",
+    "slug": "case-github-form",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://github.com/n8n-io/n8n\",\"project_website\":\"https://n8n.io\"}}",
+    "expect_host_kind": "github",
+    "expect_readme": true
+  },
+  {
+    "case": "github, from the OC social link",
+    "slug": "case-github-oc",
+    "repository_url": "https://github.com/n8n-io/n8n",
+    "answers": "{\"responses\":{\"project_website\":\"https://n8n.io\"}}",
+    "expect_host_kind": "github",
+    "expect_readme": true
+  },
+  {
+    "case": "the form answer beats the OC link",
+    "slug": "case-answer-wins",
+    "repository_url": "https://github.com/n8n-io/n8n",
+    "answers": "{\"responses\":{\"repository_url\":\"https://codeberg.org/forgejo/forgejo\"}}",
+    "expect_host_kind": "generic",
+    "expect_readme": true
+  },
+  {
+    "case": "gitlab",
+    "slug": "case-gitlab",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://gitlab.com/gitlab-org/gitlab-runner\"}}",
+    "expect_host_kind": "gitlab",
+    "expect_readme": true
+  },
+  {
+    "case": "codeberg, a forgejo instance",
+    "slug": "case-codeberg",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://codeberg.org/forgejo/forgejo\"}}",
+    "expect_host_kind": "generic",
+    "expect_readme": true
+  },
+  {
+    "case": "a trailing .git is stripped",
+    "slug": "case-dot-git",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://github.com/n8n-io/n8n.git\"}}",
+    "expect_host_kind": "github",
+    "expect_readme": true
+  },
+  {
+    "case": "a trailing slash is stripped",
+    "slug": "case-trailing-slash",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://github.com/n8n-io/n8n/\"}}",
+    "expect_host_kind": "github",
+    "expect_readme": true
+  },
+  {
+    "case": "a query string is ignored",
+    "slug": "case-query",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://github.com/n8n-io/n8n?tab=readme-ov-file\"}}",
+    "expect_host_kind": "github",
+    "expect_readme": true
+  },
+  {
+    "case": "an owner with no repository",
+    "slug": "case-owner-only",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://github.com/n8n-io\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "no repository at all",
+    "slug": "case-no-repo",
+    "repository_url": "",
+    "answers": "{\"responses\":{}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "answers that are not json",
+    "slug": "case-bad-json",
+    "repository_url": "",
+    "answers": "not json at all",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "http is refused",
+    "slug": "case-http",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"http://github.com/n8n-io/n8n\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "localhost is refused",
+    "slug": "case-localhost",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://localhost/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "an ip literal is refused",
+    "slug": "case-ip-literal",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://169.254.169.254/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "an internal tld is refused",
+    "slug": "case-internal-tld",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://metadata.internal/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "a .local host is refused",
+    "slug": "case-local-tld",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://printer.local/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "a port is refused",
+    "slug": "case-port",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://github.com:8080/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "a userinfo prefix is refused",
+    "slug": "case-userinfo",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://github.com@evil.example/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "an encoded slash is refused",
+    "slug": "case-encoded-slash",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://github.com/owner%2f..%2fadmin/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "a dot-dot segment is refused",
+    "slug": "case-traversal",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://codeberg.org/owner/../../../etc/passwd\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "a community forge link is followed",
+    "slug": "case-community-forge",
+    "repository_url": "",
+    "answers": "{\"responses\": {\"applicant_type\": \"A community, meetup or events\", \"community_home\": \"https://github.com/n8n-io/n8n\"}}",
+    "expect_host_kind": "github",
+    "expect_readme": true
+  },
+  {
+    "case": "a community website is not followed",
+    "slug": "case-community-website",
+    "repository_url": "",
+    "answers": "{\"responses\": {\"applicant_type\": \"A community, meetup or events\", \"community_home\": \"https://example.com/acme/events\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  }
+]

@@ -73,7 +73,7 @@ the workflow list reads in pipeline order. The export files use short names.
 | `apply 1b — catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
 | `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`. |
 | `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
-| `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form, five pages. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. Page 3 asks whether the project is already a legal entity, which decides whether page 4 opens by asking what kind and where. Answers persist after every page, and a submission puts them in the application's Slack thread. |
+| `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form, six pages. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. Page 3 asks whether the project is already a legal entity, which decides whether page 4 opens by asking what kind and where. Page 6 shows the whole application back for correction, and ends with an optional question about the form itself. Answers persist after every page, and a submission puts them in the application's Slack thread. |
 | `apply 5 — application summary` | `summary.json` | A direct call from apply 4, and `SUMMARY_CRON` as the catch-up | Reads a submitted form and the project's README, then posts a description and the gaps a reviewer should ask about into the thread. Advisory, like the review: it never recommends a decision. |
 
 One application flows through the workflows in this order:
@@ -139,7 +139,10 @@ and takes the real ones with it.
    built by `Record submission` must appear in the label list of
    `Render submission thread reply` and of `Render summary request`. A key
    missing from a label list is dropped in silence, so an answer the applicant
-   gave never reaches the people deciding.
+   gave never reaches the people deciding. `form_feedback` is the exception,
+   because it asks about the form and not about the application: the Slack
+   list carries it so that a person reads it, and the summary list is checked
+   for its absence, because that one is a model prompt.
 5. **The data table is referenced the same way everywhere.** Every data table
    node points at `ose_applications` in name mode.
 6. **Every workflow pins its timezone.** A workflow with no timezone in its
@@ -194,6 +197,37 @@ because that needs credentials and live Open Collective data.
 
 [`.github/workflows/check-n8n-import.yml`](../.github/workflows/check-n8n-import.yml)
 runs the same command on every pull request and on pushes to main.
+
+## Testing the README fetch
+
+[`test/readme-fetch.py`](test/readme-fetch.py) runs the two README nodes of
+apply 5, `Choose the repository URL` and `Fetch the README`, inside a real n8n
+Code node sandbox and checks what they bring back.
+
+The sandbox is the point. A Code node has no `URL` global, so `new URL()` throws
+a `ReferenceError` there while the same line parses correctly under plain
+`node`. The parser caught that alongside a genuinely malformed URL and refused
+the repository either way, so no README was ever fetched and nothing failed
+anywhere to say so. Only a test that runs the code where n8n runs it sees that.
+
+It reads both node bodies out of `n8n/summary.json` rather than keeping a copy,
+so it tests what is committed and cannot drift from it. Nine of the twenty-two
+fixtures reach GitHub, GitLab and Codeberg over the network on purpose: a
+candidate URL that no longer matches a repository host's API is the other half
+of what this catches. The other thirteen must come back empty. Nine of those are
+refusals: `http`, a port, a userinfo prefix, an IP literal, `localhost`, a
+`.local` and an `.internal` name, an encoded slash and a `..` segment. Three name
+no repository at all: an owner with no repository after it, an empty answer set,
+and answers that are not json. The last is a community whose link is a website
+rather than a repository, which is followed no further.
+
+```bash
+python3 automation/test/readme-fetch.py
+```
+
+It needs docker and a network, and it never touches the live instance. It prints
+one line per case and exits non-zero if any case failed. CI does not run it: it
+would call three repository hosts on every pull request.
 
 ## Configuration
 
