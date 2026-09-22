@@ -277,7 +277,9 @@ The rules below are the OSE-specific invariants on top of that skill:
   build a link containing the page 1 label `Your collective's Open Collective
   URL`, percent-encoded. Rename that field and the prefill stops working
   silently: the form still loads, just empty. Change the label and the two
-  render nodes in apply 3 in the same PR.
+  render nodes in apply 3 in the same PR. `check-workflows.py` check 7 fails a
+  rename that leaves either one behind, and it covers the dropdown options the
+  Switch nodes compare against for the same reason.
 - **Timers are derived from timestamps** by the scheduled runs, never from
   Wait nodes.
 - **Config comes from the env vars in `automation/.env.example`**; credentials
@@ -318,11 +320,12 @@ The rules below are the OSE-specific invariants on top of that skill:
   does not do. The credit belongs somewhere a reader will actually see it, so
   name n8n in the public documentation and in the AI and tooling policy, and keep
   it accurate as the stack changes.
-- **Six of these rules are enforced, the rest are on you.**
+- **Seven of these rules are enforced, the rest are on you.**
   `automation/scripts/check-workflows.py` runs on every pull request and checks
   the exports for disabled nodes, truncated expressions, an email send whose
   render step does not read `DRY_RUN`, an answer key missing from a label list,
-  a data table referenced any way but by name, and a workflow with no timezone.
+  a data table referenced any way but by name, a workflow with no timezone, and
+  a form label or dropdown option that no longer matches what reads it.
   Run it locally before you push. Each check is there because that defect
   reached main at least once. It reads the exports, so it only sees what you
   exported: refresh them first or it is checking yesterday's workflow.

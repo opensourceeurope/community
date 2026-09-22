@@ -127,8 +127,8 @@ event then means the applicant hears from us up to a day later, not never.
 ## Checking the exports
 
 [`scripts/check-workflows.py`](scripts/check-workflows.py) reads the exports in
-`automation/n8n/` and enforces six of the invariants in `AGENTS.md`. Each one
-exists because that defect reached main at least once, and there are only six
+`automation/n8n/` and enforces seven of the invariants in `AGENTS.md`. Each one
+exists because that defect reached main at least once, and there are only seven
 on purpose. A check that flags style rather than breakage gets switched off,
 and takes the real ones with it.
 
@@ -153,6 +153,14 @@ and takes the real ones with it.
 6. **Every workflow pins its timezone.** A workflow with no timezone in its
    settings inherits `GENERIC_TIMEZONE` and drifts away from the others when
    that changes.
+7. **The form's labels still match what reads them.** n8n keys an answer on the
+   field's label, so rewording a label or a dropdown option in the editor
+   breaks three things without an error. An expression reading
+   `$('Form page N').item.json['label']` returns `undefined`. A Switch
+   comparing an answer to an option string stops matching, and every applicant
+   takes the fallback branch, so a community gets asked the project questions.
+   The prefill link the apply 3 emails build stops filling the field, and the
+   form still loads, just empty.
 
 Run it from the repository root. It needs no arguments, no dependencies, no
 network and no API key, and it never touches the live instance.
@@ -179,8 +187,9 @@ passes every file check, then opens in the editor as an unresolved node with
 its parameters gone.
 
 [`test/n8n-import-check.sh`](test/n8n-import-check.sh) boots that n8n version in
-Docker and imports every export into it. It needs Docker and `python3`, and it
-runs `scripts/check-workflows.py` first, so one command covers both.
+Docker and imports every export into it. It needs Docker, `python3` and
+`curl`, and it runs `scripts/check-workflows.py` first, so one command covers
+both.
 
 Run it from the repository root:
 
@@ -189,8 +198,9 @@ automation/test/n8n-import-check.sh
 ```
 
 It fails on an export n8n rejects, on a node type the build does not register,
-and on a `typeVersion` the node does not offer. Each file goes in on its own,
-so the message names the file.
+on a `typeVersion` the node does not offer, and on a workflow that the import
+reported as successful but that `n8n list:workflow` does not show afterwards.
+Each file goes in on its own, so the message names the file.
 
 The image tag comes from [`infra/docker-compose.yml`](infra/docker-compose.yml)
 at run time, so the check and the deployment cannot drift.

@@ -92,7 +92,7 @@ if [ "$pull" = true ]; then
   fi
 fi
 
-# The same six checks CI runs on every pull request. An export that fails one
+# The same seven checks CI runs on every pull request. An export that fails one
 # is a defect that has reached main before, and it must not reach the instance.
 if [ -f "$CHECK" ]; then
   python3 "$CHECK" "$dir"

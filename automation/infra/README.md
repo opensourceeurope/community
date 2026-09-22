@@ -433,8 +433,8 @@ A merge to `main` reaches the instance because the box pulls it. No n8n API key
 sits in a GitHub secret, and nothing has to be opened inbound for a deploy.
 
 `ose-deploy-workflows.timer` runs `deploy-workflows.sh` every 10 minutes. The
-script fast-forwards `~/community` to `origin/main` and runs the same six export
-checks that CI runs on every pull request. It then pushes each file in
+script fast-forwards `~/community` to `origin/main` and runs the same seven
+export checks that CI runs on every pull request. It then pushes each file in
 `automation/n8n/` into the running n8n over the public API.
 
 Each export goes to the workflow of the same name, updated in place. The
@@ -473,16 +473,45 @@ wc -c ~/.n8n-api-key   # the key length plus one for the newline
 
 ### Install the timer
 
-The script runs `python3`, which nothing else on this box installs. Prove the
-deploy works before handing it to systemd:
+The script itself arrives in the checkout, so bring the checkout up to date
+first or there is nothing to run. It needs `python3`, which nothing else on
+this box installs:
 
 ```bash
+cd ~/community && git pull
+ls automation/infra/deploy-workflows.sh
 sudo apt-get install -y python3
+```
+
+The unit file runs the script as `debian` out of `/home/debian/community`.
+Check `whoami` before going further. Another account means both lines need
+changing, and that change belongs in a pull request rather than only on the
+box.
+
+Prove the deploy works before handing it to systemd:
+
+```bash
 ~/community/automation/infra/deploy-workflows.sh --dry-run
 ```
 
 The dry run reads the instance, prints the commits it would fast-forward past
-and the workflows it would change, and writes nothing. Then install the units:
+and the workflows it would change, and writes nothing. A clean run names the
+instance and reports every export. An error names which assumption is wrong:
+the key file, its mode, `N8N_HOST` in `.env`, or a checkout that is on another
+branch or carries local changes.
+
+Then deploy by hand, twice:
+
+```bash
+~/community/automation/infra/deploy-workflows.sh
+~/community/automation/infra/deploy-workflows.sh
+```
+
+The second run must report every export as unchanged. Anything else means the
+comparison is wrong, and the timer would rewrite those workflows every ten
+minutes for as long as it is enabled. Stop here if that happens.
+
+Then install the units:
 
 ```bash
 sudo cp ~/community/automation/infra/systemd/ose-deploy-workflows.{service,timer} /etc/systemd/system/
@@ -1243,6 +1272,40 @@ A restore only produces a working instance if `N8N_ENCRYPTION_KEY` in `.env`
 on the restoring box is the *same* key that was in use when the dump was
 taken — the dump's credential rows are encrypted with it. Restoring a dump
 under a different key leaves the credentials in the database but unreadable.
+
+## Upgrading n8n
+
+The version this box runs is the `image:` line of
+[`docker-compose.yml`](docker-compose.yml), pinned to an `x.y.z` release. That
+line is also what `automation/test/n8n-import-check.sh` boots in CI, so a bump
+changes the build the exports are checked against in the same commit. Nothing
+upgrades on its own, and the deploy timer does not touch the container: it only
+sends workflows to the n8n that is already running.
+
+Change the tag in a pull request, the way every other change to this repository
+goes. CI then imports all the exports into the new build, which is what catches
+a node type or a `typeVersion` the new version dropped.
+
+On the box, after the pull request is merged:
+
+```bash
+cd ~/community && git pull
+cd ~/community/automation/infra
+docker compose up -d n8n
+```
+
+`restart` does not do it. The container has to be recreated for the new image,
+and `up -d` prints `Recreated` when it was. The first boot of a new tag runs
+n8n's database migrations, so it takes noticeably longer than a normal start.
+
+Take a backup first. [Backup](#backup) covers how, and the table in
+[Which backup to restore, when](#which-backup-to-restore-when) treats a bad
+upgrade as a restore from the most recent dump taken before it.
+
+> [!NOTE]
+> This section is written from the compose file and the deploy script. Nobody
+> has rehearsed an upgrade on this box yet, so read it as the shape of the job
+> rather than a tested procedure.
 
 ## Troubleshooting
 
