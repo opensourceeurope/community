@@ -144,8 +144,9 @@ Page 5 has `activities`, `mission_fit` and `notes`.
 
 Page 6 shows every answer back for correction, and asks one question of its
 own: `form_feedback`, where the applicant says how the form could be better.
-It is optional, and it is not part of the application. The summary prompt in
-apply 5 names the keys it sends to the model, and this one is not among them.
+It is optional, and it is not part of the application. The Slack thread reply
+carries it so that a person reads it. The summary prompt in apply 5 names the
+keys it sends to the model, and this one is kept out of that list.
 
 Page 1 asks `contact_email` and the collective URL, which are stored as
 columns rather than in `answers`, and the applicant type, which is stored in

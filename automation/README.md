@@ -139,7 +139,10 @@ and takes the real ones with it.
    built by `Record submission` must appear in the label list of
    `Render submission thread reply` and of `Render summary request`. A key
    missing from a label list is dropped in silence, so an answer the applicant
-   gave never reaches the people deciding.
+   gave never reaches the people deciding. `form_feedback` is the exception,
+   because it asks about the form and not about the application: the Slack
+   list carries it so that a person reads it, and the summary list is checked
+   for its absence, because that one is a model prompt.
 5. **The data table is referenced the same way everywhere.** Every data table
    node points at `ose_applications` in name mode.
 6. **Every workflow pins its timezone.** A workflow with no timezone in its

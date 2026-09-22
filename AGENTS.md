@@ -202,7 +202,10 @@ The rules below are the OSE-specific invariants on top of that skill:
   hardcoded label lists read those keys and will silently omit anything missing
   from them: `Render submission thread reply` in apply 4, which is what a
   reviewer reads in Slack, and `Render summary request` in apply 5, which is what
-  the model is told. Miss one storage expression and the answer vanishes when the
+  the model is told. A question that is not about the application is the
+  exception, and there is one: `form_feedback` belongs in the Slack list alone,
+  and `check-workflows.py` fails if the summary list carries it. Miss one
+  storage expression and the answer vanishes when the
   applicant clicks to the next page, with no error anywhere. A form field has
   no description property, so a question that needs a line of explanation is
   two entries: the field, then a Custom HTML element holding the sentence.
