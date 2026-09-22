@@ -473,16 +473,45 @@ wc -c ~/.n8n-api-key   # the key length plus one for the newline
 
 ### Install the timer
 
-The script runs `python3`, which nothing else on this box installs. Prove the
-deploy works before handing it to systemd:
+The script itself arrives in the checkout, so bring the checkout up to date
+first or there is nothing to run. It needs `python3`, which nothing else on
+this box installs:
 
 ```bash
+cd ~/community && git pull
+ls automation/infra/deploy-workflows.sh
 sudo apt-get install -y python3
+```
+
+The unit file runs the script as `debian` out of `/home/debian/community`.
+Check `whoami` before going further. Another account means both lines need
+changing, and that change belongs in a pull request rather than only on the
+box.
+
+Prove the deploy works before handing it to systemd:
+
+```bash
 ~/community/automation/infra/deploy-workflows.sh --dry-run
 ```
 
 The dry run reads the instance, prints the commits it would fast-forward past
-and the workflows it would change, and writes nothing. Then install the units:
+and the workflows it would change, and writes nothing. A clean run names the
+instance and reports every export. An error names which assumption is wrong:
+the key file, its mode, `N8N_HOST` in `.env`, or a checkout that is on another
+branch or carries local changes.
+
+Then deploy by hand, twice:
+
+```bash
+~/community/automation/infra/deploy-workflows.sh
+~/community/automation/infra/deploy-workflows.sh
+```
+
+The second run must report every export as unchanged. Anything else means the
+comparison is wrong, and the timer would rewrite those workflows every ten
+minutes for as long as it is enabled. Stop here if that happens.
+
+Then install the units:
 
 ```bash
 sudo cp ~/community/automation/infra/systemd/ose-deploy-workflows.{service,timer} /etc/systemd/system/
