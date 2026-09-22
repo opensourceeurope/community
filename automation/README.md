@@ -127,8 +127,8 @@ event then means the applicant hears from us up to a day later, not never.
 ## Checking the exports
 
 [`scripts/check-workflows.py`](scripts/check-workflows.py) reads the exports in
-`automation/n8n/` and enforces six of the invariants in `AGENTS.md`. Each one
-exists because that defect reached main at least once, and there are only six
+`automation/n8n/` and enforces seven of the invariants in `AGENTS.md`. Each one
+exists because that defect reached main at least once, and there are only seven
 on purpose. A check that flags style rather than breakage gets switched off,
 and takes the real ones with it.
 
@@ -153,6 +153,14 @@ and takes the real ones with it.
 6. **Every workflow pins its timezone.** A workflow with no timezone in its
    settings inherits `GENERIC_TIMEZONE` and drifts away from the others when
    that changes.
+7. **The form's labels still match what reads them.** n8n keys an answer on the
+   field's label, so rewording a label or a dropdown option in the editor
+   breaks three things without an error. An expression reading
+   `$('Form page N').item.json['label']` returns `undefined`. A Switch
+   comparing an answer to an option string stops matching, and every applicant
+   takes the fallback branch, so a community gets asked the project questions.
+   The prefill link the apply 3 emails build stops filling the field, and the
+   form still loads, just empty.
 
 Run it from the repository root. It needs no arguments, no dependencies, no
 network and no API key, and it never touches the live instance.

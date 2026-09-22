@@ -44,6 +44,15 @@ CHECKS = """\
 6. Every workflow pins its timezone. A workflow with no timezone in its
    settings inherits GENERIC_TIMEZONE and drifts away from the others if that
    ever changes.
+
+7. The form's labels are what reads them. n8n keys a form answer on the
+   field's label, so three things break in silence when a label or a dropdown
+   option is reworded in the editor. An expression reading
+   $('Form page N').item.json['label'] returns undefined. A Switch comparing
+   an answer to an option string stops matching and every applicant takes the
+   fallback branch, which is the wrong set of questions rather than an error.
+   The prefill link the apply 3 emails build from FORM_FIELD stops filling the
+   field, and the form still loads, just empty.
 """
 
 DATA_TABLE = "ose_applications"
@@ -60,6 +69,21 @@ LABEL_NODES = [("form-ose.json", "Render submission thread reply", False),
 # model, and how the applicant found the form is not that, so these keys stay out of
 # every label list that feeds one.
 MODEL_FREE_KEYS = {"form_feedback"}
+
+FORM_FILE = "form-ose.json"
+FORM_TYPES = ("n8n-nodes-base.formTrigger", "n8n-nodes-base.form")
+# The first page is the trigger, so the nodes right after it read its answers as
+# input['label'] rather than through $('Form page 1').
+FORM_TRIGGER_TYPE = "n8n-nodes-base.formTrigger"
+# A quoted JS string. The labels carry apostrophes ("Your collective's Open
+# Collective URL"), so a pattern that ends at the first quote of either kind
+# reads half a label, or misses the reference and checks nothing at all.
+QUOTED = r"""(?P<q%s>['"])(?P<%s>(?:\\.|(?!(?P=q%s)).)*)(?P=q%s)"""
+NODE_REF = re.compile(r"\$\(\s*" + QUOTED % ("n", "node", "n", "n") + r"\s*\)"
+                      r"(?:\.item|\.first\(\)|\.last\(\))?\.json"
+                      r"\[\s*" + QUOTED % ("l", "label", "l", "l") + r"\s*\]")
+INPUT_REF = re.compile(r"input\[\s*" + QUOTED % ("l", "label", "l", "l") + r"\s*\]")
+FORM_FIELD_CONST = re.compile(r"FORM_FIELD\s*=\s*" + QUOTED % ("l", "label", "l", "l"))
 
 
 def display(path):
@@ -359,6 +383,159 @@ def check_timezone(workflow, problems):
              "and drifts away from the others when that changes")
 
 
+# --- check 7 ---------------------------------------------------------------
+
+def form_fields(workflow):
+    """Every form node's labels, each mapped to the options it offers.
+
+    A field with no option list maps to an empty set, which means the check on
+    compared strings has nothing to compare against and skips it.
+    """
+    pages = {}
+    for node in workflow.nodes:
+        if node.get("type") not in FORM_TYPES:
+            continue
+        fields = {}
+        values = ((node.get("parameters") or {}).get("formFields") or {}).get("values") or []
+        for field in values:
+            label = field.get("fieldLabel")
+            if not isinstance(label, str):
+                continue
+            options = (field.get("fieldOptions") or {}).get("values") or []
+            fields[label] = {o.get("option") for o in options if isinstance(o.get("option"), str)}
+        pages[node.get("name")] = fields
+    return pages
+
+
+def trigger_fields(workflow):
+    """The labels of the form trigger, which is page 1."""
+    for node in workflow.nodes:
+        if node.get("type") == FORM_TRIGGER_TYPE:
+            return form_fields(workflow).get(node.get("name")) or {}
+    return {}
+
+
+def check_form_label_reads(workflow, pages, problems):
+    """Every $('Form page N').item.json['label'] names a field that page has."""
+    for node in workflow.nodes:
+        for where, text in strings_in(node.get("parameters") or {}, []):
+            for match in NODE_REF.finditer(text):
+                page, label = match.group("node"), match.group("label")
+                if page not in pages or label in pages[page]:
+                    continue
+                fail(problems, workflow, node.get("name"),
+                     "parameter %s reads %r from %r, which has no such field. "
+                     "The answer comes back undefined. Its fields are: %s"
+                     % (where, label, page, ", ".join(sorted(pages[page])) or "(none)"))
+
+
+def check_form_option_matches(workflow, pages, problems):
+    """Every string a Switch or If compares an answer to is an option of that field."""
+    for node in workflow.nodes:
+        if node.get("type") not in ("n8n-nodes-base.switch", "n8n-nodes-base.if"):
+            continue
+        parameters = node.get("parameters") or {}
+        for rule in ((parameters.get("rules") or {}).get("values") or []) + [parameters]:
+            for condition in ((rule.get("conditions") or {}).get("conditions") or []):
+                left = condition.get("leftValue")
+                right = condition.get("rightValue")
+                if not isinstance(left, str) or not isinstance(right, str) or not right:
+                    continue
+                match = NODE_REF.search(left)
+                if match is None:
+                    continue
+                page, label = match.group("node"), match.group("label")
+                options = pages.get(page, {}).get(label)
+                if not options or right in options:
+                    continue
+                fail(problems, workflow, node.get("name"),
+                     "compares %r of %r against %r, which is not one of its "
+                     "options. Nothing matches, so every applicant takes the "
+                     "fallback branch. Its options are: %s"
+                     % (label, page, right, ", ".join(sorted(options))))
+
+
+def check_form_prefill_field(workflows, problems, complete):
+    """The label the apply 3 emails prefill is a field the form trigger has.
+
+    Spans two exports the way check 4 does, so a partial run skips it.
+    """
+    form = workflows.get(FORM_FILE)
+    if form is None:
+        if not complete:
+            print("skipped check 7 for the prefill label: %s is not among the "
+                  "files checked" % FORM_FILE)
+            return
+        problems.append("%s: (form pages): export is missing, so the prefill "
+                        "label cannot be checked" % FORM_FILE)
+        return
+    labels = trigger_fields(form)
+    if not labels:
+        problems.append("%s: (form trigger): no form trigger with fields, so "
+                        "the prefill label cannot be checked" % FORM_FILE)
+        return
+    # Every Code node is scanned rather than a fixed list, so a new email that
+    # builds the same link is covered the day it is added.
+    seen = 0
+    for workflow in workflows.values():
+        for node in workflow.nodes:
+            code = (node.get("parameters") or {}).get("jsCode")
+            if not isinstance(code, str):
+                continue
+            for match in FORM_FIELD_CONST.finditer(code):
+                seen += 1
+                label = match.group("label")
+                if label in labels:
+                    continue
+                fail(problems, workflow, node.get("name"),
+                     "builds a prefill link for %r, which is not a field on the "
+                     "form's first page. The link still opens, with the field "
+                     "empty. Its fields are: %s"
+                     % (label, ", ".join(sorted(labels))))
+    if seen:
+        return
+    # Nothing to compare means the invitation stopped prefilling, or the
+    # export that sends it was not among the files checked. Neither is a pass.
+    if complete:
+        problems.append("%s: (prefill label): no FORM_FIELD constant in any "
+                        "export, so no email prefills the form link"
+                        % FORM_FILE)
+    else:
+        print("skipped check 7 for the prefill label: no export among the "
+              "files checked builds the link")
+
+
+def check_form_direct_reads(workflow, problems):
+    """A Code node fed by the form trigger reads input['label'] off page 1.
+
+    Only the nodes the trigger feeds are checked. Further down the workflow
+    `input` is whatever the node before it returned, not the form answers.
+    """
+    trigger = None
+    for node in workflow.nodes:
+        if node.get("type") == FORM_TRIGGER_TYPE:
+            trigger = node.get("name")
+            break
+    if trigger is None:
+        return
+    labels = trigger_fields(workflow)
+    if not labels:
+        return
+    for node in workflow.nodes:
+        name = node.get("name")
+        if node.get("type") != CODE_TYPE or trigger not in workflow.predecessors(name):
+            continue
+        code = (node.get("parameters") or {}).get("jsCode") or ""
+        for match in INPUT_REF.finditer(code):
+            label = match.group("label")
+            if label in labels:
+                continue
+            fail(problems, workflow, name,
+                 "reads %r off %r, which has no such field. The answer comes "
+                 "back undefined. Its fields are: %s"
+                 % (label, trigger, ", ".join(sorted(labels))))
+
+
 # --- driver ----------------------------------------------------------------
 
 def default_directory():
@@ -408,8 +585,13 @@ def main(argv):
         check_dry_run_gate(workflow, problems)
         check_data_table_reference(workflow, problems)
         check_timezone(workflow, problems)
+        pages = form_fields(workflow)
+        check_form_label_reads(workflow, pages, problems)
+        check_form_option_matches(workflow, pages, problems)
+        check_form_direct_reads(workflow, problems)
 
     check_answer_labels(workflows, problems, complete)
+    check_form_prefill_field(workflows, problems, complete)
 
     for problem in problems:
         print(problem)
@@ -417,7 +599,7 @@ def main(argv):
         print("\n%d problem(s) in %d workflow export(s)."
               % (len(problems), len(files)))
         return 1
-    print("%d workflow export(s) pass all six checks." % len(files))
+    print("%d workflow export(s) pass all seven checks." % len(files))
     return 0
 
 
