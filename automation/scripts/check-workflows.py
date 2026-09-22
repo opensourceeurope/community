@@ -33,7 +33,9 @@ CHECKS = """\
    'Render submission thread reply' (form-ose.json) and of
    'Render summary request' (summary.json). A key missing from a label list is
    dropped silently, so an answer the applicant gave never reaches the people
-   deciding.
+   deciding. A key in MODEL_FREE_KEYS is the other way round in the second
+   list: it has to reach a person, so the Slack list carries it, and it must
+   not reach a model, so the summary list is checked for its absence.
 
 5. The data table is referenced the same way everywhere. Every data table node
    must point at ose_applications in name mode. A half-updated reference fails
@@ -51,8 +53,13 @@ EMAIL_TYPE = "n8n-nodes-base.emailSend"
 
 ANSWERS_NODE = "Record submission"
 ANSWERS_FILE = "form-ose.json"
-LABEL_NODES = [("form-ose.json", "Render submission thread reply"),
-               ("summary.json", "Render summary request")]
+# The third element says whether the list is read into a model prompt.
+LABEL_NODES = [("form-ose.json", "Render submission thread reply", False),
+               ("summary.json", "Render summary request", True)]
+# Answers that are not about the application. Only public project material goes to a
+# model, and how the applicant found the form is not that, so these keys stay out of
+# every label list that feeds one.
+MODEL_FREE_KEYS = {"form_feedback"}
 
 
 def display(path):
@@ -296,7 +303,7 @@ def check_answer_labels(workflows, problems, complete):
     keys = answer_keys(form, problems)
     if keys is None:
         return
-    for filename, node_name in LABEL_NODES:
+    for filename, node_name, feeds_model in LABEL_NODES:
         workflow = workflows.get(filename)
         if workflow is None:
             if not complete:
@@ -310,6 +317,12 @@ def check_answer_labels(workflows, problems, complete):
         if labels is None:
             continue
         for key in keys:
+            if feeds_model and key in MODEL_FREE_KEYS:
+                if key in labels:
+                    fail(problems, workflow, node_name,
+                         "label list carries the answer key %r, which is not about the "
+                         "application and must not reach a model" % key)
+                continue
             if key not in labels:
                 fail(problems, workflow, node_name,
                      "label list is missing the answer key %r, which %s records; "
