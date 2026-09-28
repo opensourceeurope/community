@@ -533,7 +533,8 @@
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "all",
     "executionOrder": "v1",
-    "timezone": "Europe/Berlin"
+    "timezone": "Europe/Berlin",
+    "errorWorkflow": "qWHuHamNdmvfrSRt"
   },
   "pinData": {}
 }

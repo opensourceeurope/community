@@ -33,6 +33,7 @@ below that runs all three containers. Nothing else.
 | Let the workflows post to Slack | [The Slack credential](#the-slack-credential) |
 | Let the workflows send email | [The SMTP credential](#the-smtp-credential) |
 | Ship a workflow change from `main` | [Deploying the workflows on merge](#deploying-the-workflows-on-merge) |
+| Find out when a workflow breaks | [Alerts when a workflow fails](#alerts-when-a-workflow-fails) |
 | Something is broken | [Troubleshooting](#troubleshooting) |
 | Get in when SSH refuses you | [Getting into the box](#getting-into-the-box) |
 | Point Open Collective at this box | [Registering the Open Collective webhook](#registering-the-open-collective-webhook) |
@@ -1307,6 +1308,58 @@ upgrade as a restore from the most recent dump taken before it.
 > has rehearsed an upgrade on this box yet, so read it as the shape of the job
 > rather than a tested procedure.
 
+## Alerts when a workflow fails
+
+`ops — alert Slack when any apply workflow fails` posts to the reviewers'
+channel whenever one of the six `apply` workflows stops on an unhandled error.
+Without it a failure is silent. The execution turns red in a list nobody
+watches, and the pipeline looks healthy from the outside while it does nothing.
+
+The handler has three nodes. An Error Trigger receives the failure, a Code
+node builds the message, and a Slack node posts it. The alert names the
+workflow that failed, the node inside it that threw and the error text, then
+links to both the failed execution and the editor.
+
+Slack messages are internal and carry no applicant address, so the handler
+ignores `DRY_RUN` and posts during a dry run as well. It posts to
+`SLACK_CHANNEL`, the same channel the application threads use.
+
+### How a workflow is wired to it
+
+Each workflow names the handler in its own **Error Workflow** setting, which
+the exports carry as `settings.errorWorkflow`. To read back what the instance
+holds for one workflow, run:
+
+```bash
+curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+  "$N8N_API_URL/api/v1/workflows/{WORKFLOW_ID}" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['settings'])"
+```
+
+A new workflow does not inherit the setting. Set it when you add one, or that
+workflow fails silently.
+
+The handler itself has no **Error Workflow**. If it pointed at itself, a Slack
+outage would make it fail while handling its own failure.
+
+The handler stays inactive and still works. n8n calls a workflow that starts
+with an Error Trigger directly, so it needs no activation of its own. What it
+does need is for the failing workflow to be active, because only an automatic
+run reaches it.
+
+### What it does not catch
+
+The handler fires on an unhandled error. It stays quiet when a node returns a
+wrong answer, and it stays quiet when a node handles its own error and
+continues. A Code node that returns an empty list instead of throwing leaves
+the run green and sends nothing.
+
+It also stays quiet for a run you started by hand. Testing a workflow from the
+editor never produces an alert, however it ends.
+
+An alert therefore means something broke. Silence does not mean everything
+works.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -1327,6 +1380,7 @@ upgrade as a restore from the most recent dump taken before it.
 | Every `ovhcloud` command returns `INVALID_CREDENTIAL` (403) | The consumer key in `~/.ovh.conf` was revoked, expired or rotated | `ovhcloud login` |
 | Stray `.*.swp` / `..env.swp` in `automation/infra/`, or an editor process nobody remembers | A dropped `ssh -t` session left vim/nano open on `.env`; the swap file holds a copy of the secrets and is not gitignored, and a stale editor that later saves overwrites a rotated key with the old one | `pgrep -a 'vim|nano'`, kill the orphan (editors do not save on plain kill), delete the swap file, then verify `.env` by length/hash |
 | Applicant emails rejected or spam-filed | Mail sent from this box; the domain's SPF is `-all` for Proton only | Use an authenticated relay — see "Sending mail" above |
+| A workflow failed and no Slack alert arrived | The workflow has no **Error Workflow** set, or a node handled the error and let the run finish green | Read back `settings.errorWorkflow`; for a handled error, make the node throw instead |
 | Workflow fails with `access to env vars denied` | The running container predates `N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"` in `docker-compose.yml`, so n8n blocks the `$env` expressions the workflows are built on | `git pull` in `~/community`, then `docker compose up -d n8n` and expect `Recreated` |
 
 ## Notes

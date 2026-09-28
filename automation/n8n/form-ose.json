@@ -1461,7 +1461,8 @@
   "settings": {
     "timezone": "Europe/Berlin",
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "errorWorkflow": "qWHuHamNdmvfrSRt"
   },
   "pinData": {}
 }

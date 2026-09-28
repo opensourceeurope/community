@@ -1,0 +1,89 @@
+{
+  "name": "ops — alert Slack when any apply workflow fails",
+  "nodes": [
+    {
+      "id": "f1a2b3c4-d5e6-4f70-8a91-b2c3d4e5f601",
+      "name": "Workflow failed",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f1a2b3c4-d5e6-4f70-8a91-b2c3d4e5f602",
+      "name": "Render failure alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// n8n runs this workflow whenever a workflow that names it as its error workflow stops on\n// an unhandled error. The payload carries the failure context but not the input data that\n// caused it, so the alert links back to the execution instead of quoting the row.\n//\n// The error message is upstream text: an Open Collective or Slack API response, or a Code\n// node throw that embeds one. It reaches the reviewers' channel verbatim, so <!channel> or\n// a masked link inside it would be honoured by Slack. Escape the three characters Slack\n// treats as control characters, & first so the other two are not escaped twice. Same\n// treatment as the application messages, for the same reason.\nconst escapeSlack = (value) => String(value)\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;');\n\nconst channel = $env.SLACK_CHANNEL || '';\nif (!channel) throw new Error('failure alert: SLACK_CHANNEL is empty');\n\n// Every field is read defensively. A trigger-level failure produces no lastNodeExecuted,\n// and a crash between nodes can leave error empty, so a missing field must drop its line\n// rather than put the string \"undefined\" in front of a reviewer.\nreturn $input.all().map((item) => {\n  const execution = item.json.execution || {};\n  const workflow = item.json.workflow || {};\n  const error = execution.error || {};\n  const editorUrl = execution.url ? execution.url.split('/executions/')[0] : '';\n  const text = [\n    `:rotating_light: *${escapeSlack(workflow.name || 'unknown workflow')}* failed`,\n    execution.lastNodeExecuted ? `Failed node: \\`${escapeSlack(execution.lastNodeExecuted)}\\`` : null,\n    error.message ? `Error: ${escapeSlack(error.message)}` : null,\n    execution.url ? `Execution: ${execution.url}` : null,\n    editorUrl ? `Editor: ${editorUrl}` : null,\n  ].filter(Boolean).join('\\n');\n  return { json: { channel, text } };\n});"
+      }
+    },
+    {
+      "id": "f1a2b3c4-d5e6-4f70-8a91-b2c3d4e5f603",
+      "name": "Post failure alert to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "webhookId": "8f8694bb-0eae-4638-bf60-147eae695d20"
+    }
+  ],
+  "connections": {
+    "Workflow failed": {
+      "main": [
+        [
+          {
+            "node": "Render failure alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render failure alert": {
+      "main": [
+        [
+          {
+            "node": "Post failure alert to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Europe/Berlin",
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
