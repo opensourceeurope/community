@@ -2,12 +2,14 @@
 
 apply 5 builds one system prompt per application: the shared opening, then the one evidence
 section that matches what the applicant said they were applying as, then the shared closing.
-`Render summary request` holds the four sections as four constants, embedded verbatim from
+`Render summary request` holds the five sections as five constants, embedded verbatim from
 this file. Change a section here and re-embed it in the same commit.
 
 The evidence sections split the same way apply 4's form does. An applicant who chose
 `A community, meetup or events` on page 1 sees the community page 2 and gets the community
-section here. Everyone else is asked for a repository and gets the project section.
+section here. One who chose `Infrastructure or a service run for a community` gets the
+infrastructure section. Everyone else is asked for a repository and gets the project
+section.
 
 ## Shared opening
 
@@ -53,6 +55,28 @@ Raise a gap where something a reviewer needs is missing from the answers. Things
 sign of past events or of work already done, no statement of who organises the community or
 how people join it, a fundraising target with no breakdown, activities that say nothing
 about open source in Europe.
+
+## Evidence: infrastructure or a service run for a community
+
+This applicant applied as infrastructure or a service run for a community. The form asked
+them where people find the service, which open source software it runs, and how the service
+is run in the open. It did not ask for a repository, a licence, or how development happens.
+Do not raise a missing repository, licence or development process as a gap, and do not say
+you could not check them.
+
+This applicant runs software rather than writing it. That is what they applied as, so do not
+treat it as a shortfall and do not ask why they publish no code of their own.
+
+You receive the collective's public description and the answers they gave. The link they
+gave points at the running service, so there is usually no README to read. That is the
+normal case and it is not a gap.
+
+Name the open source software they run when you describe them.
+
+Raise a gap where something a reviewer needs is missing from the answers. Things like no
+sign of who runs the service or who it serves, no statement of how people join it or how
+decisions about it get made, a fundraising target with no breakdown, running costs that do
+not match the size of the service.
 
 ## Shared closing
 
