@@ -37,6 +37,7 @@ below that runs all three containers. Nothing else.
 | Find out when the whole box is down | [The external uptime monitor](#the-external-uptime-monitor) |
 | Something is broken | [Troubleshooting](#troubleshooting) |
 | Get in when SSH refuses you | [Getting into the box](#getting-into-the-box) |
+| Change the image people see when they share the form link | [The form's link preview image](#the-forms-link-preview-image) |
 | Point Open Collective at this box | [Registering the Open Collective webhook](#registering-the-open-collective-webhook) |
 
 ## The box (this VPS)
@@ -120,6 +121,37 @@ hostname. Check it with the first real form.
 The admin name is deliberately not `n8n.…`: every hostname issued a
 certificate is published in Certificate Transparency logs, so a
 tool-named host permanently advertises what software runs here.
+
+## The form's link preview image
+
+The image a chat or a social post shows for the application link comes from an
+Open Graph tag that n8n writes into every form page:
+
+```html
+<meta property="og:image" content="/static/og_image.png" />
+```
+
+n8n hardcodes that path in its form template. No node parameter and no
+environment variable changes it, and the file behind it carries n8n branding.
+Caddy therefore serves this one path itself, from
+`automation/infra/public/static/og_image.png`, and proxies everything else to
+n8n. The form page loads no other `/static/` asset, so Caddy intercepts nothing
+else that n8n serves.
+
+The image is the Open Source Europe logo on the brand background, sized
+1200x630, the same as the file it replaces.
+
+To change the image, replace that file and pull the change onto the box. Caddy
+reads the file from a bind-mounted directory on every request, so Caddy needs
+no restart. Confirm it by fetching the path and comparing the byte count
+with the file on disk:
+
+```bash
+curl -s https://apply.opensourceeurope.org/static/og_image.png | wc -c
+```
+
+Social platforms cache what they scraped, so a link someone already shared
+keeps the old image until that cache expires.
 
 ## Registering the Open Collective webhook
 
