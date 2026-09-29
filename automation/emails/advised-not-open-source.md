@@ -20,8 +20,11 @@ linked below.
 
 {{ form_url }}
 
-The more detail you give in the form, the better the human review: a
-repository link, the licence, and how development happens in the open.
+The more detail you give in the form, the better the human review. Tell us
+what the project does and how it connects to open source. If you have a
+repository and a licence, include them. If you run a service on open source
+software rather than writing your own, the form has an option for that, and it
+asks you for neither.
 
 Questions or disagreement? Reply to this email and a reviewer will read it.
 
