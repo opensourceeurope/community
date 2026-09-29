@@ -34,6 +34,7 @@ below that runs all three containers. Nothing else.
 | Let the workflows send email | [The SMTP credential](#the-smtp-credential) |
 | Ship a workflow change from `main` | [Deploying the workflows on merge](#deploying-the-workflows-on-merge) |
 | Find out when a workflow breaks | [Alerts when a workflow fails](#alerts-when-a-workflow-fails) |
+| Find out when the whole box is down | [The external uptime monitor](#the-external-uptime-monitor) |
 | Something is broken | [Troubleshooting](#troubleshooting) |
 | Get in when SSH refuses you | [Getting into the box](#getting-into-the-box) |
 | Point Open Collective at this box | [Registering the Open Collective webhook](#registering-the-open-collective-webhook) |
@@ -1357,8 +1358,75 @@ the run green and sends nothing.
 It also stays quiet for a run you started by hand. Testing a workflow from the
 editor never produces an alert, however it ends.
 
+It cannot report this box going down. The handler runs inside n8n, so when the
+box stops, the thing that reports failures stops with it. That case belongs to
+[The external uptime monitor](#the-external-uptime-monitor) below.
+
 An alert therefore means something broke. Silence does not mean everything
 works.
+
+## The external uptime monitor
+
+[Phare](https://phare.io) checks the public hostnames from outside this box
+and posts to Slack when one stops answering.
+
+It covers the one failure the in-instance handler cannot. A workflow that
+throws leaves n8n running, so the handler can report it. A box that stops
+takes the handler with it, so the pipeline stops and nothing reports it.
+Watching from outside is the only way to see that.
+
+### What earns a check
+
+Both hostnames do, for different reasons.
+
+| Hostname | What breaks while it is down |
+|---|---|
+| `apply.opensourceeurope.org` | Applicants cannot open the form, and anyone part way through loses the session |
+| `automation.opensourceeurope.org` | Open Collective webhook deliveries are lost. OC sends each event once, so a delivery that arrives while the box is down is gone |
+
+Check `automation.` even if you check nothing else. It is the one whose
+downtime loses data rather than postponing it. A lost delivery is recovered
+only when the catch-up sweep next runs and finds the application through the
+API.
+
+A plain `GET /` on either name returns 200 and works as the health target. Do
+not point a check at `/webhook/oc-events`. That path takes POST only and
+answers 404 to a GET, so the check would fail while the box is healthy.
+
+### Where the configuration lives
+
+The targets, the interval and the Slack destination sit in the Phare account,
+not in this repository. Read them there, because nothing here tracks them.
+
+Put the account credentials in the shared vault. A monitor only one person can
+reach stops being useful the moment that person is away.
+
+### When an alert fires
+
+Confirm it from your own machine first, so you know whether the box is down or
+the monitor is wrong:
+
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" --max-time 20 https://automation.opensourceeurope.org/
+```
+
+A `000` means nothing answered. Check whether the host is reachable at all:
+
+```bash
+nc -z -G 8 {VPS_IP} 443 && echo "443 open" || echo "443 unreachable"
+```
+
+If the port is closed, the box is down rather than n8n. Open the OVH control
+panel and look at the VPS state. Restart it there if it is stopped, and use
+the panel's KVM console if it is running but unreachable.
+[Getting into the box](#getting-into-the-box) covers the console.
+
+If the port is open and the hostname still fails, the box is up and something
+on it is not. Start with `docker compose ps` and `docker compose logs caddy`
+from [Day to day](#day-to-day).
+
+After any outage, check that the catch-up sweep has run once since the box
+came back. It reconciles the applications whose webhook delivery was lost.
 
 ## Troubleshooting
 
@@ -1380,6 +1448,7 @@ works.
 | Every `ovhcloud` command returns `INVALID_CREDENTIAL` (403) | The consumer key in `~/.ovh.conf` was revoked, expired or rotated | `ovhcloud login` |
 | Stray `.*.swp` / `..env.swp` in `automation/infra/`, or an editor process nobody remembers | A dropped `ssh -t` session left vim/nano open on `.env`; the swap file holds a copy of the secrets and is not gitignored, and a stale editor that later saves overwrites a rotated key with the old one | `pgrep -a 'vim|nano'`, kill the orphan (editors do not save on plain kill), delete the swap file, then verify `.env` by length/hash |
 | Applicant emails rejected or spam-filed | Mail sent from this box; the domain's SPF is `-all` for Proton only | Use an authenticated relay — see "Sending mail" above |
+| Phare alerts, but the site loads for you | The check runs from outside and reached a different answer, usually a regional network problem or an expired certificate a browser has cached | Test with `curl` rather than a browser, and check the certificate dates |
 | A workflow failed and no Slack alert arrived | The workflow has no **Error Workflow** set, or a node handled the error and let the run finish green | Read back `settings.errorWorkflow`; for a handled error, make the node throw instead |
 | Workflow fails with `access to env vars denied` | The running container predates `N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"` in `docker-compose.yml`, so n8n blocks the `$env` expressions the workflows are built on | `git pull` in `~/community`, then `docker compose up -d n8n` and expect `Recreated` |
 
