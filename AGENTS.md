@@ -301,7 +301,9 @@ The rules below are the OSE-specific invariants on top of that skill:
   node and key order so the diff shows what changed rather than how the API
   ordered its response.
 - **Name workflows `apply <step> — <what it does>`** — long and descriptive,
-  so the list reads in pipeline order.
+  so the list reads in pipeline order. A workflow that is not a pipeline step
+  takes the `ops — <what it does>` prefix instead, so it sorts clear of the
+  `apply` block rather than claiming a step number it does not have.
 - **OC webhooks carry no application data** (`data: {}`). Treat every event
   as a ping and re-fetch from the GraphQL API.
 - **Never write adjacent closing braces inside a `{{ }}` expression.** n8n
