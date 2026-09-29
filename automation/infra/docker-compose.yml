@@ -80,6 +80,9 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The one file Caddy serves itself, rather than proxying: the link
+      # preview image for the application form. See the Caddyfile.
+      - ./public:/srv/public:ro
       - caddy_data:/data
       - caddy_config:/config
 

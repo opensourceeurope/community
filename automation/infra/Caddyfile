@@ -15,11 +15,24 @@
 {$APPLY_HOST} {
 	encode zstd gzip
 
-	# Only the bare path is rewritten. Page-to-page posts and assets keep
-	# their own paths, so a multi-page form stays on this hostname.
-	rewrite / /form/apply-ose
+	# The link preview image. n8n hardcodes
+	# <meta property="og:image" content="/static/og_image.png"> into its form
+	# template, with no node parameter and no environment variable behind it,
+	# and the file it points at is n8n's own brand card. Serving that one path
+	# from here puts the OSE logo in the preview instead. The form page loads
+	# no other /static/ asset, so Caddy intercepts nothing else n8n serves.
+	handle /static/og_image.png {
+		root * /srv/public
+		file_server
+	}
 
-	reverse_proxy n8n:5678
+	handle {
+		# Only the bare path is rewritten. Page-to-page posts and assets keep
+		# their own paths, so a multi-page form stays on this hostname.
+		rewrite / /form/apply-ose
+
+		reverse_proxy n8n:5678
+	}
 }
 
 {$N8N_HOST} {
