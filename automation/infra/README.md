@@ -34,6 +34,7 @@ below that runs all three containers. Nothing else.
 | Let the workflows send email | [The SMTP credential](#the-smtp-credential) |
 | Ship a workflow change from `main` | [Deploying the workflows on merge](#deploying-the-workflows-on-merge) |
 | Find out when a workflow breaks | [Alerts when a workflow fails](#alerts-when-a-workflow-fails) |
+| Find out when the whole box is down | [The external uptime monitor](#the-external-uptime-monitor) |
 | Something is broken | [Troubleshooting](#troubleshooting) |
 | Get in when SSH refuses you | [Getting into the box](#getting-into-the-box) |
 | Point Open Collective at this box | [Registering the Open Collective webhook](#registering-the-open-collective-webhook) |
@@ -1357,8 +1358,24 @@ the run green and sends nothing.
 It also stays quiet for a run you started by hand. Testing a workflow from the
 editor never produces an alert, however it ends.
 
+It cannot report this box going down. The handler runs inside n8n, so when the
+box stops, the thing that reports failures stops with it. That case belongs to
+[The external uptime monitor](#the-external-uptime-monitor) below.
+
 An alert therefore means something broke. Silence does not mean everything
 works.
+
+## The external uptime monitor
+
+[Phare](https://phare.io), an Estonian uptime service, sends a GET to
+`https://apply.opensourceeurope.org` and posts to Slack when it stops
+answering.
+
+It covers the one failure the alert handler cannot. The handler runs inside
+n8n, so when the box stops, it stops too.
+
+The check and its Slack destination are configured in the Phare account, not
+in this repository. Put the account credentials in the shared vault.
 
 ## Troubleshooting
 
