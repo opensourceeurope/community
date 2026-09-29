@@ -1332,6 +1332,15 @@ docker compose up -d n8n
 and `up -d` prints `Recreated` when it was. The first boot of a new tag runs
 n8n's database migrations, so it takes noticeably longer than a normal start.
 
+An upgrade can also move the path the form page asks for. Caddy serves
+`/static/og_image.png` because that is the path n8n's form template requests,
+and a new version that renames it brings the n8n card back without any error.
+Read the tag after a bump, and update the Caddyfile if the path changed:
+
+```bash
+curl -s https://apply.opensourceeurope.org/ | grep og:image
+```
+
 Take a backup first. [Backup](#backup) covers how, and the table in
 [Which backup to restore, when](#which-backup-to-restore-when) treats a bad
 upgrade as a restore from the most recent dump taken before it.
