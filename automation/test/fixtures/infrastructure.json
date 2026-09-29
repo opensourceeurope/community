@@ -1,0 +1,14 @@
+{
+  "name": "infrastructure",
+  "expect_verdict": "fits",
+  "input": {
+    "org_name": "Open Source Europe",
+    "collective_name": "Kestrel Social",
+    "collective_slug": "kestrel-social",
+    "description": "A Mastodon instance for illustrators and comics artists in Europe",
+    "long_description": "Kestrel Social runs a Mastodon server for about nine hundred illustrators, comics artists and the people who read them. We did not write Mastodon. We run it, upgrade it, moderate it and pay for it. Four volunteer admins publish the moderation policy, the blocklist and the monthly running costs on the instance's about page, and members vote on policy changes at an open call every quarter. We are applying for a fiscal host so that the hosting bill, the object storage and the moderators' stipends stop going through one person's bank account.",
+    "repository_url": "",
+    "website_url": "https://example.org/kestrel",
+    "application_message": "We run an instance of open source software rather than developing software of our own, so there is no repository to point you at and no licence that is ours to name. What we do have is four years of uptime, a published moderation policy, and a community that pays for the server together."
+  }
+}
