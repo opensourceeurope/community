@@ -542,7 +542,8 @@
   },
   "settings": {
     "timezone": "Europe/Berlin",
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "errorWorkflow": "qWHuHamNdmvfrSRt"
   },
   "pinData": {}
 }

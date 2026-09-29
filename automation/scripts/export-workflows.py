@@ -18,6 +18,7 @@ MAP = {
     "4HTkfX1viOXGmObT": "followup.json",
     "liyDDeSeZGnngb6Z": "form-ose.json",
     "qPEF2ldH8pJXU03N": "summary.json",
+    "qWHuHamNdmvfrSRt": "ops-alert-on-failure.json",
 }
 OUTDIR = "automation/n8n"
 
@@ -39,7 +40,9 @@ def main():
     key = os.environ["N8N_API_KEY"]
     for workflow_id, filename in MAP.items():
         path = os.path.join(OUTDIR, filename)
-        old = json.load(open(path))
+        # A workflow exported for the first time has no file yet. Treating that as an empty
+        # export lets the script bootstrap it instead of failing on the open.
+        old = json.load(open(path)) if os.path.exists(path) else {"nodes": []}
         old_nodes = {n["id"]: n for n in old["nodes"]}
         old_order = [n["id"] for n in old["nodes"]]
 
