@@ -6,15 +6,63 @@ Open Source Europe is a European nonprofit that gives open source projects a sha
 
 This repository is the home for community-related discussions, governance, processes, and shared resources for projects under the OSE umbrella.
 
-## Built with
+## How an application works
 
-The application process for new collectives is automated with
-[n8n](https://n8n.io), self-hosted on a European VPS. The workflows that run it,
-and the documentation for operating them, are in
-[`automation/`](automation/). The first read of each application uses a model
-hosted in the EU; it is advisory only, and every approval and rejection is made
-by a person on Open Collective, per the
+An application passes through two forms. Open Collective hosts the first one,
+Open Source Europe hosts the second, and the steps in between are automated.
+
+The following diagram shows the whole process and what each system does in it:
+
+```mermaid
+flowchart TD
+    A(["Applicant"]) -->|"step 1"| OC["Open Collective<br>application to be hosted by OSE"]
+    OC --> AI["Automated first read<br>of the public project material"]
+    AI -->|"step 2, link sent by email"| FORM["OSE application form<br>the questions Open Collective does not ask"]
+    FORM --> SUM["Automated summary<br>of the submitted answers"]
+    SUM --> DEC["A person approves or rejects<br>on Open Collective"]
+    DEC --> MAIL(["Applicant receives<br>the decision by email"])
+
+    OC -.-> SL
+    AI -.-> SL
+    FORM -.-> SL
+    SUM -.-> SL
+    DEC -.-> SL
+
+    SL[["One Slack channel<br>one thread per application"]]
+```
+
+An application starts and ends on Open Collective. The applicant applies to OSE
+from the OSE page there. Later, a person approves or rejects that same
+application in the same place. Open Collective holds the decision, and no
+automated step makes it, per the
 [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
+
+The OSE application form is step 2. It asks what Open Collective does not ask:
+
+- what the project does, and where its work happens in the open
+- which licence it uses
+- whether it is already a legal entity
+- what it expects to raise and to spend
+
+The link to the form arrives by email after step 1. An applicant who has not
+applied on Open Collective cannot get past the first page of the form.
+
+The automation connects the two forms. It picks up each new application and
+asks a model hosted in the EU to read the public project material. It emails
+the invitation to the form, and one reminder if nobody fills the form in. After
+a submission it posts a summary of the answers. Both reads by the model are
+advisory, and neither one makes a decision. The workflows run on
+[n8n](https://n8n.io), self-hosted on a European virtual server.
+
+Every update about every application appears in one Slack channel. The first
+message about an application starts a thread. Every later step replies in that
+thread: the automated read, the invitation, the reminder, the answers, the
+summary, and the decision. Reactions on the first message show the current
+stage. To follow one application, read its thread. To see all of them, read the
+channel.
+
+[`automation/`](automation/) holds the workflows that run this, the email
+templates they send, and the operator runbook.
 
 ## License
 
