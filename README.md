@@ -41,9 +41,9 @@ person approves or rejects that same application in the same place. Open
 Collective holds the decision, and no automated step makes it, per the
 [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
 
-The OSE application form is step 2. An application on Open Collective carries a
-description and a short message. The form collects the detail OSE needs on top
-of that:
+The OSE application form is step 2. An application on Open Collective carries
+the collective's description, its links and a short message. The form collects
+the detail OSE needs on top of that:
 
 - what the project does, and where its work happens in the open
 - which licence it uses
