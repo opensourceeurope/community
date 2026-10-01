@@ -15,7 +15,7 @@ The following diagram shows the whole process and what each system does in it:
 
 ```mermaid
 flowchart TD
-    A(["Applicant"]) -->|"step 1"| OC["Open Collective<br>application to be hosted by OSE"]
+    A(["Applicant"]) -->|"step 1"| OC["Open Collective<br>apply to OSE as fiscal host"]
     OC --> AI["Automated first read<br>of the public project material"]
     AI -->|"step 2, link sent by email"| FORM["OSE application form<br>the questions Open Collective does not ask"]
     FORM --> SUM["Automated summary<br>of the submitted answers"]
@@ -31,10 +31,10 @@ flowchart TD
     SL[["One Slack channel<br>one thread per application"]]
 ```
 
-An application starts and ends on Open Collective. The applicant applies to OSE
-from the OSE page there. Later, a person approves or rejects that same
-application in the same place. Open Collective holds the decision, and no
-automated step makes it, per the
+An application starts and ends on Open Collective. Open Collective calls OSE a
+fiscal host, and a collective applies to a host from that host's page. Later, a
+person approves or rejects that same application in the same place. Open
+Collective holds the decision, and no automated step makes it, per the
 [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
 
 The OSE application form is step 2. It asks what Open Collective does not ask:
