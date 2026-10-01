@@ -16,15 +16,19 @@ The following diagram shows the whole process and what each system does in it:
 ```mermaid
 flowchart TD
     A(["Applicant"]) -->|"step 1"| OC["Open Collective<br>apply to OSE as fiscal host"]
-    OC --> AI["Automated first read<br>of the public project material"]
+    OC --> AI["Automated review<br>advisory verdict on the project"]
     AI -->|"step 2, link sent by email"| FORM["OSE application form<br>detailed project questions"]
-    FORM --> SUM["Automated summary<br>of the submitted answers"]
+    FORM --> SUM["Automated summary<br>of the answers"]
     SUM --> DEC["A person approves or rejects<br>on Open Collective"]
     DEC --> MAIL(["Applicant receives<br>the decision by email"])
+
+    FORM -->|"no answer<br>after 7 days"| REM["Reminder email"]
+    REM -->|"back to the form"| FORM
 
     OC -.-> SL
     AI -.-> SL
     FORM -.-> SL
+    REM -.-> SL
     SUM -.-> SL
     DEC -.-> SL
 
@@ -50,15 +54,26 @@ The link to the form arrives by email after step 1. An applicant who has not
 applied on Open Collective cannot get past the first page of the form.
 
 The automation connects the two forms. It picks up each new application and
-asks a model hosted in the EU to read the public project material. It emails
-the invitation to the form, and one reminder if nobody fills the form in. After
-a submission it posts a summary of the answers. Both reads by the model are
-advisory, and neither one makes a decision. The workflows run on
+emails the invitation to the form. After 7 days of silence it sends one
+reminder. After 7 more days it asks in the Slack thread for a person to pick the
+application up.
+
+A model hosted in the EU reads each application twice, and each read returns a
+verdict rather than a description. The first one reads the public project
+material and gives a verdict with its reasoning. The four verdicts are: the
+project fits, it belongs with another host, it is not open source, or the
+evidence is unclear. That verdict picks which invitation email the applicant
+receives, and the review itself goes into the Slack thread. The second read runs
+after a submission. It reads the answers and the project's README, then posts
+one paragraph and a verdict of its own.
+
+Both reads are advisory. Neither one recommends an approval or a rejection, and
+a person makes the decision on Open Collective. The workflows run on
 [n8n](https://n8n.io), self-hosted on a European virtual server.
 
 Every update about every application appears in one Slack channel. The first
 message about an application starts a thread. Every later step replies in that
-thread: the automated read, the invitation, the reminder, the answers, the
+thread: the review, the invitation, the reminder, the answers, the
 summary, and the decision. Reactions on the first message show the current
 stage. To follow one application, read its thread. To see all of them, read the
 channel.
