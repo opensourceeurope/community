@@ -17,7 +17,7 @@ The following diagram shows the whole process and what each system does in it:
 flowchart TD
     A(["Applicant"]) -->|"step 1"| OC["Open Collective<br>apply to OSE as fiscal host"]
     OC --> AI["Automated first read<br>of the public project material"]
-    AI -->|"step 2, link sent by email"| FORM["OSE application form<br>the questions Open Collective does not ask"]
+    AI -->|"step 2, link sent by email"| FORM["OSE application form<br>detailed project questions"]
     FORM --> SUM["Automated summary<br>of the submitted answers"]
     SUM --> DEC["A person approves or rejects<br>on Open Collective"]
     DEC --> MAIL(["Applicant receives<br>the decision by email"])
@@ -37,7 +37,9 @@ person approves or rejects that same application in the same place. Open
 Collective holds the decision, and no automated step makes it, per the
 [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
 
-The OSE application form is step 2. It asks what Open Collective does not ask:
+The OSE application form is step 2. An application on Open Collective carries a
+description and a short message. The form collects the detail OSE needs on top
+of that:
 
 - what the project does, and where its work happens in the open
 - which licence it uses
