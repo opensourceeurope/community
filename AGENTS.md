@@ -280,6 +280,15 @@ The rules below are the OSE-specific invariants on top of that skill:
   render nodes in apply 3 in the same PR. `check-workflows.py` check 7 fails a
   rename that leaves either one behind, and it covers the dropdown options the
   Switch nodes compare against for the same reason.
+- **A decision is read from the applicant's public account fields**, never
+  from `account.hostApplicationRequests`. That field demands admin of the
+  applicant collective, which the host-admin token is not and cannot become,
+  and it returned `Unauthorized` for a fortnight while `Extract decision`
+  swallowed the error and reported success. `host.slug` matching the row's
+  `host_slug` with `isApproved` is an approval, a null `host` is a rejection,
+  and a different `host` means the applicant went elsewhere and a person
+  decides what that means. Any node reading an Open Collective response must
+  throw on an `errors` array rather than skipping the item.
 - **Timers are derived from timestamps** by the scheduled runs, never from
   Wait nodes.
 - **Config comes from the env vars in `automation/.env.example`**; credentials

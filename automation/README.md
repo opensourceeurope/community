@@ -123,9 +123,10 @@ columns" in [`docs/data-tables.md`](docs/data-tables.md).
 `apply 1b — catch-up` exists because Open Collective delivers each
 webhook event only once. If the server is unreachable at that moment, the
 event is lost and the application would never enter the pipeline. The
-catch-up asks the Open Collective API once a day for pending applications
-and fresh decisions, and processes anything the webhook missed. A lost
-event then means the applicant hears from us up to a day later, not never.
+catch-up asks the Open Collective API for pending applications, and for the
+current status of every application still open in the data table, and
+processes anything the webhook missed. A lost event then means the applicant
+hears from us one sweep later, not never.
 
 ## Checking the exports
 

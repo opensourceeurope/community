@@ -193,9 +193,9 @@ The picker has no entry for `collective.rejected`. The API dispatches that
 activity to webhooks, the dashboard just never offers it. Two ways to cover
 rejections:
 
-- Leave it to the catch-up. It fetches decisions from the API, so a
-  rejection is recorded and the closing email goes out on the next sweep,
-  up to a day after the decision.
+- Leave it to the catch-up. It reads each open application's current status
+  from the API, so a rejection is recorded and the closing email goes out on
+  the next sweep, up to one sweep interval after the decision.
 - Create the third webhook through the `createWebhook` GraphQL mutation.
   It needs a personal token with the `webhooks` scope from an admin of
   `europe`. Issue one for this, run the command in your own terminal, and
@@ -240,6 +240,14 @@ names the v2 enum cannot represent. The check is that three rows carry the
 intake URL as their `webhookUrl`, one per activity. A missing row means
 that webhook was created on another account: find it under that account's
 webhook settings, delete it there, and recreate it on `europe`.
+
+Treat the two decision activities as unproven until you have watched one
+arrive. `collective.apply` lands reliably. Approvals and rejections have been
+seen happening on Open Collective with no matching delivery reaching the
+endpoint at all, so registering them is worth doing but is not something to
+rely on. What actually records a decision is the catch-up, which asks the API
+for the status of every application still open in the data table. A decision
+webhook only makes that answer arrive sooner.
 
 Nothing else needs configuring on either side. Open Collective sends no
 signature, and the endpoint accepts any POST. That is safe by design. Intake

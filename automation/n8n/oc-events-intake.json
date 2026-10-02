@@ -313,7 +313,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ query: 'query($s:String){account(slug:$s){slug hostApplicationRequests(limit:10,orderBy:{field:CREATED_AT,direction:DESC}){nodes{status createdAt host{slug} } } } }', variables: { s: $json.slug } }) }}",
+        "jsonBody": "={{ JSON.stringify({ query: 'query($s:String){account(slug:$s){slug ... on AccountWithHost{isApproved approvedAt host{slug} } } }', variables: { s: $json.slug } }) }}",
         "options": {}
       },
       "id": "4b5c6d7e-8f9a-4b0c-9d1e-3f4a5b6c7d8e",
@@ -327,7 +327,7 @@
         880,
         160
       ],
-      "notes": "Same 'oc-host-admin' credential as the pending fetch.",
+      "notes": "Public account fields, readable by any token. hostApplicationRequests was used here until 2026-10-01 and demands admin of the applicant collective, which a host-admin token is not.",
       "credentials": {
         "httpHeaderAuth": {
           "id": "kRobLK9PAZHBzHZb",
@@ -337,7 +337,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Pairs each status response with its state row (the HTTP node emits one\n// response per input row, in order) and keeps only rows whose application\n// was decided on Open Collective.\nconst rows = $('Still open?').all();\nconst out = [];\n$input.all().forEach((item, i) => {\n  const row = rows[i].json;\n  const account = item.json.data && item.json.data.account;\n  if (!account) return; // collective gone or renamed — leave the row for a human\n  const requests = (account.hostApplicationRequests || {}).nodes || [];\n  const forThisHost = requests.find((r) => r.host && r.host.slug === row.host_slug);\n  if (!forThisHost) return;\n  if (forThisHost.status === 'APPROVED' || forThisHost.status === 'REJECTED') {\n    out.push({ json: {\n      slug: row.slug,\n      org: row.org,\n      collective_name: row.collective_name,\n      applicant_email: row.contact_email || row.applicant_email || '',\n      decision: forThisHost.status.toLowerCase(),\n    }, pairedItem: { item: i } });\n  }\n});\nreturn out;"
+        "jsCode": "// Pairs each status response with its state row (the HTTP node emits one\n// response per input row, in order) and keeps only rows whose application\n// reached a terminal state on Open Collective.\n//\n// This read account.hostApplicationRequests until 2026-10-01. That field demands\n// admin of the applicant collective, which a host-admin token is not and cannot\n// become, so every response came back Unauthorized with a null account, the\n// `if (!account) return` below swallowed it, and the node reported success while\n// recording nothing. Seven decisions were missed that way. These public fields\n// carry the same answer:\n//\n//   host.slug === host_slug, isApproved false -> still pending, leave it\n//   host.slug === host_slug, isApproved true  -> approved\n//   host === null                             -> applying nowhere now: rejected\n//   host.slug is a different host             -> went elsewhere: leave it\n//\n// That last case is real here, not theoretical: an applicant can apply to OSE and\n// to the sibling host, and an approval there looks identical to a withdrawal from\n// us. Guessing would send the wrong email, so a human decides.\nconst rows = $('Still open?').all();\nconst out = [];\n$input.all().forEach((item, i) => {\n  const row = rows[i].json;\n  const body = item.json || {};\n  if (Array.isArray(body.errors) && body.errors.length) {\n    // Shout, never swallow: a silent skip here is what hid the original breakage.\n    throw new Error(`decision: Open Collective refused the status query for ${row.slug}: ${JSON.stringify(body.errors)}`);\n  }\n  const account = body.data && body.data.account;\n  if (!account) return; // collective gone or renamed — leave the row for a human\n  if (!('host' in account)) return; // not a host-bearing account type — leave it\n  const host = account.host ? account.host.slug : null;\n  let decision = '';\n  if (host === row.host_slug) {\n    if (account.isApproved !== true) return; // still pending\n    decision = 'approved';\n  } else if (host === null) {\n    decision = 'rejected';\n  } else {\n    return; // hosted by another host now — ambiguous, leave the row for a human\n  }\n  out.push({ json: {\n    slug: row.slug,\n    org: row.org,\n    collective_name: row.collective_name,\n    applicant_email: row.contact_email || row.applicant_email || '',\n    decision,\n  }, pairedItem: { item: i } });\n});\nreturn out;"
       },
       "id": "5c6d7e8f-9a0b-4c1d-8e2f-4a5b6c7d8e9f",
       "name": "Extract decision",
