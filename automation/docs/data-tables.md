@@ -24,9 +24,9 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 | `collective_url` | String | intake | Public Open Collective page for the collective. |
 | `description` | String | intake | The collective's public one line description. An input to the AI review. |
 | `long_description` | String | intake | The collective's public long description. An input to the AI review. |
-| `repository_url` | String | intake | First GitHub or GitLab social link on the collective, if any. An input to the AI review. |
+| `repository_url` | String | intake | First GitHub or GitLab social link on the collective, if any. An input to the AI review, and the first place it looks for something to fetch. |
 | `website_url` | String | intake | First website social link on the collective, if any. An input to the AI review. |
-| `application_message` | String | intake | The message the applicant wrote when applying on OC. An input to the AI review. |
+| `application_message` | String | intake | The message the applicant wrote when applying on OC. Posted into the application's Slack thread by intake, in as many replies as its length needs, and an input to the AI review. When the collective's page carries no repository link, apply 2 also takes a GitHub or GitLab repository link out of it to fetch a README and a licence. |
 | `applicant_email` | String | intake | The application's `customData` contact email when present, otherwise the first collective admin email visible to the host admin. The `collective.apply` webhook payload carries no application data, so intake reads all of this from the API. Personal data. |
 | `stage` | String | every workflow, as the application progresses | One of the nine stage values below. |
 | `applied_at` | Date | intake | The application's `createdAt` on Open Collective. |

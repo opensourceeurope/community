@@ -43,7 +43,9 @@ Verdicts:
 What you were given about the repository:
 
 When the collective's page carries a repository or organisation link, this workflow
-follows it and puts what it found in the message below. Anything under "Repository
+follows it and puts what it found in the message below. When the page carries none, it
+looks for a GitHub or GitLab repository link in the application message instead and
+follows that. The block says which of the two the link came from. Anything under "Repository
 evidence" was fetched from the forge rather than inferred, and it is the whole of what
 you know about that code.
 
