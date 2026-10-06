@@ -28,7 +28,7 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 | `website_url` | String | intake | First website social link on the collective, if any. An input to the AI review. |
 | `application_message` | String | intake | The message the applicant wrote when applying on OC. Posted into the application's Slack thread by intake, in as many replies as its length needs, and an input to the AI review. When the collective's page carries no repository link, apply 2 also takes a GitHub or GitLab repository link out of it to fetch a README and a licence. |
 | `applicant_email` | String | intake | The application's `customData` contact email when present, otherwise the first collective admin email visible to the host admin. The `collective.apply` webhook payload carries no application data, so intake reads all of this from the API. Personal data. |
-| `stage` | String | every workflow, as the application progresses | One of the nine stage values below. |
+| `stage` | String | every workflow, as the application progresses | One of the ten stage values below. |
 | `applied_at` | Date | intake | The application's `createdAt` on Open Collective. |
 | `ai_review_claimed_at` | Date | AI review | When apply 2 took this row to work on. A claim, not a result. See "The three claim columns" below. |
 | `ai_verdict` | String | AI review | One of `fits`, `wrong_host`, `not_open_source`, `unclear`. See `automation/prompts/verdict.schema.json`. |
@@ -45,7 +45,7 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 | `answers` | String (JSON) | form workflow | Form responses so far. Shape below. |
 | `form_submitted_at` | Date | form workflow | When the final form page was submitted. |
 | `slack_notified_at` | Date | form workflow and follow-up | When the pipeline reached a stage that tells Slack about this row, either ready for evaluation or an escalation. It records the attempt, not the delivery: a Slack post that failed or was skipped for a row with no thread still stamps it, because the stage advanced either way. Nothing reads it. |
-| `decision` | String | intake (decision branch) | `approved` or `rejected`, from the human decision made on Open Collective. |
+| `decision` | String | intake (decision branch) | `approved`, `rejected` or `resigned`. The first two are the human decision made on Open Collective. The third is read off the same query and is not a decision at all. See "The three outcomes of the status query" below. |
 | `decided_at` | Date | intake (decision branch) | When that decision was recorded. |
 | `dry_run` | Boolean | every workflow that emails an applicant | Set when an applicant-facing email for this row went to `DRY_RUN_RECIPIENT` instead of the applicant, so a row that advanced during a rehearsal is visibly a rehearsal. Slack messages are internal and always send, so they never set it. |
 | `freshdesk_ticket_id` | String | none | Reserved for a possible future Freshdesk integration. No workflow writes it. |
@@ -86,7 +86,7 @@ Nothing ever clears a claim. A row that has been through all three stages keeps
 all three timestamps, and `stage` remains the record of where the application
 actually is.
 
-### The nine `stage` values
+### The ten `stage` values
 
 Every reviewed application is invited to the form. The AI verdict changes
 only which email carries the invitation, never whether it is sent. An
@@ -103,9 +103,36 @@ In order through a normal application, plus the escalation branch:
 6. `awaiting_decision`: Slack has been notified, and a human needs to decide.
 7. `approved`: the terminal decision, recorded from Open Collective.
 8. `rejected`: the terminal decision, recorded from Open Collective.
-9. `escalated`: no activity within `ESCALATE_AFTER_MINUTES` of the reminder,
+9. `resigned`: terminal, and not a decision. The collective is hosted
+   somewhere other than OSE, so the application can end in neither an
+   approval nor a rejection here.
+10. `escalated`: no activity within `ESCALATE_AFTER_MINUTES` of the reminder,
    so the sweep flags it for a human. Not terminal. An escalated row resumes
    its normal path once the applicant acts.
+
+### The three outcomes of the status query
+
+The decision branch of apply 1a and apply 1b asks Open Collective for the
+applicant's own public account fields, and reads `host` and `isApproved` off
+the answer. Four shapes come back, and only three of them end the application:
+
+| `host` | `isApproved` | Outcome |
+|---|---|---|
+| the row's `host_slug` | `false` | still pending, the row is left alone |
+| the row's `host_slug` | `true` | `approved` |
+| `null` | any | `rejected` |
+| any other host | any | `resigned` |
+
+`resigned` is the one outcome the applicant is never told about. `approved`
+and `rejected` each send the applicant an email, because OSE made a decision
+and owes them the answer. A collective that is hosted elsewhere has already
+moved on, so the branch writes the row, replies in the Slack thread with the
+host it found, and marks the parent message with an amber light. Nothing on
+that path can send mail, which is what makes a wrong reading cost one edit of
+the row rather than a message to an applicant.
+
+A collective that cannot be read at all, because it was deleted or renamed,
+leaves the row untouched for a person to look at.
 
 ### Shape of `answers`
 

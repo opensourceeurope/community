@@ -198,7 +198,7 @@
           "conditions": [
             {
               "id": "c9d0e1f2-a3b4-4c5d-8e6f-9a0b1c2d3e4f",
-              "leftValue": "={{ !['approved', 'rejected'].includes($json.stage) }}",
+              "leftValue": "={{ !['approved', 'rejected', 'resigned'].includes($json.stage) }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -260,7 +260,7 @@
         160
       ],
       "parameters": {
-        "jsCode": "// Pairs each status response with its state row (the HTTP node emits one\n// response per input row, in order) and keeps only rows whose application\n// reached a terminal state on Open Collective.\n//\n// This read account.hostApplicationRequests until 2026-10-01. That field demands\n// admin of the applicant collective, which a host-admin token is not and cannot\n// become, so every response came back Unauthorized with a null account, the\n// `if (!account) return` below swallowed it, and the node reported success while\n// recording nothing. Seven decisions were missed that way. These public fields\n// carry the same answer:\n//\n//   host.slug === host_slug, isApproved false -> still pending, leave it\n//   host.slug === host_slug, isApproved true  -> approved\n//   host === null                             -> applying nowhere now: rejected\n//   host.slug is a different host             -> went elsewhere: leave it\n//\n// That last case is real here, not theoretical: an applicant can apply to OSE and\n// to the sibling host, and an approval there looks identical to a withdrawal from\n// us. Guessing would send the wrong email, so a human decides.\nconst rows = $('Still open?').all();\nconst out = [];\n$input.all().forEach((item, i) => {\n  const row = rows[i].json;\n  const body = item.json || {};\n  if (Array.isArray(body.errors) && body.errors.length) {\n    // Shout, never swallow: a silent skip here is what hid the original breakage.\n    throw new Error(`decision: Open Collective refused the status query for ${row.slug}: ${JSON.stringify(body.errors)}`);\n  }\n  const account = body.data && body.data.account;\n  if (!account) return; // collective gone or renamed — leave the row for a human\n  if (!('host' in account)) return; // not a host-bearing account type — leave it\n  const host = account.host ? account.host.slug : null;\n  let decision = '';\n  if (host === row.host_slug) {\n    if (account.isApproved !== true) return; // still pending\n    decision = 'approved';\n  } else if (host === null) {\n    decision = 'rejected';\n  } else {\n    return; // hosted by another host now — ambiguous, leave the row for a human\n  }\n  out.push({ json: {\n    slug: row.slug,\n    org: row.org,\n    collective_name: row.collective_name,\n    applicant_email: row.contact_email || row.applicant_email || '',\n    decision,\n  }, pairedItem: { item: i } });\n});\nreturn out;"
+        "jsCode": "// Pairs each status response with its state row (the HTTP node emits one\n// response per input row, in order) and keeps only rows whose application\n// reached a terminal state on Open Collective.\n//\n// This read account.hostApplicationRequests until 2026-10-01. That field demands\n// admin of the applicant collective, which a host-admin token is not and cannot\n// become, so every response came back Unauthorized with a null account, the\n// `if (!account) return` below swallowed it, and the node reported success while\n// recording nothing. Seven decisions were missed that way. These public fields\n// carry the same answer:\n//\n//   host.slug === host_slug, isApproved false -> still pending, leave it\n//   host.slug === host_slug, isApproved true  -> approved\n//   host === null                             -> applying nowhere now: rejected\n//   host.slug is a different host             -> gone elsewhere: resigned\n//\n// That last case is real here, not theoretical: an applicant can apply to OSE and\n// to the sibling host, and one did. It can end in neither an approval nor a\n// rejection from us, because the collective is no longer ours to decide on, so it\n// gets a terminal outcome of its own. That outcome sends no email: the branch stops\n// at the data table and the Slack thread, which is what makes a wrong call cost one\n// hand edit rather than a message to an applicant. `other_host` carries the host\n// that was found, so the thread can name it and a reviewer can judge.\nconst rows = $('Still open?').all();\nconst out = [];\n$input.all().forEach((item, i) => {\n  const row = rows[i].json;\n  const body = item.json || {};\n  if (Array.isArray(body.errors) && body.errors.length) {\n    // Shout, never swallow: a silent skip here is what hid the original breakage.\n    throw new Error(`decision: Open Collective refused the status query for ${row.slug}: ${JSON.stringify(body.errors)}`);\n  }\n  const account = body.data && body.data.account;\n  if (!account) return; // collective gone or renamed — leave the row for a human\n  if (!('host' in account)) return; // not a host-bearing account type — leave it\n  const host = account.host ? account.host.slug : null;\n  let decision = '';\n  let otherHost = '';\n  if (host === row.host_slug) {\n    if (account.isApproved !== true) return; // still pending\n    decision = 'approved';\n  } else if (host === null) {\n    decision = 'rejected';\n  } else {\n    decision = 'resigned';\n    otherHost = host;\n  }\n  out.push({ json: {\n    slug: row.slug,\n    org: row.org,\n    collective_name: row.collective_name,\n    applicant_email: row.contact_email || row.applicant_email || '',\n    decision,\n    other_host: otherHost,\n  }, pairedItem: { item: i } });\n});\nreturn out;"
       }
     },
     {
@@ -269,7 +269,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1552,
+        1776,
         160
       ],
       "parameters": {
@@ -308,7 +308,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1104,
+        1328,
         160
       ],
       "parameters": {
@@ -323,7 +323,7 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1328,
+        1552,
         160
       ],
       "parameters": {
@@ -487,7 +487,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1776,
+        2000,
         160
       ],
       "parameters": {
@@ -501,7 +501,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        2000,
+        2224,
         160
       ],
       "parameters": {
@@ -540,7 +540,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        2224,
+        2448,
         160
       ],
       "parameters": {
@@ -608,6 +608,164 @@
       },
       "notes": "Only the path that creates rows hands off, and only after the Slack thread anchor is stored, so the review has a thread to reply in. Fire and forget: it never waits and it never fails this workflow. apply 2 reads the rows itself, so nothing is passed, and its own schedule still covers a hand-off that is lost. The decision branch is untouched.",
       "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+      "name": "Resigned rather than decided?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1104,
+        160
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5e",
+              "leftValue": "={{ $json.decision === 'resigned' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2b3c4d5e-6f70-4b8c-9d0e-1f2a3b4c5d6e",
+      "name": "Record the resignation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1328,
+        400
+      ],
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "keyValue": "={{ $json.slug }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "decision": "={{ $json.decision }}",
+            "decided_at": "={{ $now.toISO() }}",
+            "stage": "={{ $json.decision }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3c4d5e6f-7081-4c9d-8e1f-2a3b4c5d6e7f",
+      "name": "Render resignation thread reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        400
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Fed by the data table update, which returns the row it wrote, so the thread anchor is\n// read straight off the row. Rows whose parent message never got posted are skipped\n// rather than posted loose in the channel: a reply with no thread_ts lands with no\n// context.\n//\n// The host slug comes from the Open Collective API, so it is data, not markup: a value\n// containing <!channel>, or a masked link like\n// <https://evil.example|opencollective.com/theirs>, would otherwise be honoured by Slack\n// in the reviewers' channel. Escape the three characters Slack treats as control\n// characters, & first so the other two are not escaped twice. The fixed wording keeps its\n// *bold* and its emoji, and org resolves from our own host list.\nconst ORG_NAMES = { OSE: 'Open Source Europe' };\n\nconst escapeSlack = (value) => String(value)\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;');\n\n// The host the applicant went to is not a column, so it cannot come off the row. Pair it\n// back from the branch that found it, by slug rather than by position: the data table\n// update writes one row per input item, but a filtered-out row would shift every index.\nconst hostBySlug = {};\nfor (const item of $('Extract decision').all()) {\n  hostBySlug[item.json.slug] = item.json.other_host || '';\n}\n\nreturn $input.all()\n  .filter((item) => item.json.slack_thread_ts && item.json.slack_channel_id)\n  .map((item) => {\n    const row = item.json;\n    const org = ORG_NAMES[row.org] || row.org;\n    const host = hostBySlug[row.slug];\n    const where = host\n      ? ' The collective is now with the `' + escapeSlack(host) + '` host on Open Collective.'\n      : '';\n    return { json: {\n      slug: row.slug,\n      channel: row.slack_channel_id,\n      thread_ts: row.slack_thread_ts,\n      text: ':large_yellow_circle: *No longer applying to ' + org + '.*' + where\n        + ' It can be neither approved nor rejected here, so the application is closed.'\n        + ' No email was sent.',\n    } };\n  });"
+      }
+    },
+    {
+      "id": "4d5e6f70-8192-4d0e-9f2a-3b4c5d6e7f80",
+      "name": "Reply that the applicant went elsewhere",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1776,
+        400
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "fb374e98-9818-43b1-97c0-42c0c04f6631",
+      "disabled": false
+    },
+    {
+      "id": "5e6f7081-92a3-4e1f-8a3b-4c5d6e7f8091",
+      "name": "React with an amber light on the parent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        2000,
+        400
+      ],
+      "parameters": {
+        "resource": "reaction",
+        "operation": "add",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Render resignation thread reply').item.json.channel }}"
+        },
+        "timestamp": "={{ $('Render resignation thread reply').item.json.thread_ts }}",
+        "name": "large_yellow_circle"
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "7329e39a-5f8e-4954-b1d0-71885c0d454a",
+      "disabled": false
     }
   ],
   "connections": {
@@ -708,7 +866,7 @@
       "main": [
         [
           {
-            "node": "Render decision email",
+            "node": "Resigned rather than decided?",
             "type": "main",
             "index": 0
           }
@@ -841,6 +999,57 @@
         [
           {
             "node": "Ask apply 2 to review now",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resigned rather than decided?": {
+      "main": [
+        [
+          {
+            "node": "Record the resignation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Render decision email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record the resignation": {
+      "main": [
+        [
+          {
+            "node": "Render resignation thread reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render resignation thread reply": {
+      "main": [
+        [
+          {
+            "node": "Reply that the applicant went elsewhere",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply that the applicant went elsewhere": {
+      "main": [
+        [
+          {
+            "node": "React with an amber light on the parent",
             "type": "main",
             "index": 0
           }

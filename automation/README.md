@@ -97,8 +97,11 @@ flowchart TD
     A3 --> A4["apply 4 — application form<br>the applicant answers,<br>their answers go to the Slack thread"]
     A4 --> A5s["apply 5 — application summary<br>reads the README,<br>summarises it in the thread"]
     A5s --> HUMAN(["A human approves or rejects<br>on Open Collective"])
+    A5s --> GONE(["Or the collective moves<br>to another fiscal host"])
     HUMAN --> A5["apply 1a or 1b, decision branch<br>records the outcome"]
-    A5 --> END(["Applicant receives<br>the closing email"])
+    GONE --> A5
+    A5 -->|"approved, rejected"| END(["Applicant receives<br>the closing email"])
+    A5 -->|"resigned"| MARK(["Thread is marked,<br>no email is sent"])
 ```
 
 An application moves through in one pass. Whichever intake creates the row

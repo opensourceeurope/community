@@ -286,9 +286,16 @@ The rules below are the OSE-specific invariants on top of that skill:
   and it returned `Unauthorized` for a fortnight while `Extract decision`
   swallowed the error and reported success. `host.slug` matching the row's
   `host_slug` with `isApproved` is an approval, a null `host` is a rejection,
-  and a different `host` means the applicant went elsewhere and a person
-  decides what that means. Any node reading an Open Collective response must
-  throw on an `errors` array rather than skipping the item.
+  and a different `host` is `resigned`: the collective is hosted elsewhere, so
+  the application can end in neither. Any node reading an Open Collective
+  response must throw on an `errors` array rather than skipping the item.
+- **An outcome the applicant did not ask for tells them nothing.** `approved`
+  and `rejected` email the applicant, because OSE decided and owes them the
+  answer. `resigned` is read off the same query but is not a decision, so its
+  branch ends at the data table and the Slack thread and has no email node on
+  it at all. That absence is the safety: a misread host costs one edit of the
+  row instead of a message to an applicant. Keep any future outcome of this
+  kind on a branch that cannot reach a send.
 - **Timers are derived from timestamps** by the scheduled runs, never from
   Wait nodes.
 - **Config comes from the env vars in `automation/.env.example`**; credentials
