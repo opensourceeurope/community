@@ -205,7 +205,7 @@
                 "conditions": [
                   {
                     "id": "8192a3b4-c5d6-4e7f-8659-c9d0e1f2a3b4",
-                    "leftValue": "={{ ['form_submitted', 'awaiting_decision', 'approved', 'rejected'].includes($json.stage || '') }}",
+                    "leftValue": "={{ ['form_submitted', 'awaiting_decision', 'approved', 'rejected', 'resigned'].includes($json.stage || '') }}",
                     "rightValue": "",
                     "operator": {
                       "type": "boolean",

@@ -886,17 +886,23 @@ person knows the app already exists instead of creating a second one.
    incompletely or the app was not installed to the workspace. A success
    proves only that the token is valid. The scope and the channel are
    proven in [Confirm by effect](#confirm-by-effect-1).
-6. Attach the credential to the fifteen Slack nodes. They are the only
+6. Attach the credential to the twenty-one Slack nodes. They are the only
    places the pipeline talks to Slack, and every one of them needs it:
 
    | Workflow | Node |
    |---|---|
    | `apply 1a — intake` | **Post application parent message to Slack** |
+   | `apply 1a — intake` | **Reply with the application message in thread** |
    | `apply 1a — intake` | **Reply with the decision in thread** |
    | `apply 1a — intake` | **React with the decision on the parent** |
+   | `apply 1a — intake` | **Reply that the applicant went elsewhere** |
+   | `apply 1a — intake` | **React with an amber light on the parent** |
    | `apply 1b — catch-up` | **Post application parent message to Slack** |
+   | `apply 1b — catch-up` | **Reply with the application message in thread** |
    | `apply 1b — catch-up` | **Reply with the decision in thread** |
    | `apply 1b — catch-up` | **React with the decision on the parent** |
+   | `apply 1b — catch-up` | **Reply that the applicant went elsewhere** |
+   | `apply 1b — catch-up` | **React with an amber light on the parent** |
    | `apply 2 — AI review` | **Reply with the AI review in thread** |
    | `apply 2 — AI review` | **React with eyes on the parent** |
    | `apply 3 — follow-up` | **Reply that the invitation was sent** |
