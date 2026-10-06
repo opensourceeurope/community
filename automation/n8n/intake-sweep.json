@@ -433,6 +433,55 @@
       }
     },
     {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// The message an applicant writes when they apply on Open Collective. It has been on the\n// row since intake and until now nothing but the review prompt read it, so a reviewer\n// opening the thread saw the collective's one-line public description and never the\n// paragraphs the applicant actually wrote about their project.\n//\n// It sits between Store Slack thread identifiers and Ask apply 2 to review now so the\n// applicant's own words are in the thread before the AI review replies under them. That\n// hand-off node runs once with all items, so splitting one application across several\n// messages here does not call apply 2 several times. It also means this node must always\n// emit at least one item per application, or a quiet application would never be handed\n// off and would wait for the next sweep. An empty message therefore still gets a reply\n// saying so, which a reviewer wants to read anyway: it says the thread is complete.\n//\n// The message is the applicant's text, so it is data and not markup: <!channel> in it, or\n// a masked link like <https://evil.example|opencollective.com/theirs>, would otherwise be\n// honoured by Slack in the reviewers' channel. Escape the three characters Slack treats as\n// control characters, & first so the other two are not escaped twice. Only the applicant's\n// values go through escapeSlack: the fixed wording keeps its :speech_balloon: and its\n// *bold*.\n//\n// Nothing is ever shortened. Slack truncates a message past 40,000 characters and advises\n// staying under 4,000, so the message is packed into replies within BUDGET and continued\n// in further replies on the same thread. This is the packer from Render submission thread\n// reply in apply 4, with one difference: the applicant's own line breaks are kept, because\n// this is prose with paragraphs and a list of links rather than that node's one bullet per\n// answer. A blank line is a paragraph the applicant wrote, so the packer's emptiness test\n// is on null rather than on falsy, or the blank line would end the message instead of\n// joining it.\nconst BUDGET = 3900;\n\nconst escapeSlack = (value) => String(value)\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;');\n\n// A cut must never land inside an escaped entity, or &amp; reaches the channel as &am\n// followed by p;. When the ampersand nearest the cut has no semicolon before it, the\n// entity straddles the cut, so cut at the ampersand instead.\nconst safeCut = (text, at) => {\n  const amp = text.lastIndexOf('&', at - 1);\n  if (amp === -1) return at;\n  const semi = text.indexOf(';', amp);\n  return semi === -1 || semi >= at ? amp : at;\n};\n\n// One line can exceed the budget on its own when an applicant writes a paragraph with no\n// line break in it. Break it on a space where there is one.\nconst breakLine = (line) => {\n  const pieces = [];\n  let rest = String(line);\n  while (rest.length > BUDGET) {\n    const space = rest.lastIndexOf(' ', BUDGET);\n    const at = Math.max(1, safeCut(rest, space > 0 ? space : BUDGET));\n    pieces.push(rest.slice(0, at).trimEnd());\n    rest = rest.slice(at).trimStart();\n  }\n  if (rest) pieces.push(rest);\n  // A blank line is a paragraph break the applicant wrote and has to survive as an empty\n  // piece. Built as a variable and returned on its own line rather than returned as an\n  // array literal: validate_workflow reads a returned array literal anywhere in a Code\n  // node as the node's own output, helper function or not, and fails it for not being\n  // items with a json property.\n  const blank = [''];\n  return pieces.length ? pieces : blank;\n};\n\n// Packs the lines into as few messages as the budget allows, never breaking a line that\n// fits in a message of its own.\nconst pack = (lines) => {\n  const messages = [];\n  let current = null;\n  for (const line of lines) {\n    for (const piece of breakLine(line)) {\n      if (current === null) {\n        current = piece;\n      } else if (current.length + 1 + piece.length <= BUDGET) {\n        current = `${current}\\n${piece}`;\n      } else {\n        messages.push(current);\n        current = piece;\n      }\n    }\n  }\n  if (current !== null) messages.push(current);\n  // Trimming the ends of a message drops no content: a cut only ever lands on whitespace\n  // the packer itself introduced, or on a blank line the applicant left between\n  // paragraphs that happens to fall where one message ends and the next begins.\n  return messages.map((text) => text.trim()).filter(Boolean);\n};\n\n// The name and the message come from Extract new applications rather than from the input,\n// which carries only what Post application parent message to Slack returned. That node is\n// on every path that reaches this one.\nconst applications = {};\nfor (const item of $('Extract new applications').all()) {\n  applications[item.json.slug] = item.json;\n}\n\nconst out = [];\nfor (const item of $('Skip applications whose Slack post failed').all()) {\n  const posted = item.json;\n  // Guaranteed by that node, which drops every item whose parent post failed. Checked\n  // again because a reply with no anchor lands loose in the channel rather than under the\n  // application it belongs to.\n  if (!posted.thread_ts || !posted.channel) continue;\n\n  const application = applications[posted.slug] || {};\n  const message = String(application.application_message || '')\n    .replace(/\\r\\n?/g, '\\n')\n    .replace(/\\n{3,}/g, '\\n\\n')\n    .trim();\n\n  const lines = [\n    `:speech_balloon: *${escapeSlack(application.collective_name || posted.slug)}* wrote this with their application on Open Collective.`,\n    '',\n    ...(message\n      ? message.split('\\n').map((line) => escapeSlack(line))\n      : ['_They left the application message empty._']),\n  ];\n\n  // Every message carries the same anchor, so the continuations land under the parent in\n  // order. Only the first is the reply a reviewer reads first.\n  const messages = pack(lines);\n  messages.forEach((text, index) => {\n    out.push({ json: {\n      slug: posted.slug,\n      channel: posted.channel,\n      thread_ts: posted.thread_ts,\n      text: index === 0 ? text : `_continued, ${index + 1} of ${messages.length}_\\n${text}`,\n    } });\n  });\n}\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2224,
+        -160
+      ],
+      "id": "d3a2e4c6-5071-4c93-9e4a-8061c3d4e552",
+      "name": "Render the application message reply"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        2448,
+        -160
+      ],
+      "id": "e4b3f5d7-6182-4da4-8f5b-9172d4e5f663",
+      "name": "Reply with the application message in thread",
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "5afd67a6-0745-4a3c-930c-446ad54ef725"
+    },
+    {
       "id": "a05c9b09-38c7-4f92-bb52-465ce3265288",
       "name": "Render decision thread reply",
       "type": "n8n-nodes-base.code",
@@ -538,7 +587,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        2224,
+        2672,
         -160
       ],
       "parameters": {
@@ -766,6 +815,28 @@
       ]
     },
     "Store Slack thread identifiers": {
+      "main": [
+        [
+          {
+            "node": "Render the application message reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render the application message reply": {
+      "main": [
+        [
+          {
+            "node": "Reply with the application message in thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply with the application message in thread": {
       "main": [
         [
           {

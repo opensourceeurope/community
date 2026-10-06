@@ -536,7 +536,8 @@
     "saveDataSuccessExecution": "all",
     "executionOrder": "v1",
     "timezone": "Europe/Berlin",
-    "errorWorkflow": "qWHuHamNdmvfrSRt"
+    "errorWorkflow": "qWHuHamNdmvfrSRt",
+    "binaryMode": "separate"
   },
   "pinData": {}
 }
