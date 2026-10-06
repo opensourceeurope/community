@@ -563,7 +563,8 @@
           "name": "slack-bot"
         }
       },
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "webhookId": "793ebdd9-62a6-475e-bcac-619e0f6c5356"
     },
     {
       "id": "cd10fe98-c639-47eb-bbaa-e5782cfb91ec",
