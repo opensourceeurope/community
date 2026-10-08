@@ -396,14 +396,20 @@ applicant reads:
 | Decision | Row | Template |
 |---|---|---|
 | approved | any | `decision-approved.md` |
-| rejected | `form_submitted_at` set | `decision-rejected.md` |
-| rejected | `form_submitted_at` empty | `decision-rejected-no-response.md` |
+| rejected | `form_invited_at` set, `form_submitted_at` empty | `decision-rejected-no-response.md` |
+| rejected | anything else | `decision-rejected.md` |
 
-A rejection with no submitted form is an application that went quiet after the
-invitation and the reminder. The pipeline never rejects anything itself. A
-person rejects on Open Collective, usually after the escalation in Slack, and
-the email then tells the applicant that we closed the application for lack of a
-response rather than that the project is not a fit.
+The no-response email is for an applicant who was invited to the form and never
+sent it back. The pipeline never rejects anything itself. A person rejects on
+Open Collective, usually after the escalation in Slack, and the email then
+tells the applicant that we closed the application for lack of a response. A
+rejection before any invitation, spam for example, gets the not-a-fit email,
+because nobody had asked the applicant anything yet. The Slack reply in the
+application's thread says which of the two went out.
+
+The rule reads only the row. An applicant who answered by replying to an email
+instead of using the form still looks silent to it, so a reviewer who rejects
+such an application should expect the no-response email to go out.
 
 These files are the source of truth. The workflow that sends each message
 embeds it verbatim, so an edit here also means updating that workflow and its
