@@ -281,6 +281,16 @@
                 "operation": "true",
                 "singleValue": true
               }
+            },
+            {
+              "id": "7b8c9d0e-1f2a-4b3c-8d4e-5f6a7b8c9d0e",
+              "leftValue": "={{ !!$json.slug && $json.slug === ((($('OC events webhook').first().json.body.data || {}).collective || {}).slug) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ]
         },

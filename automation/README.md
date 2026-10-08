@@ -76,7 +76,7 @@ the workflow list reads in pipeline order. The export files use short names.
 
 | Workflow on the instance | Export | Trigger | What it does |
 |---|---|---|---|
-| `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | Treats every OC webhook as a ping and reads the application from the API. A `collective.apply` payload is empty, and the decision events name the collective, but the decision is still read from its account. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
+| `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | A `collective.apply` event carries no application, so new applications are read from the API. An approve or reject event names the collective, so only that application is checked, with one API call that confirms the decision before anything is recorded. The webhook has no authentication, which is why the payload alone is never trusted. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
 | `apply 1b — catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
 | `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`. |
 | `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
