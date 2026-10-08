@@ -76,7 +76,7 @@ the workflow list reads in pipeline order. The export files use short names.
 
 | Workflow on the instance | Export | Trigger | What it does |
 |---|---|---|---|
-| `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | Treats every OC webhook as a ping, because the payload carries no application data. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
+| `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | A `collective.apply` event carries no application, so new applications are read from the API. An approve or reject event names the collective, so only that application is checked, with one API call that confirms the decision before anything is recorded. The webhook has no authentication, which is why the payload alone is never trusted. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
 | `apply 1b — catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
 | `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`. |
 | `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
@@ -388,6 +388,28 @@ is not one template per verdict:
 same, which is to show the evidence in the form. A `fits` verdict still
 produces an `ai_applicant_message`, but nothing sends it: that template exists
 to get the applicant to the form without a machine's opinion in the way.
+
+The closing email follows the decision on Open Collective. Open Collective
+reports every rejection the same way, so the row decides which rejection the
+applicant reads:
+
+| Decision | Row | Template |
+|---|---|---|
+| approved | any | `decision-approved.md` |
+| rejected | `form_invited_at` set, `form_submitted_at` empty | `decision-rejected-no-response.md` |
+| rejected | anything else | `decision-rejected.md` |
+
+The no-response email is for an applicant who was invited to the form and never
+sent it back. The pipeline never rejects anything itself. A person rejects on
+Open Collective, usually after the escalation in Slack, and the email then
+tells the applicant that we closed the application for lack of a response. A
+rejection before any invitation, spam for example, gets the not-a-fit email,
+because nobody had asked the applicant anything yet. The Slack reply in the
+application's thread says which of the two went out.
+
+The rule reads only the row. An applicant who answered by replying to an email
+instead of using the form still looks silent to it, so a reviewer who rejects
+such an application should expect the no-response email to go out.
 
 These files are the source of truth. The workflow that sends each message
 embeds it verbatim, so an edit here also means updating that workflow and its

@@ -320,8 +320,20 @@ The rules below are the OSE-specific invariants on top of that skill:
   so the list reads in pipeline order. A workflow that is not a pipeline step
   takes the `ops — <what it does>` prefix instead, so it sorts clear of the
   `apply` block rather than claiming a step number it does not have.
-- **OC webhooks carry no application data** (`data: {}`). Treat every event
-  as a ping and re-fetch from the GraphQL API.
+- **What an OC webhook carries depends on its type.** `collective.apply`
+  arrives with `data: {}` and only the top-level `CollectiveId`, so the
+  application itself is re-fetched from the GraphQL API. `collective.approved`
+  and `collective.rejected` carry `data.collective` (id, slug, name) and
+  `data.host`, so they name the exact collective the decision was about. apply
+  1a uses that slug to pick the one row the event is about, then confirms the
+  decision with a single API call for that collective. It never acts on the
+  payload alone, because the webhook has no authentication and its URL is in
+  this public repository: one forged `collective.rejected` would otherwise
+  close a real application and email the applicant. An event that names no
+  collective matches no row, and the catch-up sweep in apply 1b covers
+  anything missed. Check a real execution of the webhook node before writing a
+  rule about the payload: this one used to say every event was empty, and that
+  was wrong for two of the three types.
 - **Never write adjacent closing braces inside a `{{ }}` expression.** n8n
   ends the expression at the first `}}`, so inline GraphQL or nested JSON
   must space consecutive closing braces (`} }`). The truncation shows up as

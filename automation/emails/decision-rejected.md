@@ -2,13 +2,15 @@ Subject: {{ collective_name }} — outcome of your application to {{ org_name }}
 
 Hi,
 
-We've reviewed the application for {{ collective_name }} and won't be taking it forward
-as a fiscal-hosted collective under {{ org_name }} at this time.
+Thank you for your application to be fiscally hosted by {{ org_name }}, and for taking the
+time to share your project with us.
 
-This is about fit with what we host, not a judgement on the project. You're welcome to
-apply again later if things change, or to look at another fiscal host that might be a
-closer match.
+After careful review, we have decided not to move forward with your application. Based on
+the information provided, we do not think the project is the right fit for OSE's hosting
+framework at this stage.
 
-If you'd like more detail on the decision, reply to this email.
+We appreciate your interest and wish you all the best with the development of your
+initiative.
 
-— {{ org_name }}
+Best regards,
+The OSE Team
