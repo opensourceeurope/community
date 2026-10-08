@@ -389,6 +389,22 @@ same, which is to show the evidence in the form. A `fits` verdict still
 produces an `ai_applicant_message`, but nothing sends it: that template exists
 to get the applicant to the form without a machine's opinion in the way.
 
+The closing email follows the decision on Open Collective. Open Collective
+reports every rejection the same way, so the row decides which rejection the
+applicant reads:
+
+| Decision | Row | Template |
+|---|---|---|
+| approved | any | `decision-approved.md` |
+| rejected | `form_submitted_at` set | `decision-rejected.md` |
+| rejected | `form_submitted_at` empty | `decision-rejected-no-response.md` |
+
+A rejection with no submitted form is an application that went quiet after the
+invitation and the reminder. The pipeline never rejects anything itself. A
+person rejects on Open Collective, usually after the escalation in Slack, and
+the email then tells the applicant that we closed the application for lack of a
+response rather than that the project is not a fit.
+
 These files are the source of truth. The workflow that sends each message
 embeds it verbatim, so an edit here also means updating that workflow and its
 export.
