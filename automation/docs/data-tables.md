@@ -39,11 +39,11 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 | `ai_reviewed_at` | Date | AI review | When the review ran. |
 | `contact_email` | String | form workflow | Given by the applicant on form page 1. Distinct from `applicant_email`. This is who the applicant says to contact, which may differ from the address the OC application came from. Personal data. |
 | `form_invite_claimed_at` | Date | follow-up | When apply 3 took this row to work on. A claim, not a result. See "The three claim columns" below. |
-| `form_invited_at` | Date | follow-up | When the invitation email was sent. The template varies by verdict, and every reviewed application is invited. |
+| `form_invited_at` | Date | follow-up | When the invitation email was sent. The template varies by verdict, and every reviewed application is invited. On a rejection, this column and `form_submitted_at` choose the closing email: invited and never submitted gets the no-response rejection. |
 | `form_reminded_at` | Date | follow-up | When the `reminder` email was sent, after silence following the invite. Driven by `REMINDER_AFTER_MINUTES` and `SWEEP_CRON`. |
 | `form_page` | Number | form workflow | Which page of the multi page form the applicant has reached. Answers persist per page. |
 | `answers` | String (JSON) | form workflow | Form responses so far. Shape below. |
-| `form_submitted_at` | Date | form workflow | When the final form page was submitted. |
+| `form_submitted_at` | Date | form workflow | When the final form page was submitted. On a rejection, see `form_invited_at`. |
 | `slack_notified_at` | Date | form workflow and follow-up | When the pipeline reached a stage that tells Slack about this row, either ready for evaluation or an escalation. It records the attempt, not the delivery: a Slack post that failed or was skipped for a row with no thread still stamps it, because the stage advanced either way. Nothing reads it. |
 | `decision` | String | intake (decision branch) | `approved`, `rejected` or `resigned`. The first two are the human decision made on Open Collective. The third is read off the same query and is not a decision at all. See "The three outcomes of the status query" below. |
 | `decided_at` | Date | intake (decision branch) | When that decision was recorded. |
