@@ -373,6 +373,35 @@ The rules below are the OSE-specific invariants on top of that skill:
 - **Never activate a workflow without asking.** New and changed workflows are
   deployed inactive; activation is the user's explicit call, every time.
 
+## Infra on the VPS (`automation/infra/`)
+
+- **A merge to `main` changes production infra, not only workflows.** Once
+  `ose-deploy.timer` is installed on the box, `deploy.sh` applies a changed
+  `docker-compose.yml`, `Caddyfile` or unit file within ten minutes, then syncs
+  the workflows. A new n8n tag in the compose file upgrades production on the
+  next run, after a backup. Write the pull request knowing it deploys itself.
+- **A new variable in the compose file must reach the box's `.env` before the
+  merge.** `deploy.sh` never edits `.env`. It refuses to apply a compose file
+  that names a variable `.env` lacks, and it stops the whole run, so workflow
+  deploys stop too until someone adds the variable on the box. Say so in the
+  pull request when you add one.
+- **The infra marker is what makes a failed apply retry.**
+  `~/.local/state/ose-deploy/infra-applied` names the last commit whose infra
+  was applied, and the next run applies everything after it. It moves as soon
+  as the infra apply succeeds, before the workflow sync, so a failing export
+  never makes every run re-apply the infra. Deleting it forces a full apply,
+  which recreates Caddy.
+- **Run the infra tests before you push a change to a script.**
+  `automation/test/deploy-infra.sh`, `alert-slack.sh` and `backup-upload.sh`
+  stub every external command and finish in seconds.
+  `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all four and
+  `tofu validate`. Each test fails loudly when a helper dies under `set -e`,
+  because a test that stops silently reads as a pass.
+- **`tofu/vps/` is a template and is never applied to the production box.**
+  Applying it orders and bills a new VPS, and destroying it terminates one.
+  `tofu/backup-storage/` is applied, from the operator's laptop. State for both
+  stays local and git ignores it.
+
 ## Commit Conventions
 
 - Use conventional commits: `feat:`, `fix:`, `docs:`, `ci:`, `chore:`

@@ -18,7 +18,7 @@ below that runs all three containers. Nothing else.
 | Config | `~/community/automation/infra/.env` (mode 600, never committed) |
 | Admin URL | https://automation.opensourceeurope.org |
 | Applicant URL | https://apply.opensourceeurope.org |
-| Backups | `~/backups/n8n-*.sql.gz`, daily, 14 days |
+| Backups | `~/backups/n8n-*.sql.gz`, daily, 14 days. An encrypted copy in the `ose-n8n-backups` bucket at Scaleway `pl-waw`, 90 days |
 
 ## What do you need to do?
 
@@ -32,7 +32,10 @@ below that runs all three containers. Nothing else.
 | Give the workflows Open Collective access | [The Open Collective host-admin credential](#the-open-collective-host-admin-credential) |
 | Let the workflows post to Slack | [The Slack credential](#the-slack-credential) |
 | Let the workflows send email | [The SMTP credential](#the-smtp-credential) |
-| Ship a workflow change from `main` | [Deploying the workflows on merge](#deploying-the-workflows-on-merge) |
+| Ship a workflow or infra change from `main` | [Deploying on merge](#deploying-on-merge) |
+| Find out when a deploy or backup fails | [Alerts when the box fails](#alerts-when-the-box-fails) |
+| Copy backups off the box | [The copy off the box](#the-copy-off-the-box) |
+| Build a new box with OpenTofu | [`tofu/vps/README.md`](tofu/vps/README.md) |
 | Find out when a workflow breaks | [Alerts when a workflow fails](#alerts-when-a-workflow-fails) |
 | Find out when the whole box is down | [The external uptime monitor](#the-external-uptime-monitor) |
 | Something is broken | [Troubleshooting](#troubleshooting) |
@@ -53,14 +56,16 @@ throughput — it is unbounded execution history, which is what
 
 ## Where each secret lives
 
-Three separate stores, and nothing crosses between them. Confusing them is easy
-and has already caused a wrong turn.
+Each store holds its own secrets, and nothing crosses between them. Confusing
+them is easy and has already caused a wrong turn.
 
 | Store | Where | Holds | Not this |
 |---|---|---|---|
 | `~/.ovh.conf` | the operator's own laptop, mode 600, **never in this repo** | OVH API credentials only: `endpoint`, `application_key`, `application_secret`, `consumer_key` — used to manage the VPS itself | nothing about n8n, Postgres or inference. Never add application secrets here |
 | `.env` | on the VPS, in `automation/infra/`, mode 600 | `POSTGRES_PASSWORD`, `N8N_ENCRYPTION_KEY`, `AI_API_KEY`, plus all non-secret config | not OVH credentials, not SMTP/Slack/OC credentials |
 | n8n's credential store | inside the Postgres database, encrypted with `N8N_ENCRYPTION_KEY` | SMTP, Slack and Open Collective credentials, referenced by name from nodes | anything that has to exist before n8n starts |
+| `~/.n8n-api-key`, `~/.slack-bot-token`, `~/.config/ose-backup/backup.env` | on the VPS, mode 600 each | the scoped n8n API key the deploy uses, the Slack bot token the failure alert uses, and the write-only bucket key and age public key the backup uses | not the compose `.env`, which the container receives. None of these is needed inside n8n |
+| `~/.config/scw/config.yaml` | the operator's own laptop, mode 600 | the Scaleway API key OpenTofu uses to manage the backup bucket | not the bucket upload key, which lives only on the VPS |
 | `N8N_API_KEY` in a gitignored `.env` at the **local checkout root** (operator's machine) | on whichever machine calls the API — decided: the repo-root `.env`, which git ignores | the n8n public-API key, used only to build and export workflows programmatically | **not the compose `.env` on the VPS** — that file is injected into the container, and n8n has no use for its own API key. Revoke this key once the workflows are built |
 
 The password vault holds a copy of what cannot be regenerated, as **separate
@@ -72,6 +77,7 @@ whoever is searching the vault later:
 - `OSE automation — n8n encryption key` (unrecoverable if lost)
 - `OSE automation — Postgres (n8n db)` (resettable)
 - `OSE — OVHcloud API` (re-issuable with `ovhcloud login`)
+- `OSE automation — backup decryption key` (unrecoverable if lost: every dump in the bucket becomes unreadable)
 
 ## Variables this compose file needs
 
@@ -359,53 +365,67 @@ not succeed.
 
 ## First install, from a fresh VPS
 
-Every command below was run in this order on 2026-08-31 and is idempotent —
-re-running it on a working box changes nothing. Log in as `debian`; use `sudo`
-for privileged steps.
+[`bootstrap.sh`](bootstrap.sh) installs the box. To order a new VPS and run
+the script in one step, use the OpenTofu module in [`tofu/vps/`](tofu/vps/).
+To install onto a VPS you already have, log in as `debian` and run the script
+yourself.
+
+The script needs `git` and `sudo`. A minimal Debian 13 image lacks `git`, so
+install it first:
 
 ```bash
-# 1. packages
-export DEBIAN_FRONTEND=noninteractive
-sudo -E apt-get update -qq && sudo -E apt-get upgrade -y -qq
-sudo -E apt-get install -y -qq git ufw unattended-upgrades ca-certificates curl
-
-# 2. firewall — ALLOW BEFORE ENABLE, or you lock yourself out
-sudo ufw allow 22/tcp && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp
-sudo ufw --force enable
-# Postgres is never published to the host; it is reachable only on the compose network.
-
-# 3. key-only SSH. Do this ONLY after key login is proven working.
-sudo tee /etc/ssh/sshd_config.d/99-ose-hardening.conf >/dev/null <<'CONF'
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-PermitRootLogin prohibit-password
-CONF
-sudo sshd -t && sudo systemctl reload ssh     # validate, then reload
-# now open a SECOND session to confirm you still have access before closing this one
-
-# 4. docker
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker debian
-# log out and back in so the group applies, then `docker ps` works without sudo
-
-# 5. the repo
-git clone https://github.com/opensourceeurope/community.git ~/community
-cd ~/community && git checkout <branch-or-main>
-
-# 6. config — generate secrets ON THE BOX so they never travel
-cd ~/community/automation/infra
-umask 077
-cp ../.env.example .env
-# add the infra-only variables from the table above:
-#   N8N_HOST, APPLY_HOST, EXECUTIONS_DATA_PRUNE=true, EXECUTIONS_DATA_MAX_AGE=336
-#   POSTGRES_PASSWORD=$(openssl rand -hex 24)
-#   N8N_ENCRYPTION_KEY=$(openssl rand -hex 32)   <- save to the password manager NOW
-chmod 600 .env
-docker compose config >/dev/null   # must report no unset variables
-
-# 7. up
-docker compose up -d
+sudo apt-get update -qq && sudo apt-get install -y -qq git
 ```
+
+The following commands clone the repository and run the script. Pass the two
+hostnames the box serves:
+
+```bash
+git clone https://github.com/opensourceeurope/community.git ~/community
+~/community/automation/infra/bootstrap.sh all --n8n-host {ADMIN_HOSTNAME} --apply-host {APPLY_HOSTNAME}
+```
+
+Each step checks first and skips work that is already done. A second run
+changes nothing, and the script never edits an existing `.env`. In order, it:
+
+1. Installs `git`, `ufw`, `unattended-upgrades`, `ca-certificates`, `curl`,
+   `openssl`, `python3` and `age`.
+2. Allows ports 22, 80 and 443 in `ufw`, then enables the firewall. Postgres is
+   never published to the host. Only the compose network reaches it.
+3. Turns off password login for SSH. It skips this step and warns you when
+   `~/.ssh/authorized_keys` holds no key, because turning passwords off without
+   a key locks you out.
+4. Installs Docker and adds `debian` to the `docker` group.
+5. Clones the repository into `~/community`.
+6. Writes `.env` from `automation/.env.example`, with the hostnames you passed
+   and a generated `POSTGRES_PASSWORD` and `N8N_ENCRYPTION_KEY`. The secrets are
+   generated on the box so they never travel, and the script never prints them.
+   `DRY_RUN` stays at its safe default.
+7. Checks that `docker compose config` reports no unset variable, then starts
+   the stack.
+8. Adds `debian` to `systemd-journal` so the failure alert can read other units'
+   logs, installs every unit in [`systemd/`](systemd/), and enables the backup
+   timer. It enables the deploy timer only once `~/.n8n-api-key` exists, because
+   without the key every run fails.
+
+The script ends with the steps it cannot do for you. Do them in this order:
+
+1. Copy `N8N_ENCRYPTION_KEY` from `.env` into the password vault. See
+   [the encryption key section](#n8n_encryption_key-back-it-up-off-this-box-before-anything-else).
+2. Create the n8n owner account at the admin URL.
+3. Create the API key in `~/.n8n-api-key`, as in
+   [The API key the box uses](#the-api-key-the-box-uses), then run
+   `bootstrap.sh units` to enable the deploy timer.
+4. Write the Slack bot token, as in [Alerts when the box fails](#alerts-when-the-box-fails).
+5. Write the backup bucket settings, as in [The copy off the box](#the-copy-off-the-box).
+6. Create the n8n credentials in the sections that follow.
+7. Deploy the workflows once with `deploy.sh --allow-create`, as in
+   [An export the instance does not have](#an-export-the-instance-does-not-have).
+8. [Register the Open Collective webhook](#registering-the-open-collective-webhook).
+
+The unit files run as `debian` out of `/home/debian/community`, which is what
+OVH's Debian image provides. On another account, change those lines in git
+first. The script stops when the account or the path does not match.
 
 ### Verify the install, in this order
 
@@ -469,21 +489,62 @@ when the container is recreated:
 docker compose up -d n8n           # recreates with the new .env values
 ```
 
-## Deploying the workflows on merge
+## Deploying on merge
 
-A merge to `main` reaches the instance because the box pulls it. No n8n API key
-sits in a GitHub secret, and nothing has to be opened inbound for a deploy.
+A merge to `main` reaches the box because the box pulls it. No n8n API key sits
+in a GitHub secret, and nothing is opened inbound for a deploy.
 
-`ose-deploy-workflows.timer` runs `deploy-workflows.sh` every 10 minutes. The
-script fast-forwards `~/community` to `origin/main` and runs the same seven
-export checks that CI runs on every pull request. It then pushes each file in
-`automation/n8n/` into the running n8n over the public API.
+`ose-deploy.timer` runs [`deploy.sh`](deploy.sh) every 10 minutes. One run:
+
+1. Fast-forwards `~/community` to `origin/main`.
+2. Applies what changed in `automation/infra/`, then records the commit it
+   applied.
+3. Runs the same seven export checks that CI runs on every pull request, then
+   pushes each file in `automation/n8n/` into the running n8n over the public
+   API.
+
+Infra comes before workflows because a workflow change can depend on an
+environment variable that only a recreated n8n container carries.
+
+### What an infra change does
+
+The script compares the commit it last applied with the new one. It records
+that commit in `~/.local/state/ose-deploy/infra-applied` after a successful
+apply, so a failed apply is retried on the next run. The table lists what each
+changed path triggers:
+
+| Changed path | What the run does |
+|---|---|
+| `docker-compose.yml` | Checks the file, then runs `docker compose up -d` |
+| `Caddyfile` | Checks the file, then recreates the `caddy` container |
+| `systemd/*` | Copies each changed unit into `/etc/systemd/system/` and reloads systemd |
+| `public/*` | Nothing. The directory is mounted, so the pull alone makes it live |
+| a script | Nothing. The units run the scripts out of the checkout |
+
+The Caddyfile needs a new container rather than a restart. Git replaces a file
+with a new one, and a mount of a single file keeps showing the old one.
+
+Before it changes a running container, the run checks two things. Compose must
+report no variable missing from `.env`. Compose only warns about a missing
+variable and passes an empty string, which is how a new variable would reach
+production empty. When the Caddyfile changed, `caddy validate` must accept it.
+A failed check stops the run before anything changes and posts an alert. Add
+the variable or fix the file, and the next run applies the change.
+
+Sometimes the n8n image in the compose file differs from the image the running
+container uses. Then the run calls `backup.sh` first, and stops if the backup
+fails. That covers a version bump merged to `main`, and a box whose n8n never matched
+the compose file.
+
+A run never stops or removes a container, never pulls an image whose tag did
+not change, and never edits `.env`. Deleting a unit file in git does not remove
+it from the box. The run warns, and you remove it by hand.
+
+### What it never does to a workflow
 
 Each export goes to the workflow of the same name, updated in place. The
 workflow keeps its id, so every Execute Workflow node that calls it keeps
 working, and a second run in a row changes nothing.
-
-Four things the script cannot do, and what stops it:
 
 | It never | What stops it |
 |---|---|
@@ -504,8 +565,8 @@ offers scopes, give it `workflow:list`, `workflow:read` and `workflow:update`
 and nothing else. A key without `workflow:activate` cannot start a workflow even
 if something asks it to.
 
-Write the key into a file that is already mode 600, and check its length rather
-than its content:
+The following commands create the file with mode 600 before the key goes in,
+then check its length rather than its content:
 
 ```bash
 touch ~/.n8n-api-key && chmod 600 ~/.n8n-api-key
@@ -515,79 +576,78 @@ wc -c ~/.n8n-api-key   # the key length plus one for the newline
 
 ### Install the timer
 
-The script itself arrives in the checkout, so bring the checkout up to date
-first or there is nothing to run. It needs `python3`, which nothing else on
-this box installs:
+[`bootstrap.sh`](bootstrap.sh) installs the units. On a box that already runs
+the stack, bring the checkout up to date first, because the scripts arrive with
+it. Then install only the units and what they need:
 
 ```bash
 cd ~/community && git pull
-ls automation/infra/deploy-workflows.sh
-sudo apt-get install -y python3
+~/community/automation/infra/bootstrap.sh units
 ```
 
-The unit file runs the script as `debian` out of `/home/debian/community`.
-Check `whoami` before going further. Another account means both lines need
-changing, and that change belongs in a pull request rather than only on the
-box.
+`units` installs `python3`, `curl` and `age`, adds `debian` to
+`systemd-journal`, copies every file in [`systemd/`](systemd/) into
+`/etc/systemd/system/`, and enables the backup timer. It enables the deploy
+timer only when `~/.n8n-api-key` exists.
 
-Prove the deploy works before handing it to systemd:
+Prove the deploy works before the timer runs it. The dry run reads the
+instance, prints the commits it would fast-forward past, the infra actions and
+the workflows it would change, and changes nothing:
 
 ```bash
-~/community/automation/infra/deploy-workflows.sh --dry-run
+~/community/automation/infra/deploy.sh --dry-run
 ```
 
-The dry run reads the instance, prints the commits it would fast-forward past
-and the workflows it would change, and writes nothing. A clean run names the
-instance and reports every export. An error names which assumption is wrong:
-the key file, its mode, `N8N_HOST` in `.env`, or a checkout that is on another
-branch or carries local changes.
+The dry run checks the compose file and the Caddyfile from `origin/main`, not
+the checkout, so a check that fails here fails the real run too. An error names
+the assumption that is wrong: the key file, its mode, `N8N_HOST` in `.env`, a
+variable missing from `.env`, or a checkout on another branch or with local
+changes.
 
-Then deploy by hand, twice:
+> [!CAUTION]
+> Read the `n8n image` line of the dry run before the first real run. When it
+> shows a running image that differs from the configured one, the real run
+> backs up the database and then upgrades n8n. Read
+> [Upgrading n8n](#upgrading-n8n) first if you did not plan that upgrade.
+
+The following commands deploy by hand, twice:
 
 ```bash
-~/community/automation/infra/deploy-workflows.sh
-~/community/automation/infra/deploy-workflows.sh
+~/community/automation/infra/deploy.sh
+~/community/automation/infra/deploy.sh
 ```
 
-The second run must report every export as unchanged. Anything else means the
-comparison is wrong, and the timer would rewrite those workflows every ten
-minutes for as long as it is enabled. Stop here if that happens.
-
-Then install the units:
-
-```bash
-sudo cp ~/community/automation/infra/systemd/ose-deploy-workflows.{service,timer} /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now ose-deploy-workflows.timer
-```
-
-When a unit file changes in git, copy it again and run
-`sudo systemctl daemon-reload`. A `git pull` picks up the script on its own,
-because the service runs it out of the checkout.
+The second run must report `no infra changes` and every export as unchanged.
+Anything else means the comparison is wrong, and the timer would rewrite those
+workflows every ten minutes for as long as it is enabled. Stop here if that
+happens.
 
 ### See what it did
 
+The following commands show when the timer fires next, start one run now, and
+print what the last runs did:
+
 ```bash
-systemctl list-timers ose-deploy-workflows.timer    # when it fires next
-sudo systemctl start ose-deploy-workflows.service   # run one now
-journalctl -u ose-deploy-workflows.service -n 50    # what the last runs changed
+systemctl list-timers ose-deploy.timer
+sudo systemctl start ose-deploy.service
+journalctl -u ose-deploy.service -n 50
 ```
 
-A run prints the commits it fast-forwarded past, then one line per export. An
-updated export names the nodes that changed, and every line says whether that
-workflow is active. This unit logs to the journal. The backup unit redirects its
-output to a file instead, which is why `journalctl -u ose-backup.service` shows
-nothing.
+A run prints the commits it fast-forwarded past, the infra actions, then one
+line per export. An updated export names the nodes that changed, and every line
+says whether that workflow is active.
 
 ### Turn it off
 
+The following command stops the timer:
+
 ```bash
-sudo systemctl disable --now ose-deploy-workflows.timer
+sudo systemctl disable --now ose-deploy.timer
 ```
 
-Merges to `main` stop reaching the instance, and nothing else changes. Deploy by
-hand with `~/community/automation/infra/deploy-workflows.sh` whenever you want
-one. To remove it completely, delete both unit files from
+Merges to `main` stop reaching the box, and nothing else changes. Deploy by
+hand with `~/community/automation/infra/deploy.sh` whenever you want one. To
+remove it completely, delete `ose-deploy.service` and `ose-deploy.timer` from
 `/etc/systemd/system/` and run `sudo systemctl daemon-reload`.
 
 ### An export the instance does not have
@@ -600,13 +660,65 @@ pipeline stage on the instance.
 Deploy that file once by hand, then let the timer take over again:
 
 ```bash
-~/community/automation/infra/deploy-workflows.sh --allow-create
+~/community/automation/infra/deploy.sh --allow-create
 ```
 
 The new workflow arrives inactive, with an id of its own. An Execute Workflow
 node names its target by id, so open any hand-off into the new workflow in the
 n8n UI and point it at the id that now exists. Then add that id to the map in
 `automation/scripts/export-workflows.py`, or the next export skips the file.
+
+## Alerts when the box fails
+
+The deploy and backup units both name `ose-alert@.service` in `OnFailure=`.
+When either one fails, [`alert-slack.sh`](alert-slack.sh) posts the unit name,
+the host and the last 15 lines of its journal to `SLACK_CHANNEL`. That is the
+channel the application threads and the workflow failure alerts use. Text from
+the log is escaped, so a line containing `<!channel>` cannot notify the
+channel.
+
+The deploy timer fires every ten minutes, and some failures last until a person
+acts. So a failure alerts once. The script records a delivered alert in
+`~/.local/state/ose-alert/`, and the next successful run of the unit posts that
+it recovered and clears the note. An alert that Slack refused is retried on the
+next failure.
+
+### The token
+
+The script posts with the Slack bot token that n8n uses for the `slack-bot`
+credential. Copy it from the Slack app's **OAuth & Permissions** page into a
+file that is already mode 600, and check its length rather than its content:
+
+```bash
+touch ~/.slack-bot-token && chmod 600 ~/.slack-bot-token
+nano ~/.slack-bot-token    # paste the xoxb- token as one line
+wc -c ~/.slack-bot-token
+```
+
+The token reaches `curl` on its standard input, never as an argument, so it
+does not appear in a process list. The script refuses a token file that other
+users can read.
+
+### Confirm by effect
+
+The following command sends a test alert for a unit named `test`:
+
+```bash
+sudo systemctl start ose-alert@test.service
+```
+
+The channel shows `test failed on` the host name. A second start posts nothing,
+because the alert for `test` is already delivered. The following command clears
+it and posts the recovery:
+
+```bash
+~/community/automation/infra/alert-slack.sh --recovered test
+```
+
+When nothing arrives, read `journalctl -u ose-alert@test.service`. The script
+names the reason: a missing or readable token file, no `SLACK_CHANNEL`, or the
+error Slack returned. `not_in_channel` means the bot was never invited to that
+channel.
 
 ## Setting the credentials that are not generated here
 
@@ -1170,11 +1282,10 @@ n8n's tables (workflows, credentials, execution history) **and** the
 tables inside n8n's database. So one `pg_dump` of `n8n` is the entire backup,
 covering applicant stage, AI verdicts, form answers and decisions.
 
-The backup of record is this repo's own — `backup.sh` plus the systemd units in
-[`systemd/`](systemd/), installed by the steps below. If the timer or service
-files change in git, re-copy them to `/etc/systemd/system/` and
-`systemctl daemon-reload`; the script itself is picked up by `git pull` alone,
-since the service runs it from the checkout.
+The backup of record is this repo's own: `backup.sh` and the systemd units in
+[`systemd/`](systemd/). `bootstrap.sh` installs the units, and the deploy
+copies a unit again whenever it changes in git. The service runs the script out
+of the checkout, so a pull alone updates it.
 
 **OVH also snapshots this VPS daily** (Manager → the VPS → Automated backup;
 observed: daily at 14:37 UTC, one restore point kept — the paid Premium tier
@@ -1198,27 +1309,22 @@ integrity, or contains no `CREATE TABLE`.
 ~/community/automation/infra/backup.sh          # writes ~/backups/n8n-<stamp>.sql.gz
 ```
 
-Schedule it with the systemd units in [`systemd/`](systemd/) — 03:17 UTC daily.
-Debian 13 minimal ships **no cron package**, and a timer is the better fit
-anyway: `Persistent=true` runs a backup that was missed while the box was down,
-which cron silently skips.
+`ose-backup.timer` runs it at 03:17 UTC daily. Debian 13 minimal ships no cron
+package, and a timer is the better fit anyway: `Persistent=true` runs a backup
+that was missed while the box was down, which cron silently skips.
+
+The following commands show when the timer fires next, start one backup now,
+and print what the last runs did:
 
 ```bash
-sudo cp ~/community/automation/infra/systemd/ose-backup.{service,timer} /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now ose-backup.timer
-
-systemctl list-timers ose-backup.timer      # when it next fires
-sudo systemctl start ose-backup.service     # run one now
-tail ~/backups/backup.log
+systemctl list-timers ose-backup.timer
+sudo systemctl start ose-backup.service
+journalctl -u ose-backup.service -n 20
 ```
 
-**A failed backup is invisible to the journal.** The service sets
-`StandardOutput=append:` to `~/backups/backup.log`, which *replaces* journal
-output — so `journalctl -u ose-backup.service` shows "No entries" even for runs
-that happened, and would show nothing for a run that failed. Check
-`tail ~/backups/backup.log`, not the journal, until the units are changed to let
-the script append to the log while systemd keeps the journal.
+The script also appends every run to `~/backups/backup.log`, which keeps the
+history longer than the journal does. A failed backup posts to Slack, as in
+[Alerts when the box fails](#alerts-when-the-box-fails).
 
 **Dumps contain applicant personal data.** `ose_applications` holds applicant
 email addresses and the free text of their form answers, so every dump carries
@@ -1230,9 +1336,74 @@ Confirmed running unattended: the timer fired on its own at 03:22 UTC on
 and this is the second — check `systemctl list-timers ose-backup.timer` and
 `tail ~/backups/backup.log` to re-confirm at any time.
 
-**Copy backups off this box.** A backup that only exists on the machine it
-protects does not survive that machine. Nothing in this repo does that for you
-— it needs a destination someone owns.
+### The copy off the box
+
+A backup that exists only on the machine it protects does not survive that
+machine. After the checks above pass, `backup.sh` encrypts the dump with `age`
+and uploads it to a Scaleway Object Storage bucket in Warsaw (`pl-waw`). That is
+a different provider and a different country from the VPS, so one incident
+cannot take both. The local dump is written first and kept either way, so a
+failed upload costs the off-box copy and nothing else. It fails the run, which
+posts an alert.
+
+The dump is encrypted before it leaves the box, so the bucket holds nothing
+readable. The private key exists only in the password vault, as
+`OSE automation — backup decryption key`.
+
+The upload key can create objects and cannot delete them. Writing over an
+existing name would be a delete by another route, so the bucket keeps every
+version. A lifecycle rule deletes dumps after 90 days, and replaced versions 90
+days after that. The bucket, its project, the rule and the key's permissions
+are in [`tofu/backup-storage/`](tofu/backup-storage/).
+
+To set it up, follow the steps in order:
+
+1. Create the bucket with the steps in
+   [`tofu/backup-storage/README.md`](tofu/backup-storage/README.md).
+2. On your own machine, generate the key pair:
+
+   ```bash
+   age-keygen -o ose-backup.key
+   ```
+
+   The command prints the public key, which starts with `age1`. Store the
+   whole content of `ose-backup.key` in the vault entry named above, then delete
+   the file. The public key is not a secret.
+
+3. In the Scaleway console, open **IAM**, **Applications**, choose
+   `ose-n8n-backups-uploader`, and generate an API key. Choose
+   `ose-n8n-backups` as its preferred Object Storage project.
+4. On the box, create the settings file with mode 600 before anything goes in,
+   then type the values in an editor:
+
+   ```bash
+   mkdir -p ~/.config/ose-backup
+   touch ~/.config/ose-backup/backup.env && chmod 600 ~/.config/ose-backup/backup.env
+   nano ~/.config/ose-backup/backup.env
+   ```
+
+   The file holds these four settings. `BACKUP_S3_REGION` is optional and
+   defaults to `pl-waw`:
+
+   ```bash
+   BACKUP_S3_BUCKET=ose-n8n-backups
+   BACKUP_S3_ACCESS_KEY={ACCESS_KEY}
+   BACKUP_S3_SECRET_KEY={SECRET_KEY}
+   BACKUP_AGE_RECIPIENT={AGE_PUBLIC_KEY}
+   ```
+
+5. Start one backup and read its last line:
+
+   ```bash
+   sudo systemctl start ose-backup.service
+   journalctl -u ose-backup.service -n 3
+   ```
+
+   `ok uploaded n8n-{STAMP}.sql.gz.age to ose-n8n-backups` confirms the copy. The
+   object also appears in the bucket in the Scaleway console.
+
+Without `~/.config/ose-backup/backup.env`, the script skips the upload with a
+warning and the dumps stay only on the box.
 
 ## Which backup to restore, when
 
@@ -1246,19 +1417,34 @@ problem wants the snapshot or a rebuild.
 | Bad data: an n8n upgrade broke things, workflows or rows were deleted or mangled, but the machine itself is fine | The most recent **dump** from before the damage | The Restore steps below, on this box |
 | Only one thing is lost (a single workflow, a few rows) and everything else moved on since | The dump, **into a scratch database** | The rehearsal procedure below — then copy just what you need out of `restoretest`, instead of rolling the whole database back and losing everything newer |
 | The machine is broken (filesystem damage, botched OS change) but OVH is fine | The **OVH snapshot** (Manager → the VPS → Automated backup) | Restores the whole disk to ~14:37 UTC yesterday, `.env` included. Afterwards: check the stack (`docker compose ps`), and run `backup.sh` once so a fresh dump exists |
-| The VPS is gone entirely — terminated, region lost, account problem | A **dump** plus this repo | New VPS → the "First install" steps → load the dump. Needs `N8N_ENCRYPTION_KEY` **from the vault** — this is the moment it exists for |
+| The VPS is gone entirely: terminated, region lost, or an account problem | The latest **dump** from the bucket, plus this repo | New VPS → the "First install" steps → decrypt the dump → load it. Needs `N8N_ENCRYPTION_KEY` and the backup decryption key **from the vault**. This is the moment they exist for |
 
 Two constraints that hold in every row:
 
 - A dump only yields working credentials under the **original**
   `N8N_ENCRYPTION_KEY`. Machine-problem rows keep it automatically (it is in
   `.env` on the restored disk); the last row is why the vault copy matters.
-- Today the dumps live **only on this box**, so the last row currently works
-  only if you saved a dump elsewhere by hand — losing the box loses the dumps
-  with it, and the OVH snapshot (same provider) is then the sole survivor. That
-  is the documented off-box gap.
+- The last row works only once [the copy off the box](#the-copy-off-the-box)
+  is set up. Without it, losing the box loses the dumps with it, and the OVH
+  snapshot at the same provider is the only copy left.
 
 ## Restore
+
+A dump from the bucket is encrypted. Download it in the Scaleway console, then
+decrypt it with the key from the vault. Write the key to a file only for the
+restore, and delete it afterwards:
+
+```bash
+age -d -i {KEY_FILE} -o n8n-{STAMP}.sql.gz n8n-{STAMP}.sql.gz.age
+```
+
+> [!CAUTION]
+> The following commands drop the live `n8n` database, with every workflow,
+> credential and application row in it, and replace it with the dump. Anything
+> written after the dump was taken is lost. Run the
+> [rehearsal](#rehearse-it-without-risking-the-live-database) on the same dump
+> first, and confirm `N8N_ENCRYPTION_KEY` in `.env` is the key the dump was
+> taken under.
 
 ```bash
 # stop n8n so nothing writes to the database mid-restore
@@ -1326,25 +1512,30 @@ under a different key leaves the credentials in the database but unreadable.
 The version this box runs is the `image:` line of
 [`docker-compose.yml`](docker-compose.yml), pinned to an `x.y.z` release. That
 line is also what `automation/test/n8n-import-check.sh` boots in CI, so a bump
-changes the build the exports are checked against in the same commit. Nothing
-upgrades on its own, and the deploy timer does not touch the container: it only
-sends workflows to the n8n that is already running.
+changes the build the exports are checked against in the same commit.
+
+> [!CAUTION]
+> Merging a new tag upgrades production within ten minutes. The deploy timer
+> sees the changed image, runs `backup.sh`, and recreates n8n on the new
+> version. The first boot of a new tag runs n8n's database migrations. To undo
+> them, you restore the dump from before the upgrade and lose everything written
+> since. Merge a tag bump when someone can watch the first boot.
 
 Change the tag in a pull request, the way every other change to this repository
 goes. CI then imports all the exports into the new build, which is what catches
 a node type or a `typeVersion` the new version dropped.
 
-On the box, after the pull request is merged:
+After the merge, the next deploy run backs up the database and stops if the
+backup fails, then recreates n8n. Watch it happen:
 
 ```bash
-cd ~/community && git pull
-cd ~/community/automation/infra
-docker compose up -d n8n
+journalctl -u ose-deploy.service -f
 ```
 
-`restart` does not do it. The container has to be recreated for the new image,
-and `up -d` prints `Recreated` when it was. The first boot of a new tag runs
-n8n's database migrations, so it takes noticeably longer than a normal start.
+The run prints the running and the configured image, then the backup, then
+`Recreated` for the n8n container. The first boot takes noticeably longer than
+a normal start. Without the deploy timer, run the same thing by hand with
+`~/community/automation/infra/deploy.sh`.
 
 An upgrade can also move the path the form page asks for. Caddy serves
 `/static/og_image.png` because that is the path n8n's form template requests,
@@ -1355,9 +1546,8 @@ Read the tag after a bump, and update the Caddyfile if the path changed:
 curl -s https://apply.opensourceeurope.org/ | grep og:image
 ```
 
-Take a backup first. [Backup](#backup) covers how, and the table in
-[Which backup to restore, when](#which-backup-to-restore-when) treats a bad
-upgrade as a restore from the most recent dump taken before it.
+The table in [Which backup to restore, when](#which-backup-to-restore-when)
+treats a bad upgrade as a restore from the dump the deploy took before it.
 
 > [!NOTE]
 > This section is written from the compose file and the deploy script. Nobody
@@ -1445,7 +1635,7 @@ in this repository. Put the account credentials in the shared vault.
 | `apply.` returns 404 | No workflow serves `/form/apply-ose` yet | Expected until the form exists |
 | n8n log mentions SQLite | The `DB_TYPE` block is not taking effect | Fix before storing anything — migrating out of SQLite later is painful |
 | `.env` has the variable, `docker compose up -d n8n` says `Running`, `printenv` in the container prints nothing | The compose file on the box predates the variable, so compose never passes it. `docker compose config \| grep <VAR>` prints nothing | `git pull --ff-only` in `~/community`, then `docker compose up -d n8n` and expect `Recreated` |
-| `deploy-workflows.sh` stops with `the checkout is on ...` | The box was left on a feature branch, so the deploy refuses to fast-forward it | `git -C ~/community checkout main`, then run the deploy again |
+| `deploy.sh` stops with `the checkout is on ...` | The box was left on a feature branch, so the deploy refuses to fast-forward it | `git -C ~/community checkout main`, then run the deploy again |
 | The same workflow reports `updated` on every deploy run | It is being edited in the n8n UI, and each run puts the exported version back over the edit | Export the instance's version with `automation/scripts/export-workflows.py` and open a pull request for it |
 | Disk filling | Execution history unpruned | Check `EXECUTIONS_DATA_PRUNE=true` and `EXECUTIONS_DATA_MAX_AGE` |
 | Credentials all broken after a restore | `N8N_ENCRYPTION_KEY` differs from the one in use when the dump was taken | Restore the original key; there is no recovery without it |
