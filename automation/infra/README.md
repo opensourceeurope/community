@@ -1372,7 +1372,9 @@ To set it up, follow the steps in order:
 
 3. In the Scaleway console, open **IAM**, **Applications**, choose
    `ose-n8n-backups-uploader`, and generate an API key. Choose
-   `ose-n8n-backups` as its preferred Object Storage project.
+   `ose-n8n-backups` as its preferred Object Storage project. Scaleway runs an
+   Object Storage request in the key's preferred project, so a key that names
+   another project gets `AccessDenied` on this bucket.
 4. On the box, create the settings file with mode 600 before anything goes in,
    then type the values in an editor:
 
