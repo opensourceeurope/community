@@ -1,0 +1,10 @@
+[Unit]
+Description=Post to Slack that %i failed
+Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=debian
+ExecStart=/home/debian/community/automation/infra/alert-slack.sh %i

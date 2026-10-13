@@ -10,3 +10,9 @@ ovh.conf
 .claude/settings.local.json
 automation/docs/verified.md
 .superpowers/
+
+# OpenTofu: provider caches and state stay local. Lock files are committed.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan

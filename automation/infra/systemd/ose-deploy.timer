@@ -1,5 +1,5 @@
 [Unit]
-Description=Look for new n8n workflow exports on origin/main every 10 minutes
+Description=Deploy what landed on origin/main every 10 minutes
 Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
 
 [Timer]

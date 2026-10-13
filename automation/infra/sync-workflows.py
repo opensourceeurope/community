@@ -8,10 +8,10 @@ working. Running the sync twice changes nothing the second time.
 It never activates or deactivates a workflow. It never adds a second workflow
 under a name the instance already has, and it never reads or writes a
 credential. The invariants of the exports themselves belong to
-automation/scripts/check-workflows.py, which deploy-workflows.sh runs first.
+automation/scripts/check-workflows.py, which deploy.sh runs first.
 
 Reads the instance URL from N8N_API_URL and the API key from N8N_API_KEY, or
-from the file named by N8N_API_KEY_FILE. deploy-workflows.sh is how this runs
+from the file named by N8N_API_KEY_FILE. deploy.sh is how this runs
 on the VPS. Call it directly to sync a checkout somewhere else.
 """
 import argparse

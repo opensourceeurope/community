@@ -1,0 +1,64 @@
+# Checks what runs on the VPS rather than inside n8n: the deploy, backup,
+# alert and bootstrap scripts, and the two OpenTofu modules. The script tests
+# replace docker, sudo, curl and systemd with stubs, and the bootstrap test runs
+# in a throwaway Debian 13 container, so nothing here reaches the box, Slack or
+# a bucket.
+name: check infra scripts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  TOFU_VERSION: 1.13.1
+
+jobs:
+  scripts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: shellcheck
+        run: shellcheck automation/infra/*.sh automation/test/*.sh
+
+      - name: deploy.sh applies infra the way it should
+        run: automation/test/deploy-infra.sh
+
+      - name: alert-slack.sh posts once, escaped, without leaking the token
+        run: automation/test/alert-slack.sh
+
+      - name: backup.sh encrypts before it uploads
+        run: automation/test/backup-upload.sh
+
+      - name: bootstrap.sh builds a Debian 13 box and changes nothing the second time
+        run: automation/test/bootstrap-smoke.sh
+
+  tofu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        module: [vps, backup-storage]
+    defaults:
+      run:
+        working-directory: automation/infra/tofu/${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+          tofu_wrapper: false
+
+      - name: tofu fmt
+        run: tofu fmt -check -diff
+
+      - name: tofu validate
+        run: |
+          tofu init -backend=false -input=false
+          tofu validate
