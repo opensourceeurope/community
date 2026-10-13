@@ -369,7 +369,10 @@ The rules below are the OSE-specific invariants on top of that skill:
   giving a caller its hand-off, and writing each workflow in one atomic update
   rather than a sequence of partial ones. And refresh the exports in the same
   sitting: a change that is live but unexported is a change that a restore
-  silently undoes.
+  silently undoes. With the deploy timer installed it does not even last that
+  long, because the next deploy run, within ten minutes, puts the exported
+  version from `main` back over it. Merge the export first, or expect the edit
+  to vanish.
 - **Never activate a workflow without asking.** New and changed workflows are
   deployed inactive; activation is the user's explicit call, every time.
 
