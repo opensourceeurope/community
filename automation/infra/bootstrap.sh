@@ -125,7 +125,9 @@ env_file() {
     note "$env exists and is left exactly as it is"
     return
   fi
-  [ -n "$N8N_HOST" ] && [ -n "$APPLY_HOST" ] || die "a new .env needs --n8n-host and --apply-host"
+  if [ -z "$N8N_HOST" ] || [ -z "$APPLY_HOST" ]; then
+    die "a new .env needs --n8n-host and --apply-host"
+  fi
   # Generated here, on the box, so the secrets never travel. umask keeps the
   # file unreadable to others from the moment it exists.
   (
@@ -168,8 +170,9 @@ stack() {
 units() {
   # The unit files run as debian out of /home/debian/community. Another user or
   # path needs those lines changed in git first, not only on this box.
-  [ "$(id -un)" = debian ] && [ "$REPO" = /home/debian/community ] \
-    || die "the units in $INFRA_DIR/systemd run as debian from /home/debian/community. Change them in git for $(id -un) at $REPO first"
+  if [ "$(id -un)" != debian ] || [ "$REPO" != /home/debian/community ]; then
+    die "the units in $INFRA_DIR/systemd run as debian from /home/debian/community. Change them in git for $(id -un) at $REPO first"
+  fi
   for f in "$INFRA_DIR"/systemd/*; do
     sudo install -m 644 "$f" "/etc/systemd/system/$(basename "$f")"
   done
