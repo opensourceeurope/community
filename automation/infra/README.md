@@ -4,16 +4,16 @@ The VPS that runs the application automation. Three containers: `postgres`
 (n8n's database, not the default SQLite), `n8n` itself, and `caddy` as a
 reverse proxy that terminates TLS and gets certificates automatically.
 
-Throughout this document, **"the box"** means this VPS — the single machine
-below that runs all three containers. Nothing else.
+Throughout this document, "the box" means this VPS, the one machine that runs
+all three containers.
 
 ## Quick facts
 
 | | |
 |---|---|
-| Host | the OVH VPS — hostname and IP are in the shared vault, next to the SSH access notes |
-| Log in as | `ssh <user>@<vps-ip>` (key only; passwordless sudo). **Not root** |
-| Checkout on the box | `~/community`, branch as deployed |
+| Host | the OVH VPS. Its hostname and IP are in the shared vault, with the SSH access notes |
+| Log in as | `ssh debian@{VPS_IP}`, key only, passwordless sudo. Not root |
+| Checkout on the box | `~/community` on `main`, kept current by the deploy timer |
 | Compose dir | `~/community/automation/infra` |
 | Config | `~/community/automation/infra/.env` (mode 600, never committed) |
 | Admin URL | https://automation.opensourceeurope.org |
@@ -45,14 +45,13 @@ below that runs all three containers. Nothing else.
 
 ## The box (this VPS)
 
-Provisioned 2026-08: OVHcloud **VPS-1 2027** — 2 vCore, 4096 MB, 40 GB NVMe,
-**Strasbourg SBG6** (EU). Debian 13 (trixie).
+OVHcloud VPS-1 2027 (plan code `vps-2027-model1`): 2 vCore, 4096 MB, 40 GB
+NVMe, in Strasbourg, running Debian 13.
 
-That is roughly 4x what this stack needs. At rest n8n uses ~300-500 MB,
-Postgres ~150 MB at this data volume, Caddy ~30 MB; the application load is a
-few workflow executions a day. The constraint on a box this size is never
-throughput — it is unbounded execution history, which is what
-`EXECUTIONS_DATA_PRUNE` below is for.
+That is about four times what the stack needs. At rest n8n uses 300 to 500 MB,
+Postgres about 150 MB and Caddy about 30 MB, for a few workflow executions a
+day. What fills a box this size is execution history, not load, and
+`EXECUTIONS_DATA_PRUNE` below keeps it bounded.
 
 ## Where each secret lives
 
@@ -61,18 +60,18 @@ them is easy and has already caused a wrong turn.
 
 | Store | Where | Holds | Not this |
 |---|---|---|---|
-| `~/.ovh.conf` | the operator's own laptop, mode 600, **never in this repo** | OVH API credentials only: `endpoint`, `application_key`, `application_secret`, `consumer_key` — used to manage the VPS itself | nothing about n8n, Postgres or inference. Never add application secrets here |
+| `~/.ovh.conf` | the operator's own laptop, mode 600, outside this repo | OVH API credentials only: `endpoint`, `application_key`, `application_secret` and `consumer_key`, used by the `ovhcloud` CLI and the OpenTofu VPS template | nothing about n8n, Postgres or inference |
 | `.env` | on the VPS, in `automation/infra/`, mode 600 | `POSTGRES_PASSWORD`, `N8N_ENCRYPTION_KEY`, `AI_API_KEY`, plus all non-secret config | not OVH credentials, not SMTP/Slack/OC credentials |
 | n8n's credential store | inside the Postgres database, encrypted with `N8N_ENCRYPTION_KEY` | SMTP, Slack and Open Collective credentials, referenced by name from nodes | anything that has to exist before n8n starts |
 | `~/.n8n-api-key`, `~/.slack-bot-token`, `~/.config/ose-backup/backup.env` | on the VPS, mode 600 each | the scoped n8n API key the deploy uses, the Slack bot token the failure alert uses, and the write-only bucket key and age public key the backup uses | not the compose `.env`, which the container receives. None of these is needed inside n8n |
 | `~/.config/scw/config.yaml` | the operator's own laptop, mode 600 | the Scaleway API key OpenTofu uses to manage the backup bucket | not the bucket upload key, which lives only on the VPS |
-| `N8N_API_KEY` in a gitignored `.env` at the **local checkout root** (operator's machine) | on whichever machine calls the API — decided: the repo-root `.env`, which git ignores | the n8n public-API key, used only to build and export workflows programmatically | **not the compose `.env` on the VPS** — that file is injected into the container, and n8n has no use for its own API key. Revoke this key once the workflows are built |
+| `~/.n8n-api-key` on the operator's machine | mode 600, read by the shell profile into `N8N_API_KEY` | the n8n API key that exports and edits workflows, as [`automation/README.md`](../README.md) describes | not the compose `.env` on the VPS, which the container receives, and not the box's own deploy key, which has fewer scopes |
 
-The password vault holds a copy of what cannot be regenerated, as **separate
-entries** in a vault shared with more than one admin — see
+The password vault holds a copy of what cannot be regenerated, as separate
+entries in a vault shared with more than one admin. See
 [the encryption key section](#n8n_encryption_key-back-it-up-off-this-box-before-anything-else).
-Recovering this box means finding these three, so they are named here for
-whoever is searching the vault later:
+Recovering this box means finding these entries, so they are named here for
+whoever searches the vault later:
 
 - `OSE automation — n8n encryption key` (unrecoverable if lost)
 - `OSE automation — Postgres (n8n db)` (resettable)
@@ -81,31 +80,27 @@ whoever is searching the vault later:
 
 ## Variables this compose file needs
 
-This compose file reads two sets of variables, documented in two different
-places:
+The compose file reads two sets of variables from one `.env` in this
+directory:
 
-- **Three infra-only variables**, documented right here, in the table below.
-  They belong to this directory, not to the n8n workflows.
-- **Application variables** (`DRY_RUN`, `AI_API_KEY`, `FORM_URL_OSE`
-  and so on), documented in [`automation/.env.example`](../.env.example).
-  This README does not duplicate them — two copies of the same list drift,
-  and that file is the one that ships with the application config.
+- Infra variables, in the table below. They belong to this directory, not to
+  the workflows. `bootstrap.sh` writes all six.
+- Application variables (`DRY_RUN`, `AI_API_KEY`, `FORM_URL_OSE` and so on),
+  documented in [`automation/.env.example`](../.env.example) and not repeated
+  here, so the two lists cannot drift apart.
 
 | Variable | What it is |
 |---|---|
-| `N8N_HOST` | The **admin** hostname — the editor, and the Open Collective webhook endpoint. `automation.opensourceeurope.org`. n8n builds `WEBHOOK_URL` and `N8N_EDITOR_BASE_URL` from it, and Caddy serves it as a TLS site. |
-| `APPLY_HOST` | The **applicant-facing** hostname — `apply.opensourceeurope.org`, whose bare URL is the OSE application form. Caddy's TLS site address for that name. See "Two hostnames" below. |
-| `EXECUTIONS_DATA_PRUNE` | `true`. n8n otherwise keeps the full payload of every execution forever. |
-| `EXECUTIONS_DATA_MAX_AGE` | Hours of execution history to keep — `336` (14 days). Long enough to debug what happened to an applicant, short enough that the disk never becomes a question. |
-| `POSTGRES_PASSWORD` | Password for the `n8n` role in the bundled Postgres. Generate with `openssl rand -hex 24`. |
-| `N8N_ENCRYPTION_KEY` | Encrypts every credential n8n stores. Generate with `openssl rand -hex 32`. **Losing it makes every stored credential unrecoverable** — see the dedicated section below. |
-
-Both sets go into one `.env` file in this directory before bringing the stack
-up.
+| `N8N_HOST` | The admin hostname, `automation.opensourceeurope.org`: the editor and the Open Collective webhook. n8n builds `WEBHOOK_URL` and `N8N_EDITOR_BASE_URL` from it, and Caddy serves it as a TLS site. |
+| `APPLY_HOST` | The applicant hostname, `apply.opensourceeurope.org`, whose bare URL is the application form. See [Two hostnames](#two-hostnames). |
+| `EXECUTIONS_DATA_PRUNE` | `true`. Without it n8n keeps the full payload of every execution forever. |
+| `EXECUTIONS_DATA_MAX_AGE` | Hours of execution history to keep: `336`, which is 14 days. Long enough to debug what happened to an applicant. |
+| `POSTGRES_PASSWORD` | Password for the `n8n` role in the bundled Postgres, from `openssl rand -hex 24`. |
+| `N8N_ENCRYPTION_KEY` | Encrypts every credential n8n stores, from `openssl rand -hex 32`. Losing it makes every stored credential unrecoverable. See [the encryption key section](#n8n_encryption_key-back-it-up-off-this-box-before-anything-else). |
 
 ## Two hostnames
 
-Both point at this box; both get their own automatic certificate; one n8n
+Both point at this box, each gets its own automatic certificate, and one n8n
 container serves both.
 
 | Name | Who sees it | What it serves |
@@ -113,20 +108,17 @@ container serves both.
 | `apply.opensourceeurope.org` | applicants | the OSE application form, at the bare URL |
 | `automation.opensourceeurope.org` | you | the n8n editor, and the OC webhook endpoint |
 
-The applicant's link is deliberately just `https://apply.opensourceeurope.org`
-— no `/form/...` path. n8n serves forms at `/form/<path>` and keeps the editor
-at `/`, so the bare-URL form is a Caddy rewrite of `/` only. Page-to-page posts
-and assets keep their own paths and stay on the same hostname.
+The applicant's link is just `https://apply.opensourceeurope.org`, with no
+`/form/...` path. n8n serves forms at `/form/<path>` and keeps the editor at
+`/`, so the bare URL is a Caddy rewrite of `/` alone. Page-to-page posts and
+assets keep their own paths and stay on the same hostname. That holds only
+while n8n's form pages use relative URLs. If an n8n upgrade makes them absolute
+and builds them from `N8N_HOST`, an applicant lands on `automation.` after page
+one, so check a form submission after an upgrade.
 
-**Verify before trusting it:** the rewrite is transparent only if n8n's form
-pages use relative URLs for their posts and assets. If any is absolute and
-built from `N8N_HOST`, an applicant jumps from `apply.` to `automation.` on
-submitting page one — it works, but it looks broken and leaks the admin
-hostname. Check it with the first real form.
-
-The admin name is deliberately not `n8n.…`: every hostname issued a
-certificate is published in Certificate Transparency logs, so a
-tool-named host permanently advertises what software runs here.
+The admin name is not `n8n.` on purpose. Every hostname issued a certificate is
+published in Certificate Transparency logs, so a host named after its software
+advertises what runs there.
 
 ## The form's link preview image
 
@@ -147,10 +139,10 @@ else that n8n serves.
 The image is the Open Source Europe logo on the brand background, sized
 1200x630, the same as the file it replaces.
 
-To change the image, replace that file and pull the change onto the box. Caddy
-reads the file from a bind-mounted directory on every request, so Caddy needs
-no restart. Confirm it by fetching the path and comparing the byte count
-with the file on disk:
+To change the image, replace that file in a pull request. The deploy pulls it
+onto the box, and Caddy reads it from a mounted directory on every request, so
+nothing restarts. Confirm it by comparing the byte count of the served file
+with the file in git:
 
 ```bash
 curl -s https://apply.opensourceeurope.org/static/og_image.png | wc -c
@@ -174,8 +166,7 @@ Set up two things before you give Open Collective the URL:
 
 - The `oc-host-admin` credential exists in n8n's credential store.
   [The Open Collective host-admin credential](#the-open-collective-host-admin-credential)
-  covers generating and storing it. The webhook payload carries no
-  application data, so intake answers every delivery by re-fetching from the
+  covers generating and storing it. Intake confirms every delivery against the
   Open Collective GraphQL API with that credential.
 - `apply 1a — intake` is active. n8n serves the production `/webhook/` path
   only while the workflow is active, and an inactive workflow answers 404.
@@ -247,18 +238,16 @@ intake URL as their `webhookUrl`, one per activity. A missing row means
 that webhook was created on another account: find it under that account's
 webhook settings, delete it there, and recreate it on `europe`.
 
-Treat the two decision activities as unproven until you have watched one
-arrive. `collective.apply` lands reliably. Approvals and rejections have been
-seen happening on Open Collective with no matching delivery reaching the
-endpoint at all, so registering them is worth doing but is not something to
-rely on. What actually records a decision is the catch-up, which asks the API
-for the status of every application still open in the data table. A decision
-webhook only makes that answer arrive sooner.
+A decision webhook makes a decision arrive sooner, and the catch-up is what
+guarantees it arrives at all: it asks the API for the status of every
+application still open in the data table.
 
 Nothing else needs configuring on either side. Open Collective sends no
-signature, and the endpoint accepts any POST. That is safe by design. Intake
-treats every delivery as a ping and re-fetches everything from the API, so a
-forged or replayed delivery converges to the same idempotent write.
+signature, and the endpoint accepts any POST, so intake never acts on a payload
+alone. A `collective.apply` delivery carries no application data and intake
+re-fetches the pending applications. A decision delivery names the collective,
+and intake confirms the decision with one API call for that collective before
+writing anything. A forged or replayed delivery therefore changes nothing.
 
 After the first real delivery, open the execution list of
 `apply 1a — intake` and confirm the delivery arrived and wrote its row.
@@ -266,12 +255,12 @@ After the first real delivery, open the execution list of
 ## The n8n community licence is optional
 
 n8n mails a free activation key (Settings → Usage and plan) that unlocks
-conveniences — workflow history, folders, debug in editor. **Nothing in this
-automation depends on it**, so a missing or unrequested key blocks nothing.
+workflow history, folders and debugging in the editor. Nothing in this
+automation depends on it.
 
-If one is activated it lives in the database (`settings`, key `license.cert`),
-not in `.env`, so `pg_dump` already covers it and a restore brings it back. Keep
-a copy in the vault anyway for a from-scratch rebuild with no dump to hand.
+An activated key lives in the database (`settings`, key `license.cert`), not in
+`.env`, so the dump covers it and a restore brings it back. Keep a copy in the
+vault for a rebuild with no dump to hand.
 
 To check whether one is active:
 
@@ -279,89 +268,59 @@ To check whether one is active:
 docker compose exec -T postgres psql -U n8n -d n8n -tAc "select key from settings order by key"
 ```
 
-As of 2026-09-01 no licence is activated on this instance and no
-`N8N_LICENSE_*` variable is set.
-
 ## Sending mail: not from this box
 
-`opensourceeurope.org` publishes `v=spf1 include:_spf.protonmail.ch -all` — a
+`opensourceeurope.org` publishes `v=spf1 include:_spf.protonmail.ch -all`, a
 hard fail for any sender that is not Proton. This VPS is not an authorised
 sender and has no reverse DNS, so mail sent directly from it as
 `@opensourceeurope.org` will be rejected or filed as spam.
 
-So the SMTP credential the workflows send with must be an authenticated relay
-through an authorised sender. Do **not** solve this by adding the VPS to SPF: that
-authorises a box running arbitrary workflows to send as the whole domain.
+So the workflows send through an authenticated relay at an authorised sender.
+Keep the VPS out of SPF: adding it would let a box running arbitrary workflows
+send as the whole domain.
 [The SMTP credential](#the-smtp-credential) describes the relay in use.
 
 ## Getting into the box
 
-Only two facts here are directly verified; the rest of the first attempt at this
-project cost three reinstalls and an IP block, so the verified ones are worth
-reading before touching access on any host.
+Three things cause almost every failed login here:
 
-**Verified, and the first one was the actual cause of every failure:**
+- The login user is `debian`, not `root`. OVH's Debian 13 image creates
+  `debian` with passwordless sudo and puts the SSH key there. `root` gets no
+  key, and Debian's `PermitRootLogin prohibit-password` refuses root passwords,
+  so `ssh root@…` fails whatever is configured.
+- A passphrase-protected key with an empty `ssh-agent` looks like a missing
+  key. `ssh -o BatchMode=yes` cannot ask for the passphrase, so it reports
+  `Permission denied (publickey)`. Check the local side first: `ssh-add -l`
+  lists the key, and `ssh-keygen -y -f ~/.ssh/{KEY}` proves the passphrase.
+- Polling SSH in a loop gets your IP blocked. The box then resets the
+  connection with `banner line 0: Not allowed at this time` before
+  authentication. Stop, wait 10 to 30 minutes, then try once.
 
-- **This image logs you in as `debian`, not `root`.** OVH's Debian 13 VPS image
-  provisions a non-root `debian` user with passwordless sudo and puts the selected
-  SSH key there. `root` gets no key, and Debian's default
-  `PermitRootLogin prohibit-password` means no password works for root over SSH
-  either — so every `ssh root@…` attempt fails no matter what is configured. The
-  delivery email names the user; read it before debugging anything.
+When SSH is out of reach, the `ovhcloud` CLI hands you a console URL. The
+console keyboard can be AZERTY, so `q` types `a`, and the password prompt does
+not echo. Type the password at the `login:` prompt, which does echo, to see
+what arrives. Swapping `vnc_lite.html` for `vnc.html` in the console URL adds a
+clipboard panel that bypasses the keyboard layout.
 
-- **A passphrase-protected local key plus an empty `ssh-agent` fails exactly like
-  a missing remote key.** `ssh -o BatchMode=yes` cannot prompt for a passphrase,
-  so it offers the public key, cannot sign, and reports
-  `Permission denied (publickey)` — indistinguishable from the server not having
-  the key at all. Check the local side first: `ssh-add -l` should list the key,
-  and `ssh-keygen -y -f ~/.ssh/<key>` proves the passphrase works. Every access
-  conclusion drawn before that check is worthless.
-- **Do not poll SSH in a loop.** Retrying every ten seconds while waiting for a
-  host to come up is a brute-force pattern; this host's hardening blocked the
-  source IP, after which connections are reset with
-  `banner line 0: Not allowed at this time` *before* authentication — which looks
-  nothing like a permissions problem and invalidates every test until the ban
-  expires (typically 10-30 minutes). Wait, then try once.
+To put a key back on the box, choose it in the OVH Manager's reinstall dialog.
+OVH then installs it for `debian` and sends no password, and a delivery mail
+with a user name and no password confirms the key went in. A reinstall wipes the
+disk, so restore from [the copy off the box](#the-copy-off-the-box) afterwards.
 
-**Observed on the OVH VPS 2027 range, single occurrences, not established as
-general behaviour:**
-
-- `ovhcloud vps set-password` → `403 "This function is not available on your VPS"`.
-- `ovhcloud vps edit --keymap us` → reports success, while `GET /vps/<sn>` still
-  returns `keymap=null`. A console keyboard may therefore not match yours: with an
-  unset keymap it can be AZERTY, so `q` types `a` and `w` types `z`, and the
-  password prompt does not echo. Diagnose by typing the password at the `login:`
-  prompt, which does echo. The CLI hands you a `vnc_lite.html` console URL with no
-  clipboard; swapping it for `vnc.html` gives a clipboard panel that bypasses the
-  layout entirely.
-- Whether `vps reinstall --public-ssh-key` / `--ssh-key <registered name>`
-  pre-install a key is **unresolved** — every test of it ran under the traps
-  above and against the wrong user, so the evidence proves nothing either way.
-  What is confirmed: selecting the key in the Manager UI's reinstall dialog
-  installs it, for the `debian` user, and OVH then sends no password at all —
-  a delivery mail with a username and no password is the signal that the key
-  went in.
+Never remove one way into a machine before its replacement is proven. Turning
+off passwords before a key login works leaves no way in.
 
 ### The `ovhcloud` CLI needs credentials, and they expire
 
-Managing the VPS (console URLs, reinstall, state, keymap) goes through the
-`ovhcloud` CLI, which reads API credentials from `~/.ovh.conf` — endpoint,
-application key, application secret, consumer key.
+The `ovhcloud` CLI and the OpenTofu VPS template read OVH API credentials from
+`~/.ovh.conf` (mode 600): endpoint, application key, application secret and
+consumer key. Keep the file in your home directory. `ovh.conf` is gitignored as
+a backstop.
 
-- **Keep that file outside this repo.** It began life in the repo's working
-  directory, untracked but not ignored, one `git add -A` away from publishing an
-  application secret. `~/.ovh.conf` (mode 600) is where the CLI looks by default;
-  `ovh.conf` is now gitignored as a backstop.
-- **`INVALID_CREDENTIAL` (403) on every call means the consumer key is gone** —
-  revoked, expired, or rotated. It is not a permissions problem with the VPS.
-  Fix: `ovhcloud login`, which runs a browser consent flow and rewrites the file.
-- Unlike `N8N_ENCRYPTION_KEY`, these are cheap to lose: revoke and re-issue at
-  will. Vault them for convenience, not as insurance.
-
-**The rule that would have prevented all of it:** never remove one route into a
-machine before the replacement is proven. Combining an unverified key flag with
-`--do-not-send-password` left no key, no password, and a console login that could
-not succeed.
+`INVALID_CREDENTIAL` or `This credential is not valid` (403) on every call means
+the consumer key was revoked or expired. It is not a permissions problem with
+the VPS. Run `ovhcloud login`, which opens a browser consent flow and rewrites
+the file. These credentials are cheap to lose: revoke and re-issue them at will.
 
 ## First install, from a fresh VPS
 
@@ -427,38 +386,34 @@ The unit files run as `debian` out of `/home/debian/community`, which is what
 OVH's Debian image provides. On another account, change those lines in git
 first. The script stops when the account or the path does not match.
 
-### Verify the install, in this order
+### Verify the install
+
+Run these checks in order. The first proves Postgres is the backend: if the
+table list is empty, n8n fell back to SQLite, so stop and fix `DB_TYPE` before
+anything is stored.
 
 ```bash
-# (a) Postgres really is the backend. If this is empty, n8n fell back to SQLite —
-#     stop and fix DB_TYPE before anything is stored.
+cd ~/community/automation/infra
 docker compose exec -T postgres psql -U n8n -d n8n -c "\dt" | head
 docker compose logs n8n | grep -ci sqlite      # expect 0
-
-# (b) certificates and both hostnames, from OUTSIDE the box
-curl -sS -o /dev/null -w '%{http_code}\n' https://automation.opensourceeurope.org/   # 200
-curl -sS -o /dev/null -w '%{http_code}\n' https://apply.opensourceeurope.org/        # 404 until the form workflow exists — see below
-
-# (c) resource headroom
-docker stats --no-stream; free -m
 ```
 
-**A 404 on `apply.` is correct until the form exists.** The Caddy rewrite sends
-`/` to `/form/apply-ose`; n8n answers 404 because no workflow serves that path
-yet. The tell that the rewrite works is that the 404 body is an n8n-rendered
-page. Measured on first install: 1071 MB of 3826 MB used, n8n 379 MB, Postgres
-48 MB, Caddy 17 MB.
+Then check the certificates and both hostnames from outside the box:
 
-Then create the n8n owner account at the admin URL.
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' https://{ADMIN_HOSTNAME}/    # 200
+curl -sS -o /dev/null -w '%{http_code}\n' https://{APPLY_HOSTNAME}/    # 404 until the form workflow is active
+```
 
-**If you create it with the wrong email**, in rough order of preference:
+A 404 on the applicant hostname is correct until the form workflow is active.
+Caddy rewrites `/` to `/form/apply-ose`, and n8n answers 404 while no active
+workflow serves that path. An n8n-rendered 404 page proves the rewrite works.
 
-1. **Settings → Personal** in n8n — change the email in place, no reset.
-2. `UPDATE "user" SET email='…'` in Postgres — keeps the account and skips
-   setup, useful if the UI field is gated behind SMTP.
-3. `docker compose exec -T n8n n8n user-management:reset` — clears users and
-   brings the setup screen back. It deletes the account, so check first that
-   there is nothing to lose:
+If the owner account was created with the wrong email, change it under
+**Settings → Personal** in n8n. If that field is unavailable without SMTP,
+update the `user` table in Postgres instead. As a last resort,
+`docker compose exec -T n8n n8n user-management:reset` deletes the account and
+brings the setup screen back. Check first that there is nothing to lose:
 
 ```bash
 for t in workflow_entity credentials_entity; do
@@ -481,13 +436,17 @@ docker compose down                # stop everything; named volumes survive
 docker compose up -d               # back up
 ```
 
-**After editing `.env` or `docker-compose.yml`, `restart` is not enough.** `docker compose restart` reuses
-the existing container with its existing environment; the file is only re-read
-when the container is recreated:
+After editing `.env`, `restart` is not enough. `docker compose restart` reuses
+the container with its old environment, and only a recreated container reads
+`.env` again:
 
 ```bash
 docker compose up -d n8n           # recreates with the new .env values
 ```
+
+Change `docker-compose.yml`, the `Caddyfile` and the units in git, never on the
+box. The deploy refuses to run over local changes in the checkout, and it
+applies the merged version within ten minutes.
 
 ## Deploying on merge
 
@@ -533,8 +492,8 @@ the variable or fix the file, and the next run applies the change.
 
 Sometimes the n8n image in the compose file differs from the image the running
 container uses. Then the run calls `backup.sh` first, and stops if the backup
-fails. That covers a version bump merged to `main`, and a box whose n8n never matched
-the compose file.
+fails. That covers a version bump merged to `main`, and a box whose n8n never
+matched the compose file.
 
 A run never stops or removes a container, never pulls an image whose tag did
 not change, and never edits `.env`. Deleting a unit file in git does not remove
@@ -699,7 +658,7 @@ The token reaches `curl` on its standard input, never as an argument, so it
 does not appear in a process list. The script refuses a token file that other
 users can read.
 
-### Confirm by effect
+### Test the alert
 
 The following command sends a test alert for a unit named `test`:
 
@@ -722,122 +681,98 @@ channel.
 
 ## Setting the credentials that are not generated here
 
-Before changing any value in `.env`, bring the checkout on the box up to
-date. Compose passes into the container only the variables its compose file
-names, so a variable added to the repository after the last pull is silently
-ignored no matter what `.env` says:
+Compose passes into the container only the variables its compose file names,
+so a value set in `.env` for a variable the box's compose file does not know yet
+is silently ignored. The deploy timer keeps the checkout current. Without it,
+bring the checkout up to date before changing `.env`:
 
 ```bash
-ssh <user>@<vps-ip> 'git -C ~/community checkout main && git -C ~/community pull --ff-only'
+ssh debian@{VPS_IP} 'git -C ~/community checkout main && git -C ~/community pull --ff-only'
 ```
 
-`Already up to date.` or a fast-forward are both fine. The `checkout` is
-there because the box has been left on a feature branch before: `pull` then
-fetches `main` but merges nothing, and reports a missing ref for the old
-branch. Anything else means the box has local changes, and that needs a look
-before going on.
+`Already up to date.` or a fast-forward are both fine. Anything else means the
+box has local changes, and they need a look before going on.
 
 ### Setting a plain configuration value
 
 Most variables in `automation/.env.example` are not secrets: `DRY_RUN`,
 `DRY_RUN_RECIPIENT`, the two `*_AFTER_MINUTES` timers, `SWEEP_CRON`,
 `FORM_URL_OSE`, `AI_MODEL`, `AI_BASE_URL`, `SMTP_FROM` and `SLACK_CHANNEL`.
-Any of them can be set over `ssh` directly. Replace `<VAR>`
-with the variable name and `<value>` with the value:
+Any of them can be set over `ssh` directly. Replace `{VAR}`
+with the variable name and `{VALUE}` with the value:
 
 ```bash
-ssh <user>@<vps-ip> 'cd ~/community/automation/infra
-  grep -q "^<VAR>=" .env || echo "<VAR>=" >> .env
-  sed -i "s|^<VAR>=.*|<VAR>=<value>|" .env
-  grep "^<VAR>=" .env
+ssh debian@{VPS_IP} 'cd ~/community/automation/infra
+  grep -q "^{VAR}=" .env || echo "{VAR}=" >> .env
+  sed -i "s|^{VAR}=.*|{VAR}={VALUE}|" .env
+  grep "^{VAR}=" .env
   docker compose up -d n8n
-  docker compose exec -T n8n printenv <VAR>'
+  docker compose exec -T n8n printenv {VAR}'
 ```
 
-The first line appends an empty `<VAR>=` when the variable is missing,
+The first line appends an empty `{VAR}=` when the variable is missing,
 because `sed` replaces only a line that exists and otherwise does nothing
 without saying so. The second `grep` must print the line as written.
 `docker compose up -d n8n` must print `Recreated`, not `Running`: the
 container reads `.env` only when it is created, and `Running` means the value
 inside it is still the old one. The final `printenv` shows what the workflows
 will actually read. A value containing `#` needs double quotes, as in
-`SLACK_CHANNEL=\"#<channel>\"`, because an unquoted `#` can start a comment
+`SLACK_CHANNEL=\"#{CHANNEL}\"`, because an unquoted `#` can start a comment
 in a compose `.env`. Spaces and angle brackets need no quoting.
 
-For example, `DRY_RUN_RECIPIENT` must hold a real mailbox before any
-workflow is activated while applicant email is suppressed, which is any value
-of `DRY_RUN` other than `false`, because every render step throws when it is
-empty:
-
-```bash
-ssh <user>@<vps-ip> 'cd ~/community/automation/infra
-  grep -q "^DRY_RUN_RECIPIENT=" .env || echo "DRY_RUN_RECIPIENT=" >> .env
-  sed -i "s|^DRY_RUN_RECIPIENT=.*|DRY_RUN_RECIPIENT=<your address>|" .env
-  grep "^DRY_RUN_RECIPIENT=" .env
-  docker compose up -d n8n
-  docker compose exec -T n8n printenv DRY_RUN_RECIPIENT'
-```
+Set `DRY_RUN_RECIPIENT` to a real mailbox this way before activating any
+workflow. While applicant email is suppressed, which is any value of `DRY_RUN`
+other than `false`, every render step throws when it is empty.
 
 ### Setting the AI key
 
 `AI_API_KEY` (Scaleway inference) is the one secret this box needs that it
 cannot generate for itself.
 
-**Use a key dedicated to this automation** — not the one already in use by
-`ose-knowledge-mcp`. Separate keys rotate independently, limit the blast radius
-of a leak, and make usage attributable to the right system.
+Use a key dedicated to this automation, not the one `ose-knowledge-mcp` uses.
+Separate keys rotate independently, limit what a leak exposes, and show which
+system spent what.
 
-**Two files carry these variable names; only one takes real values.**
-`automation/infra/.env` on the box is the real config — edit this.
-`automation/.env.example` is a committed template, and every value in it is
-empty on purpose. Putting a real key there commits a secret to a public
-repository, which is the worst version of this mistake. Both being empty looks
-identical, so check the path, not the contents.
+Two files carry these variable names, and only one takes real values.
+`automation/infra/.env` on the box is the real config. `automation/.env.example`
+is a committed template whose secret values are empty on purpose, and a key
+written there is published in a public repository. Check the path, not the
+contents.
 
 Set it by editing the file on the box, and watch what you type:
 
 ```bash
-ssh -t <user>@<vps-ip> 'nano ~/community/automation/infra/.env'
+ssh -t debian@{VPS_IP} 'nano ~/community/automation/infra/.env'
 # Ctrl+W, search AI_API_KEY, paste the secret key after the = (no spaces, no quotes)
 # Ctrl+O, Enter to save, Ctrl+X to exit
-ssh <user>@<vps-ip> 'cd ~/community/automation/infra && docker compose up -d n8n'
+ssh debian@{VPS_IP} 'cd ~/community/automation/infra && docker compose up -d n8n'
 ```
 
-**Expect `Recreated`, not `Running`.** That word is the only evidence the value
-actually changed: compose recreates the container when the resolved environment
-differs, and reports `Running` when it does not.
+Expect `Recreated`, not `Running`. Compose recreates the container only when
+the resolved environment differs, so `Running` means the value did not change.
 
-Verify rather than assume. Print **lengths only** — and be careful how: an
-earlier version of this snippet used `${V:+set}${V:-EMPTY}`, which expands to the
-value itself whenever the variable is set, and leaked a live key into a
-transcript. Use an explicit `if`:
+Then check lengths, never values. Use an explicit `if`: an expansion such as
+`${V:+set}` resolves to the value itself whenever the variable is set.
 
 ```bash
-ssh <user>@<vps-ip> 'cd ~/community/automation/infra
+ssh debian@{VPS_IP} 'cd ~/community/automation/infra
   awk -F= "/^AI_API_KEY=/{print \"env file:\", (length(\$2)?\"set\":\"EMPTY\")}" .env
   V=$(docker compose exec -T n8n printenv AI_API_KEY | tr -d "\r\n")
   if [ -n "$V" ]; then echo "container: set, ${#V} chars"; else echo "container: EMPTY"; fi'
 ```
 
-If your terminal swallows nano's paste, this prompts **on the box** with a TTY, so
+If your terminal swallows nano's paste, this prompts on the box with a TTY, so
 the paste lands where it is read, and it refuses to write an empty value:
 
 ```bash
-ssh -t <user>@<vps-ip> 'printf "paste key then Enter: "; IFS= read -r K; \
+ssh -t debian@{VPS_IP} 'printf "paste key then Enter: "; IFS= read -r K; \
   [ -n "$K" ] && sed -i "s|^AI_API_KEY=.*|AI_API_KEY=$K|" ~/community/automation/infra/.env \
-    && echo "written, ${#K} chars" || echo "EMPTY — nothing written"'
+    && echo "written, ${#K} chars" || echo "EMPTY, nothing written"'
 ```
 
-A piped one-liner (`read -rs KEY` into `ssh … sed`) looks tidier and was tried
-first here. **Avoid it.** If the read captures nothing — an interactive paste that
-does not land, a shell difference — `sed` writes an empty value, compose sees no
-change and prints `Running`, and every step reports success while the key is
-still missing. Two attempts failed that way before anyone noticed.
-
-**A GitHub Actions secret is not a place you can read a value back from.** They
-are write-only: `gh secret list` returns names and timestamps, there is no `get`,
-and no API exposes the value. If a credential exists *only* as a repo secret, it
-is effectively lost — keep the copy of record in the shared password vault.
+Avoid a piped one-liner such as `read -rs KEY` into `ssh … sed`. When the read
+captures nothing, `sed` writes an empty value, compose prints `Running`, and
+every step reports success while the key is missing.
 
 ## The Open Collective host-admin credential
 
@@ -929,13 +864,13 @@ else changes.
 
 ## The Slack credential
 
-Two workflows post to Slack, and only when a human needs to act:
-`apply 3 — follow-up` posts the escalation for an application that went
-silent, and `apply 4 — application form` posts "ready for evaluation" after
-a form submission. Both use the n8n Slack node, which authenticates with a
-Slack app's bot token. An incoming-webhook URL does not work here: the node
-offers only **Access Token** and **OAuth2**, and there is no field for a
-webhook URL anywhere in the workflows.
+Every application gets a parent message in the reviewers' channel, each stage
+replies in its thread, and a failed workflow posts an alert. All of it goes
+through n8n Slack nodes, which authenticate with a Slack app's bot token. An
+incoming-webhook URL does not work: the node offers only **Access Token** and
+**OAuth2**. The box's own failure alert, in
+[Alerts when the box fails](#alerts-when-the-box-fails), posts with the same
+token.
 
 The token lives in n8n's credential store under the name `slack-bot`. The
 channel is not part of the credential: it comes from `SLACK_CHANNEL` in the
@@ -964,16 +899,16 @@ Anyone who can install apps in the OSE Slack workspace can do this.
    with `xoxb-`. That is the value n8n needs. Treat it like a password from
    this point on: do not paste it into chat, an issue, or a commit.
 5. In Slack, open the channel the notifications should reach and invite the
-   app with `/invite @{bot-username}`. The username is the one shown under
+   app with `/invite @{BOT_USERNAME}`. The username is the one shown under
    **App Home** for the app's bot user, not the app's display name. A bot
    can post only into channels it is a member of. Posting without membership fails with `not_in_channel`,
    and inviting the app is the fix, not adding scopes.
 
 ### Store it in n8n
 
-The token lives in n8n's credential store and nowhere else. It is
-re-issuable at will from the app's **OAuth & Permissions** page by any
-collaborator, so it needs no vault entry. The app's existence and its
+The token lives in n8n's credential store and in `~/.slack-bot-token` on the
+box. Any collaborator can re-issue it from the app's **OAuth & Permissions**
+page, so it needs no vault entry. The app's existence and its
 collaborators are what to record in the vault, as one line, so the next
 person knows the app already exists instead of creating a second one.
 
@@ -998,8 +933,8 @@ person knows the app already exists instead of creating a second one.
    incompletely or the app was not installed to the workspace. A success
    proves only that the token is valid. The scope and the channel are
    proven in [Confirm by effect](#confirm-by-effect-1).
-6. Attach the credential to the twenty-one Slack nodes. They are the only
-   places the pipeline talks to Slack, and every one of them needs it:
+6. Attach the credential to the twenty-two Slack nodes. They are the only
+   places the workflows talk to Slack, and every one of them needs it:
 
    | Workflow | Node |
    |---|---|
@@ -1024,6 +959,7 @@ person knows the app already exists instead of creating a second one.
    | `apply 4 — application form` | **Reply that the form was submitted** |
    | `apply 4 — application form` | **React that a decision is needed** |
    | `apply 5 — application summary` | **Reply with the summary in thread** |
+   | `ops — alert Slack when any apply workflow fails` | **Post failure alert to Slack** |
 
    Open each workflow, open the node, pick `slack-bot` under
    **Credential to connect with**, and save the workflow. Then export every
@@ -1039,30 +975,11 @@ person knows the app already exists instead of creating a second one.
 
 ### Set the channel
 
-`SLACK_CHANNEL` is not a secret, so it can be set over `ssh` directly, once the
-checkout on the box is current as described in
-[Setting the credentials that are not generated here](#setting-the-credentials-that-are-not-generated-here).
-Replace `<user>` and `<vps-ip>` with the values from the vault and
-`<channel>` with the channel name, keeping the `#`:
-
-```bash
-ssh <user>@<vps-ip> 'cd ~/community/automation/infra
-  grep -q "^SLACK_CHANNEL=" .env || echo "SLACK_CHANNEL=" >> .env
-  sed -i "s|^SLACK_CHANNEL=.*|SLACK_CHANNEL=\"#<channel>\"|" .env
-  grep "^SLACK_CHANNEL=" .env
-  docker compose up -d n8n
-  docker compose exec -T n8n printenv SLACK_CHANNEL'
-```
-
-The first line appends an empty `SLACK_CHANNEL=` when the variable is
-missing, because `sed` replaces only a line that exists and otherwise does
-nothing without saying so. The second `grep` must print the line. The double
-quotes matter: a `#` in a compose `.env` can start a comment, and quoting
-removes the ambiguity. Compose strips the quotes, so the container sees the
-`#` and the name. `docker compose up -d n8n` must print `Recreated`, not
-`Running`: the container reads `.env` only when it is created. The final
-`printenv` shows what the workflows will actually read. If it prints nothing
-while `.env` has the line, see [Troubleshooting](#troubleshooting).
+Set `SLACK_CHANNEL` with the recipe in
+[Setting a plain configuration value](#setting-a-plain-configuration-value).
+Keep the `#` and wrap the value in double quotes, as in `"#{CHANNEL}"`: an
+unquoted `#` can start a comment in a compose `.env`, and compose strips the
+quotes before the container sees the value.
 
 For a public channel the name works, written with a leading `#`. The node
 passes the value straight to Slack's `chat.postMessage`, which resolves
@@ -1101,9 +1018,9 @@ never shows up in the workflow list as a real one.
 On the app's **OAuth & Permissions** page choose **Revoke All OAuth
 Tokens**, then **Install to Workspace** again. Slack issues a new
 `xoxb-` token. Replace the **Access Token** in the existing `slack-bot`
-credential in n8n and save. The nodes reference the credential by name, so
-nothing else changes. The old token stops working the moment it is revoked,
-so do the two steps together.
+credential in n8n and save, and write it into `~/.slack-bot-token` on the box.
+The nodes reference the credential by name, so nothing else changes. The old
+token stops working the moment it is revoked, so do these steps together.
 
 ## The SMTP credential
 
@@ -1185,29 +1102,10 @@ for the next person to find it.
 
 ### Set the From address
 
-`SMTP_FROM` is not a secret, so it can be set over `ssh` directly, once the
-checkout on the box is current as described in
-[Setting the credentials that are not generated here](#setting-the-credentials-that-are-not-generated-here). Replace
-`<user>` and `<vps-ip>` with the values from the vault:
-
-```bash
-ssh <user>@<vps-ip> 'cd ~/community/automation/infra
-  grep -q "^SMTP_FROM=" .env || echo "SMTP_FROM=" >> .env
-  sed -i "s|^SMTP_FROM=.*|SMTP_FROM=Open Source Europe <home@opensourceeurope.org>|" .env
-  grep "^SMTP_FROM=" .env
-  docker compose up -d n8n
-  docker compose exec -T n8n printenv SMTP_FROM'
-```
-
-The first line appends an empty `SMTP_FROM=` when the variable is missing,
-because `sed` replaces only a line that exists and otherwise does nothing
-without saying so. The second `grep` shows the line as written and must print
-it. `docker compose up -d n8n` must print
-`Recreated`, not `Running`: the container reads `.env` only when it is
-created, and `Running` means the value it holds is the old one. The final
-`printenv` shows what the workflows will actually read. The variable holds
-angle brackets and spaces, and the compose file passes it through
-unchanged, so no quoting is needed in `.env`.
+Set `SMTP_FROM` with the recipe in
+[Setting a plain configuration value](#setting-a-plain-configuration-value), to
+`Open Source Europe <home@opensourceeurope.org>`. The angle brackets and spaces
+need no quoting.
 
 The address part must be the address the token was generated for. Proton
 issues one token per address and documents that a token sends as that
@@ -1239,74 +1137,66 @@ credential by name, so nothing else changes.
 
 ## N8N_ENCRYPTION_KEY: back it up, off this box, before anything else
 
-`N8N_ENCRYPTION_KEY` encrypts every credential n8n stores — SMTP, Slack, Open
-Collective, everything referenced by name from workflow nodes. **If this key
-is lost, every one of those stored credentials is unrecoverable.** There is no
-reset or recovery path: each credential has to be re-entered by hand, in every
-workflow that references it. Generate it once, store it in the operator's
-password manager the moment it's generated, and never regenerate it against
-an existing database — a mismatched key does not decrypt what's already
-there.
+`N8N_ENCRYPTION_KEY` encrypts every credential n8n stores: SMTP, Slack, Open
+Collective, everything workflow nodes reference by name. **If this key is lost,
+every stored credential is unrecoverable**, and each one has to be re-entered by
+hand. Store it in the vault the moment `bootstrap.sh` generates it, and never
+regenerate it against an existing database, because a different key does not
+decrypt what is already there.
 
-**Store it in a vault shared with at least one other admin, not a personal
-one.** A key that exists only in one person's password manager makes OSE's
-ability to recover this instance depend on that person's account being
-reachable — which is a bus factor of one dressed up as a backup. The same goes
-for `POSTGRES_PASSWORD` — but store it as its **own vault entry**, not a field
-on the same item. Their lifecycles differ: the Postgres password is rotated by
-resetting the role and updating `.env`, while the encryption key must never
-change while a database exists. Keeping them separate means routine rotation
-never involves editing the item that must not be touched, lets the two carry
-their very different "what happens if I lose this" notes, and allows the
-database password to be shared with someone doing database work without handing
-over the key that decrypts every stored credential.
+Use a vault shared with at least one other admin. A key in one person's
+password manager makes recovering this instance depend on that person. Store
+`POSTGRES_PASSWORD` as a separate entry, not a field on the same item. The
+Postgres password is rotated by resetting the role, while the encryption key
+must never change, so routine rotation never touches the entry that must stay
+fixed, and the database password can be shared without the key that decrypts
+every credential.
 
 To read the values back off the box:
 
 ```bash
-ssh <user>@<vps-ip> 'grep -E "N8N_ENCRYPTION_KEY|POSTGRES_PASSWORD" ~/community/automation/infra/.env'
+ssh debian@{VPS_IP} 'grep -E "N8N_ENCRYPTION_KEY|POSTGRES_PASSWORD" ~/community/automation/infra/.env'
 ```
 
-Run that in a human's own terminal. Do not paste either value into a chat,
-an issue, a commit, or an agent transcript — anything that records it becomes
-another copy to protect.
+Run that in your own terminal. Do not paste either value into a chat, an
+issue, a commit or an agent transcript, because anything that records it
+becomes another copy to protect.
 
 ## Backup
 
-A "dump" here means the whole database written out as one compressed SQL file
-(`n8n-<timestamp>.sql.gz` in `~/backups/`) — the dump **is** the backup, and
-restoring means feeding that file back to Postgres.
+A dump is the whole database written out as one compressed SQL file,
+`n8n-{STAMP}.sql.gz` in `~/backups/`. Restoring means feeding that file back to
+Postgres.
 
-n8n's tables (workflows, credentials, execution history) **and** the
-`ose_applications` Data table live in the same Postgres — Data tables are just
-tables inside n8n's database. So one `pg_dump` of `n8n` is the entire backup,
-covering applicant stage, AI verdicts, form answers and decisions.
+n8n's own tables (workflows, credentials, execution history) and the
+`ose_applications` data table live in the same Postgres database. So one
+`pg_dump` of `n8n` is the entire backup, covering applicant stage, AI verdicts,
+form answers and decisions.
 
 The backup of record is this repo's own: `backup.sh` and the systemd units in
 [`systemd/`](systemd/). `bootstrap.sh` installs the units, and the deploy
 copies a unit again whenever it changes in git. The service runs the script out
 of the checkout, so a pull alone updates it.
 
-**OVH also snapshots this VPS daily** (Manager → the VPS → Automated backup;
-observed: daily at 14:37 UTC, one restore point kept — the paid Premium tier
-would keep seven). Treat it as a bonus safety net, not the backup of record:
+OVH also snapshots the VPS daily, around 14:37 UTC, and keeps one restore
+point (Manager → the VPS → Automated backup). Treat it as a safety net, not the
+backup of record:
 
-- one restore point means yesterday-only, no history;
-- the snapshot sits with the same provider as the VM, so it does not survive
-  losing the OVH account or region;
-- it restores only onto OVH, whereas a dump is a portable file you can inspect
-  and load anywhere;
-- it is crash-consistent — restoring is like the machine having lost power at
-  14:37. Postgres recovers from that by replaying its write-ahead log, so it
-  normally comes back, but "normally" is not the standard for the only copy.
-- it contains the full disk, secrets in `.env` included.
+- One restore point means yesterday only, with no history.
+- It sits with the same provider as the VPS, so it does not survive losing the
+  OVH account or region.
+- It restores only onto OVH. A dump is a portable file.
+- It is crash-consistent: restoring it is like the machine losing power at
+  14:37. Postgres normally recovers from that by replaying its write-ahead log.
+- It contains the whole disk, `.env` and its secrets included.
 
-[`backup.sh`](backup.sh) does it, and refuses to leave a plausible-looking
-useless file behind: it fails if the dump is under 10 KiB, fails gzip
-integrity, or contains no `CREATE TABLE`.
+[`backup.sh`](backup.sh) writes the dump and refuses to leave a useless file
+behind: it fails if the dump is under 10 KiB, fails the gzip integrity check, or
+contains no `CREATE TABLE`. It keeps 14 days of dumps on the box. To take one by
+hand:
 
 ```bash
-~/community/automation/infra/backup.sh          # writes ~/backups/n8n-<stamp>.sql.gz
+~/community/automation/infra/backup.sh
 ```
 
 `ose-backup.timer` runs it at 03:17 UTC daily. Debian 13 minimal ships no cron
@@ -1326,15 +1216,10 @@ The script also appends every run to `~/backups/backup.log`, which keeps the
 history longer than the journal does. A failed backup posts to Slack, as in
 [Alerts when the box fails](#alerts-when-the-box-fails).
 
-**Dumps contain applicant personal data.** `ose_applications` holds applicant
+Dumps contain applicant personal data. `ose_applications` holds applicant
 email addresses and the free text of their form answers, so every dump carries
-both. That makes where copies are stored a data-protection question as well as a
-durability one: encrypt before uploading anywhere off this box.
-
-Confirmed running unattended: the timer fired on its own at 03:22 UTC on
-2026-09-01 and wrote a dump. Installed and actually-runs are different claims,
-and this is the second — check `systemctl list-timers ose-backup.timer` and
-`tail ~/backups/backup.log` to re-confirm at any time.
+both. That is why the copy off the box is encrypted, and why any other copy has
+to be.
 
 ### The copy off the box
 
@@ -1409,23 +1294,22 @@ warning and the dumps stay only on the box.
 
 ## Which backup to restore, when
 
-Two different things exist, and they answer different failures. The nightly
-**dump** is a copy of the *database only*; the daily **OVH snapshot** is an image
-of the *whole machine*. Rule of thumb: a data problem wants the dump, a machine
-problem wants the snapshot or a rebuild.
+The nightly dump copies the database only. The daily OVH snapshot is an image
+of the whole machine. A data problem wants the dump, and a machine problem wants
+the snapshot or a rebuild.
 
 | What happened | Restore what | How |
 |---|---|---|
 | Bad data: an n8n upgrade broke things, workflows or rows were deleted or mangled, but the machine itself is fine | The most recent **dump** from before the damage | The Restore steps below, on this box |
-| Only one thing is lost (a single workflow, a few rows) and everything else moved on since | The dump, **into a scratch database** | The rehearsal procedure below — then copy just what you need out of `restoretest`, instead of rolling the whole database back and losing everything newer |
+| Only one thing is lost (a single workflow, a few rows) and everything else moved on since | The dump, **into a scratch database** | The rehearsal procedure below, then copy what you need out of `restoretest` instead of rolling the whole database back |
 | The machine is broken (filesystem damage, botched OS change) but OVH is fine | The **OVH snapshot** (Manager → the VPS → Automated backup) | Restores the whole disk to ~14:37 UTC yesterday, `.env` included. Afterwards: check the stack (`docker compose ps`), and run `backup.sh` once so a fresh dump exists |
 | The VPS is gone entirely: terminated, region lost, or an account problem | The latest **dump** from the bucket, plus this repo | New VPS → the "First install" steps → decrypt the dump → load it. Needs `N8N_ENCRYPTION_KEY` and the backup decryption key **from the vault**. This is the moment they exist for |
 
 Two constraints that hold in every row:
 
-- A dump only yields working credentials under the **original**
-  `N8N_ENCRYPTION_KEY`. Machine-problem rows keep it automatically (it is in
-  `.env` on the restored disk); the last row is why the vault copy matters.
+- A dump only yields working credentials under the original
+  `N8N_ENCRYPTION_KEY`. The machine-problem rows keep it in `.env` on the
+  restored disk. The last row is why the vault copy matters.
 - The last row works only once [the copy off the box](#the-copy-off-the-box)
   is set up. Without it, losing the box loses the dumps with it, and the OVH
   snapshot at the same provider is the only copy left.
@@ -1448,34 +1332,41 @@ age -d -i {KEY_FILE} -o n8n-{STAMP}.sql.gz n8n-{STAMP}.sql.gz.age
 > first, and confirm `N8N_ENCRYPTION_KEY` in `.env` is the key the dump was
 > taken under.
 
-```bash
-# stop n8n so nothing writes to the database mid-restore
-docker compose stop n8n
+Stop both timers first. A deploy that fires mid-restore runs
+`docker compose up -d` and starts n8n against a half-loaded database:
 
-# drop and recreate the database, then load the dump
+```bash
+sudo systemctl stop ose-deploy.timer ose-backup.timer
+cd ~/community/automation/infra
+docker compose stop n8n
 docker compose exec -T postgres psql -U n8n -d postgres -c "DROP DATABASE n8n;"
 docker compose exec -T postgres psql -U n8n -d postgres -c "CREATE DATABASE n8n OWNER n8n;"
-gunzip -c n8n-backup-<date>.sql.gz | docker compose exec -T postgres psql -U n8n -d n8n
-
+gunzip -c n8n-{STAMP}.sql.gz | docker compose exec -T postgres psql -U n8n -d n8n
 docker compose start n8n
 docker compose logs -f n8n
 ```
 
+When n8n is up and the workflows look right, start the timers again:
+
+```bash
+sudo systemctl start ose-deploy.timer ose-backup.timer
+```
+
 ### What each secret means for a rebuild
 
-The dump contains database objects, not roles — verified: zero `CREATE ROLE` /
-`ALTER ROLE` statements in it. That gives the two secrets very different
-recovery properties:
+The dump contains database objects, not roles: it has no `CREATE ROLE` or
+`ALTER ROLE` statement. That gives the two secrets very different recovery
+properties:
 
 | Scenario | `POSTGRES_PASSWORD` | `N8N_ENCRYPTION_KEY` |
 |---|---|---|
-| Restart, reboot, `down` + `up -d`, n8n upgrade | unchanged — it is a file on disk and the volumes persist | unchanged |
-| `docker compose down -v`, box rebuilt, new VPS | gone with the filesystem; **pick a new one freely** | gone; **must be the original or credentials are unreadable** |
+| Restart, reboot, `down` + `up -d`, n8n upgrade | unchanged, because the volumes persist | unchanged |
+| `docker compose down -v`, box rebuilt, new VPS | gone with the filesystem, so **pick a new one freely** | gone, and it **must be the original or credentials are unreadable** |
 | Deliberate rotation on a live box | see below | never rotate against an existing database |
 
-**Rotating `POSTGRES_PASSWORD` takes two steps, not one.** The compose variable
-only initialises an *empty* data directory; editing `.env` afterwards does not
-change the role, and n8n simply stops being able to connect:
+Rotating `POSTGRES_PASSWORD` takes two steps. The compose variable only
+initialises an empty data directory, so editing `.env` alone does not change the
+role, and n8n stops being able to connect. Change the role first:
 
 ```bash
 docker compose exec -T postgres psql -U n8n -d postgres -c "ALTER ROLE n8n PASSWORD 'newvalue';"
@@ -1485,15 +1376,15 @@ docker compose up -d n8n
 
 ### Rehearse it without risking the live database
 
-Restore into a scratch database instead of over the real one. An untested backup
-is not a backup, and this costs a minute:
+Restore into a scratch database instead of over the real one. It takes a minute
+and proves the dump loads:
 
 ```bash
 cd ~/community/automation/infra
 LATEST=$(ls -t ~/backups/n8n-*.sql.gz | head -1)
 docker compose exec -T postgres psql -U n8n -d postgres -qc "CREATE DATABASE restoretest OWNER n8n;"
 gunzip -c "$LATEST" | docker compose exec -T postgres psql -U n8n -d restoretest -q 2>&1 | grep -iE '^ERROR' | sort -u
-# compare table counts — they should match
+# the two table counts should match
 for db in restoretest n8n; do
   echo -n "$db: "
   docker compose exec -T postgres psql -U n8n -d "$db" -tAc \
@@ -1502,12 +1393,9 @@ done
 docker compose exec -T postgres psql -U n8n -d postgres -qc "DROP DATABASE restoretest;"
 ```
 
-Last rehearsed 2026-08-31: 0 errors, 131 tables in both.
-
-A restore only produces a working instance if `N8N_ENCRYPTION_KEY` in `.env`
-on the restoring box is the *same* key that was in use when the dump was
-taken — the dump's credential rows are encrypted with it. Restoring a dump
-under a different key leaves the credentials in the database but unreadable.
+For a dump from the bucket, decrypt it first as above. A restore only produces
+a working instance under the `N8N_ENCRYPTION_KEY` the dump was taken with.
+Under any other key the credentials are in the database but unreadable.
 
 ## Upgrading n8n
 
@@ -1550,11 +1438,6 @@ curl -s https://apply.opensourceeurope.org/ | grep og:image
 
 The table in [Which backup to restore, when](#which-backup-to-restore-when)
 treats a bad upgrade as a restore from the dump the deploy took before it.
-
-> [!NOTE]
-> This section is written from the compose file and the deploy script. Nobody
-> has rehearsed an upgrade on this box yet, so read it as the shape of the job
-> rather than a tested procedure.
 
 ## Alerts when a workflow fails
 
@@ -1629,32 +1512,36 @@ in this repository. Put the account credentials in the shared vault.
 | Symptom | Cause | Fix |
 |---|---|---|
 | `ssh root@…` refused, any credential | This image has no root key, and Debian sets `PermitRootLogin prohibit-password` | Log in as the non-root user from the vault |
-| `Permission denied (publickey)` with the right key | Key is passphrase-protected and `ssh-agent` is empty; `BatchMode` cannot prompt to sign | `ssh-add ~/.ssh/<key>`, confirm with `ssh-add -l` |
-| `banner line 0: Not allowed at this time`, connection reset | Source IP blocked by brute-force protection, usually from polling SSH in a loop | Stop connecting; wait 10-30 min |
-| `REMOTE HOST IDENTIFICATION HAS CHANGED` | The box was reinstalled | `ssh-keygen -R <ip>` — only when you know why it changed |
-| Certificate not issued | DNS for the hostname does not resolve to this box, or 80/443 blocked | Check `dig`, `sudo ufw status`; `docker compose logs caddy` |
-| Caddy 502 for a few seconds after start | n8n still booting; Caddy has no healthcheck to gate on | Wait; it clears itself |
-| `apply.` returns 404 | No workflow serves `/form/apply-ose` yet | Expected until the form exists |
-| n8n log mentions SQLite | The `DB_TYPE` block is not taking effect | Fix before storing anything — migrating out of SQLite later is painful |
-| `.env` has the variable, `docker compose up -d n8n` says `Running`, `printenv` in the container prints nothing | The compose file on the box predates the variable, so compose never passes it. `docker compose config \| grep <VAR>` prints nothing | `git pull --ff-only` in `~/community`, then `docker compose up -d n8n` and expect `Recreated` |
+| `Permission denied (publickey)` with the right key | The key is passphrase-protected and `ssh-agent` is empty, so `BatchMode` cannot sign | `ssh-add ~/.ssh/{KEY}`, then confirm with `ssh-add -l` |
+| `banner line 0: Not allowed at this time`, connection reset | Source IP blocked by brute-force protection, usually from polling SSH in a loop | Stop connecting and wait 10 to 30 minutes |
+| `REMOTE HOST IDENTIFICATION HAS CHANGED` | The box was reinstalled | `ssh-keygen -R {VPS_IP}`, and only when you know why it changed |
+| Certificate not issued | DNS for the hostname does not resolve to this box, or 80/443 blocked | Check `dig`, `sudo ufw status` and `docker compose logs caddy` |
+| Caddy 502 for a few seconds after start | n8n is still booting, and Caddy has no healthcheck to wait on | Wait. It clears itself |
+| `apply.` returns 404 | No active workflow serves `/form/apply-ose` | Activate `apply 4 — application form` |
+| n8n log mentions SQLite | The `DB_TYPE` block is not taking effect | Fix it before storing anything. Moving data out of SQLite later is painful |
+| `.env` has the variable, `docker compose up -d n8n` says `Running`, `printenv` in the container prints nothing | The compose file on the box predates the variable, so compose never passes it. `docker compose config \| grep {VAR}` prints nothing | `git pull --ff-only` in `~/community`, then `docker compose up -d n8n` and expect `Recreated` |
 | `deploy.sh` stops with `the checkout is on ...` | The box was left on a feature branch, so the deploy refuses to fast-forward it | `git -C ~/community checkout main`, then run the deploy again |
+| `deploy.sh` stops with `the checkout has local changes` | A file in the checkout was edited on the box | Read `git -C ~/community status`, move the change into a pull request, then `git -C ~/community checkout -- {FILE}` |
+| `deploy.sh` stops with `variable(s) missing from .env` | A merged compose file names a variable the box's `.env` lacks. Workflow deploys stop too until it is fixed | Add the variable to `.env`. The next run applies the change |
+| `deploy.sh` stops with `the Caddyfile does not validate` | A merged Caddyfile has a syntax error | Fix it in a pull request. The running Caddy is untouched |
+| Backup log ends with `upload ... failed` | The upload key, the bucket name or its preferred project is wrong in `backup.env` | Check the settings in `~/.config/ose-backup/backup.env`. `AccessDenied` means the key's preferred project is not `ose-n8n-backups` |
 | The same workflow reports `updated` on every deploy run | It is being edited in the n8n UI, and each run puts the exported version back over the edit | Export the instance's version with `automation/scripts/export-workflows.py` and open a pull request for it |
 | Disk filling | Execution history unpruned | Check `EXECUTIONS_DATA_PRUNE=true` and `EXECUTIONS_DATA_MAX_AGE` |
-| Credentials all broken after a restore | `N8N_ENCRYPTION_KEY` differs from the one in use when the dump was taken | Restore the original key; there is no recovery without it |
-| Every `ovhcloud` command returns `INVALID_CREDENTIAL` (403) | The consumer key in `~/.ovh.conf` was revoked, expired or rotated | `ovhcloud login` |
-| Stray `.*.swp` / `..env.swp` in `automation/infra/`, or an editor process nobody remembers | A dropped `ssh -t` session left vim/nano open on `.env`; the swap file holds a copy of the secrets and is not gitignored, and a stale editor that later saves overwrites a rotated key with the old one | `pgrep -a 'vim|nano'`, kill the orphan (editors do not save on plain kill), delete the swap file, then verify `.env` by length/hash |
-| Applicant emails rejected or spam-filed | Mail sent from this box; the domain's SPF is `-all` for Proton only | Use an authenticated relay — see "Sending mail" above |
-| A workflow failed and no Slack alert arrived | The workflow has no **Error Workflow** set, or a node handled the error and let the run finish green | Read back `settings.errorWorkflow`; for a handled error, make the node throw instead |
+| A deploy or backup failed and no Slack alert arrived | `~/.slack-bot-token` is missing or readable by others, or the bot is not in `SLACK_CHANNEL` | Read `journalctl -u ose-alert@{UNIT}.service` |
+| Credentials all broken after a restore | `N8N_ENCRYPTION_KEY` differs from the one in use when the dump was taken | Restore the original key. There is no recovery without it |
+| Every `ovhcloud` command returns 403 | The consumer key in `~/.ovh.conf` was revoked or expired | `ovhcloud login` |
+| Stray `.*.swp` in `automation/infra/`, or an editor process nobody remembers | A dropped `ssh -t` session left an editor open on `.env`. The swap file holds a copy of the secrets, and a stale editor that saves later overwrites a rotated key with the old one | `pgrep -a 'vim|nano'`, kill the orphan (editors do not save on a plain kill), delete the swap file, then check `.env` by length |
+| Applicant emails rejected or spam-filed | Mail sent from this box, while the domain's SPF allows Proton only | Send through the relay in [The SMTP credential](#the-smtp-credential) |
+| A workflow failed and no Slack alert arrived | The workflow has no **Error Workflow** set, or a node handled the error and let the run finish green | Read back `settings.errorWorkflow`. For a handled error, make the node throw instead |
 | Workflow fails with `access to env vars denied` | The running container predates `N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"` in `docker-compose.yml`, so n8n blocks the `$env` expressions the workflows are built on | `git pull` in `~/community`, then `docker compose up -d n8n` and expect `Recreated` |
 
 ## Notes
 
-- `.env` is never committed — see `automation/.env.example` for the
-  application variable names, and the table above for the three infra-only
-  ones it doesn't cover.
-- Caddy issues and renews its own TLS certificate for `N8N_HOST` automatically
-  on first request; that only succeeds once DNS for the hostname resolves to
-  this box. Caddy only sees `N8N_HOST` because the `caddy` service in
-  `docker-compose.yml` passes it through explicitly via its own
-  `environment:` block — Compose's `${VAR}` interpolation of the YAML file
-  does not, by itself, put a variable inside a container's environment.
+- `.env` stays out of git. `automation/.env.example` lists the application
+  variables, and [the variables table](#variables-this-compose-file-needs)
+  lists the infra ones.
+- Caddy issues and renews the certificates for `N8N_HOST` and `APPLY_HOST`
+  itself, which works once DNS for each name resolves to this box. Caddy sees
+  the two names only because the `caddy` service passes them in its own
+  `environment:` block. Compose's `${VAR}` interpolation of the YAML does not
+  put a variable inside a container by itself.
