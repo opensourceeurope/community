@@ -34,7 +34,7 @@ expect() {  # expect <case> <JS line> <text the output must contain, or "pass">
   plant "$2"
   out=$(python3 -B "$CHECK" "$WORK/n8n" 2>&1) || rc=$?
   if [ "$3" = pass ]; then
-    [ "$rc" -eq 0 ] || { echo "FAIL [$1] expected a pass, got:"; echo "$out" | sed 's/^/    > /'; failures=$((failures + 1)); }
+    [ "$rc" -eq 0 ] || { echo "FAIL [$1] expected a pass, got:"; printf '%s\n' "$out" | sed 's/^/    > /'; failures=$((failures + 1)); }
   elif [ "$rc" -eq 0 ] || [ "$(printf '%s\n' "$out" | grep -c -F -e "$3" || true)" -eq 0 ]; then
     echo "FAIL [$1] expected a failure mentioning: $3"
     printf '%s\n' "$out" | sed 's/^/    > /'
