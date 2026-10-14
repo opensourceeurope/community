@@ -2,7 +2,7 @@
 """Check the n8n workflow exports for the invariants in AGENTS.md.
 
 Every check here exists because the defect it looks for reached main at least
-once. There are deliberately only seven. See --help for what each one covers.
+once. There are deliberately only eight. See --help for what each one covers.
 
 Standard library only: no dependencies, no network, no n8n API key.
 """
@@ -53,6 +53,15 @@ CHECKS = """\
    fallback branch, which is the wrong set of questions rather than an error.
    The prefill link the apply 3 emails build from FORM_FIELD stops filling the
    field, and the form still loads, just empty.
+
+8. Every variable a workflow reads reaches it. A $env.NAME read in any node
+   must be passed to the n8n container by the n8n service in
+   automation/infra/docker-compose.yml and documented in
+   automation/.env.example. A variable the compose file does not pass is
+   simply absent inside n8n, so the expression reads undefined and falls back
+   or misbehaves with no error. The deploy on the box refuses a compose file
+   that names a variable .env lacks, so this check is what makes that guard
+   cover every variable the workflows depend on.
 """
 
 DATA_TABLE = "ose_applications"
@@ -536,6 +545,78 @@ def check_form_direct_reads(workflow, problems):
                  % (label, trigger, ", ".join(sorted(labels))))
 
 
+# --- check 8 ---------------------------------------------------------------
+
+# Every way of naming one variable on $env: $env.NAME and $env?.NAME, and
+# $env['NAME'], $env["NAME"] or $env[`NAME`], with or without ?. and spaces.
+ENV_READ = re.compile(
+    r"""\$env\s*(?:\?\.|\.)\s*([A-Za-z_]\w*)"""
+    r"""|\$env\s*(?:\?\.)?\s*\[\s*(["'`])([A-Za-z_]\w*)\2\s*\]""")
+ENV_ANY = re.compile(r"\$env\b")
+
+def repo_file(*parts):
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(root, *parts)
+
+
+def compose_n8n_environment(path):
+    """Variable names the n8n service's environment block passes in."""
+    names, in_n8n, in_env = set(), False, False
+    with open(path) as handle:
+        for line in handle:
+            if re.match(r"^  [a-z][\w-]*:\s*$", line):
+                in_n8n, in_env = line.strip() == "n8n:", False
+            elif in_n8n and re.match(r"^    environment:\s*$", line):
+                in_env = True
+            elif in_n8n and re.match(r"^    [a-z_]+:", line):
+                in_env = False
+            elif in_env:
+                match = re.match(r"^      ([A-Z][A-Z0-9_]*):", line)
+                if match:
+                    names.add(match.group(1))
+    return names
+
+
+def documented_variables(path):
+    with open(path) as handle:
+        return set(re.findall(r"^([A-Z][A-Z0-9_]*)=", handle.read(), re.M))
+
+
+def env_reads(text):
+    """The variable names a string reads, and how many $env uses it could not name."""
+    names, unreadable = set(), 0
+    for found in ENV_ANY.finditer(text):
+        match = ENV_READ.match(text, found.start())
+        if match:
+            names.add(match.group(1) or match.group(3))
+        else:
+            unreadable += 1
+    return names, unreadable
+
+
+def check_env_reads(workflow, passed, documented, problems):
+    for node in workflow.nodes:
+        names, unreadable = set(), 0
+        for _, text in strings_in(node.get("parameters") or {}, []):
+            found, missed = env_reads(text)
+            names |= found
+            unreadable += missed
+        if unreadable:
+            fail(problems, workflow, node.get("name"),
+                 "uses $env in a form check 8 cannot name, such as "
+                 "destructuring or a computed key. Read each variable as "
+                 "$env.NAME so CI can check it reaches n8n")
+        for name in sorted(names):
+            if name not in passed:
+                fail(problems, workflow, node.get("name"),
+                     "reads $env.%s, which docker-compose.yml does not pass "
+                     "to the n8n container" % name)
+            if name not in documented:
+                fail(problems, workflow, node.get("name"),
+                     "reads $env.%s, which automation/.env.example does not "
+                     "document" % name)
+
+
 # --- driver ----------------------------------------------------------------
 
 def default_directory():
@@ -569,6 +650,9 @@ def main(argv):
         print("check-workflows: no workflow exports found", file=sys.stderr)
         return 2
 
+    passed = compose_n8n_environment(repo_file("infra", "docker-compose.yml"))
+    documented = documented_variables(repo_file(".env.example"))
+
     workflows = {}
     problems = []
     for path in files:
@@ -589,6 +673,7 @@ def main(argv):
         check_form_label_reads(workflow, pages, problems)
         check_form_option_matches(workflow, pages, problems)
         check_form_direct_reads(workflow, problems)
+        check_env_reads(workflow, passed, documented, problems)
 
     check_answer_labels(workflows, problems, complete)
     check_form_prefill_field(workflows, problems, complete)
@@ -599,7 +684,7 @@ def main(argv):
         print("\n%d problem(s) in %d workflow export(s)."
               % (len(problems), len(files)))
         return 1
-    print("%d workflow export(s) pass all seven checks." % len(files))
+    print("%d workflow export(s) pass all eight checks." % len(files))
     return 0
 
 

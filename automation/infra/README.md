@@ -377,7 +377,9 @@ The script ends with the steps it cannot do for you. Do them in this order:
    `bootstrap.sh units` to enable the deploy timer.
 4. Write the Slack bot token, as in [Alerts when the box fails](#alerts-when-the-box-fails).
 5. Write the backup bucket settings, as in [The copy off the box](#the-copy-off-the-box).
-6. Create the n8n credentials in the sections that follow.
+6. Create the n8n credentials in the sections that follow, and set
+   `AI_API_KEY`, `SLACK_CHANNEL`, `SMTP_FROM` and `DRY_RUN_RECIPIENT` in `.env`.
+   The deploy refuses to run while any of them is empty.
 7. Deploy the workflows once with `deploy.sh --allow-create`, as in
    [An export the instance does not have](#an-export-the-instance-does-not-have).
 8. [Register the Open Collective webhook](#registering-the-open-collective-webhook).
@@ -458,7 +460,7 @@ in a GitHub secret, and nothing is opened inbound for a deploy.
 1. Fast-forwards `~/community` to `origin/main`.
 2. Applies what changed in `automation/infra/`, then records the commit it
    applied.
-3. Runs the same seven export checks that CI runs on every pull request, then
+3. Runs the same eight export checks that CI runs on every pull request, then
    pushes each file in `automation/n8n/` into the running n8n over the public
    API.
 
@@ -483,12 +485,22 @@ changed path triggers:
 The Caddyfile needs a new container rather than a restart. Git replaces a file
 with a new one, and a mount of a single file keeps showing the old one.
 
-Before it changes a running container, the run checks two things. Compose must
-report no variable missing from `.env`. Compose only warns about a missing
+Every run first checks that the values the stack cannot work without are set
+in `.env`: `N8N_HOST`, `APPLY_HOST`, `POSTGRES_PASSWORD`, `N8N_ENCRYPTION_KEY`,
+`AI_API_KEY`, `SLACK_CHANNEL` and `SMTP_FROM`, and `DRY_RUN_RECIPIENT` while
+`DRY_RUN` is anything but `false`. An empty one stops the run and names it,
+without printing any value.
+
+Before it changes a running container, the run checks two more things. Compose
+must report no variable missing from `.env`. Compose only warns about a missing
 variable and passes an empty string, which is how a new variable would reach
 production empty. When the Caddyfile changed, `caddy validate` must accept it.
-A failed check stops the run before anything changes and posts an alert. Add
-the variable or fix the file, and the next run applies the change.
+
+A failed check stops the run before anything changes, workflow updates
+included, and posts an alert. Fix `.env` or the file, and the next run applies
+the change. CI makes the compose check cover every variable a workflow reads:
+check 8 of `check-workflows.py` fails a pull request whose workflow reads a
+variable the compose file does not pass to n8n.
 
 Sometimes the n8n image in the compose file differs from the image the running
 container uses. Then the run calls `backup.sh` first, and stops if the backup
@@ -560,8 +572,9 @@ the workflows it would change, and changes nothing:
 The dry run checks the compose file and the Caddyfile from `origin/main`, not
 the checkout, so a check that fails here fails the real run too. An error names
 the assumption that is wrong: the key file, its mode, `N8N_HOST` in `.env`, a
-variable missing from `.env`, or a checkout on another branch or with local
-changes.
+required value that is empty, a variable missing from `.env`, or a checkout on
+another branch or with local changes. The export checks run from `origin/main`
+as well, against the compose file they will deploy with.
 
 > [!CAUTION]
 > Read the `n8n image` line of the dry run before the first real run. When it
@@ -1523,6 +1536,7 @@ in this repository. Put the account credentials in the shared vault.
 | `deploy.sh` stops with `the checkout is on ...` | The box was left on a feature branch, so the deploy refuses to fast-forward it | `git -C ~/community checkout main`, then run the deploy again |
 | `deploy.sh` stops with `the checkout has local changes` | A file in the checkout was edited on the box | Read `git -C ~/community status`, move the change into a pull request, then `git -C ~/community checkout -- {FILE}` |
 | `deploy.sh` stops with `variable(s) missing from .env` | A merged compose file names a variable the box's `.env` lacks. Workflow deploys stop too until it is fixed | Add the variable to `.env`. The next run applies the change |
+| `deploy.sh` stops with `empty or missing in .../.env: …` | A value the stack needs is empty, often right after `bootstrap.sh all`, which leaves `AI_API_KEY`, `SLACK_CHANNEL`, `SMTP_FROM` and `DRY_RUN_RECIPIENT` for you | Set each named variable in `.env` |
 | `deploy.sh` stops with `the Caddyfile does not validate` | A merged Caddyfile has a syntax error | Fix it in a pull request. The running Caddy is untouched |
 | Backup log ends with `upload ... failed` | The upload key, the bucket name or its preferred project is wrong in `backup.env` | Check the settings in `~/.config/ose-backup/backup.env`. `AccessDenied` means the key's preferred project is not `ose-n8n-backups` |
 | The same workflow reports `updated` on every deploy run | It is being edited in the n8n UI, and each run puts the exported version back over the edit | Export the instance's version with `automation/scripts/export-workflows.py` and open a pull request for it |

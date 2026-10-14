@@ -350,12 +350,14 @@ The rules below are the OSE-specific invariants on top of that skill:
   does not do. The credit belongs somewhere a reader will actually see it, so
   name n8n in the public documentation and in the AI and tooling policy, and keep
   it accurate as the stack changes.
-- **Seven of these rules are enforced, the rest are on you.**
+- **Eight of these rules are enforced, the rest are on you.**
   `automation/scripts/check-workflows.py` runs on every pull request and checks
   the exports for disabled nodes, truncated expressions, an email send whose
   render step does not read `DRY_RUN`, an answer key missing from a label list,
-  a data table referenced any way but by name, a workflow with no timezone, and
-  a form label or dropdown option that no longer matches what reads it.
+  a data table referenced any way but by name, a workflow with no timezone, a
+  form label or dropdown option that no longer matches what reads it, and a
+  `$env` read that `docker-compose.yml` does not pass to n8n or
+  `automation/.env.example` does not document.
   Run it locally before you push. Each check is there because that defect
   reached main at least once. It reads the exports, so it only sees what you
   exported: refresh them first or it is checking yesterday's workflow.
@@ -387,7 +389,16 @@ The rules below are the OSE-specific invariants on top of that skill:
   merge.** `deploy.sh` never edits `.env`. It refuses to apply a compose file
   that names a variable `.env` lacks, and it stops the whole run, so workflow
   deploys stop too until someone adds the variable on the box. Say so in the
-  pull request when you add one.
+  pull request when you add one. A workflow that reads a new `$env` variable
+  needs it in the compose file and in `.env.example` as well, or CI fails, so
+  the box guard covers every variable a workflow depends on. Read it as
+  `$env.NAME`: CI also fails a `$env` use it cannot name, such as
+  destructuring.
+- **An empty required value stops the deploy too.** `REQUIRED_VALUES` in
+  `deploy.sh` lists the variables the stack cannot work without, plus
+  `DRY_RUN_RECIPIENT` while `DRY_RUN` is not `false`. An empty one stops the
+  run before anything changes. A new variable that must never be empty goes in
+  that list in the same pull request.
 - **The infra marker is what makes a failed apply retry.**
   `~/.local/state/ose-deploy/infra-applied` names the last commit whose infra
   was applied, and the next run applies everything after it. It moves as soon
@@ -395,9 +406,9 @@ The rules below are the OSE-specific invariants on top of that skill:
   never makes every run re-apply the infra. Deleting it forces a full apply,
   which recreates Caddy.
 - **Run the infra tests before you push a change to a script.**
-  `automation/test/deploy-infra.sh`, `alert-slack.sh` and `backup-upload.sh`
-  stub every external command and finish in seconds.
-  `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all four and
+  `automation/test/deploy-infra.sh`, `alert-slack.sh`, `backup-upload.sh` and
+  `check-workflows-env.sh` stub every external command and finish in seconds.
+  `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all five and
   `tofu validate`. Each test fails loudly when a helper dies under `set -e`,
   because a test that stops silently reads as a pass.
 - **`tofu/vps/` is a template and is never applied to the production box.**

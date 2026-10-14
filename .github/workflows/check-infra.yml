@@ -35,6 +35,9 @@ jobs:
       - name: backup.sh encrypts before it uploads
         run: automation/test/backup-upload.sh
 
+      - name: check 8 names every variable a workflow reads
+        run: automation/test/check-workflows-env.sh
+
       - name: bootstrap.sh builds a Debian 13 box and changes nothing the second time
         run: automation/test/bootstrap-smoke.sh
 
