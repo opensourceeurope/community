@@ -547,9 +547,12 @@ def check_form_direct_reads(workflow, problems):
 
 # --- check 8 ---------------------------------------------------------------
 
-# $env.NAME, $env['NAME'] and $env["NAME"], also as escaped JSON inside a string.
-ENV_READ = re.compile(r"""\$env(?:\.|\[\\?["'])([A-Z][A-Z0-9_]*)""")
-
+# Every way of naming one variable on $env: $env.NAME and $env?.NAME, and
+# $env['NAME'], $env["NAME"] or $env[`NAME`], with or without ?. and spaces.
+ENV_READ = re.compile(
+    r"""\$env\s*(?:\?\.|\.)\s*([A-Za-z_]\w*)"""
+    r"""|\$env\s*(?:\?\.)?\s*\[\s*(["'`])([A-Za-z_]\w*)\2\s*\]""")
+ENV_ANY = re.compile(r"\$env\b")
 
 def repo_file(*parts):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -579,10 +582,31 @@ def documented_variables(path):
         return set(re.findall(r"^([A-Z][A-Z0-9_]*)=", handle.read(), re.M))
 
 
+def env_reads(text):
+    """The variable names a string reads, and how many $env uses it could not name."""
+    names, unreadable = set(), 0
+    for found in ENV_ANY.finditer(text):
+        match = ENV_READ.match(text, found.start())
+        if match:
+            names.add(match.group(1) or match.group(3))
+        else:
+            unreadable += 1
+    return names, unreadable
+
+
 def check_env_reads(workflow, passed, documented, problems):
     for node in workflow.nodes:
-        text = json.dumps(node.get("parameters") or {})
-        for name in sorted(set(ENV_READ.findall(text))):
+        names, unreadable = set(), 0
+        for _, text in strings_in(node.get("parameters") or {}, []):
+            found, missed = env_reads(text)
+            names |= found
+            unreadable += missed
+        if unreadable:
+            fail(problems, workflow, node.get("name"),
+                 "uses $env in a form check 8 cannot name, such as "
+                 "destructuring or a computed key. Read each variable as "
+                 "$env.NAME so CI can check it reaches n8n")
+        for name in sorted(names):
             if name not in passed:
                 fail(problems, workflow, node.get("name"),
                      "reads $env.%s, which docker-compose.yml does not pass "

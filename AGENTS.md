@@ -391,7 +391,9 @@ The rules below are the OSE-specific invariants on top of that skill:
   deploys stop too until someone adds the variable on the box. Say so in the
   pull request when you add one. A workflow that reads a new `$env` variable
   needs it in the compose file and in `.env.example` as well, or CI fails, so
-  the box guard covers every variable a workflow depends on.
+  the box guard covers every variable a workflow depends on. Read it as
+  `$env.NAME`: CI also fails a `$env` use it cannot name, such as
+  destructuring.
 - **An empty required value stops the deploy too.** `REQUIRED_VALUES` in
   `deploy.sh` lists the variables the stack cannot work without, plus
   `DRY_RUN_RECIPIENT` while `DRY_RUN` is not `false`. An empty one stops the
@@ -404,9 +406,9 @@ The rules below are the OSE-specific invariants on top of that skill:
   never makes every run re-apply the infra. Deleting it forces a full apply,
   which recreates Caddy.
 - **Run the infra tests before you push a change to a script.**
-  `automation/test/deploy-infra.sh`, `alert-slack.sh` and `backup-upload.sh`
-  stub every external command and finish in seconds.
-  `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all four and
+  `automation/test/deploy-infra.sh`, `alert-slack.sh`, `backup-upload.sh` and
+  `check-workflows-env.sh` stub every external command and finish in seconds.
+  `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all five and
   `tofu validate`. Each test fails loudly when a helper dies under `set -e`,
   because a test that stops silently reads as a pass.
 - **`tofu/vps/` is a template and is never applied to the production box.**

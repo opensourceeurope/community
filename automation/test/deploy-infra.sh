@@ -64,8 +64,9 @@ sys.exit(int(os.environ.get("STUB_SYNC_RC", "0")))
 EOF
 cat > "$WORK/dev/automation/scripts/check-workflows.py" <<'EOF'
 import os, sys
-open(os.environ["STUB_LOG"], "a").write("check %s\n" % " ".join(sys.argv[1:]))
+open(os.environ["STUB_LOG"], "a").write("check %s %s\n" % (sys.argv[0], " ".join(sys.argv[1:])))
 EOF
+echo "DRY_RUN=true" > "$WORK/dev/automation/.env.example"
 cat > "$WORK/dev/automation/infra/backup.sh" <<'EOF'
 #!/usr/bin/env bash
 echo "backup" >> "$STUB_LOG"
@@ -78,19 +79,28 @@ dev push -q origin main 2>/dev/null
 
 git clone -q "$WORK/origin.git" "$WORK/box" 2>/dev/null
 ENV_FILE="$WORK/box/automation/infra/.env"
-write_env() {  # write_env [NAME=VALUE ...]: a complete .env, with overrides
-  {
-    echo "N8N_HOST=automation.example.org"
-    echo "APPLY_HOST=apply.example.org"
-    echo "POSTGRES_PASSWORD=pg"
-    echo "N8N_ENCRYPTION_KEY=key"
-    echo "AI_API_KEY=ai"
-    echo 'SLACK_CHANNEL="#reviews"'
-    echo "SMTP_FROM=Test <test@example.org>"
-    echo "DRY_RUN=true"
-    echo "DRY_RUN_RECIPIENT=test@example.org"
-    for pair in "$@"; do echo "$pair"; done
-  } > "$ENV_FILE"
+write_env() {  # write_env [LINE ...]: a complete .env, each LINE replacing the default for its name
+  local defaults=(
+    "N8N_HOST=automation.example.org"
+    "APPLY_HOST=apply.example.org"
+    "POSTGRES_PASSWORD=pg"
+    "N8N_ENCRYPTION_KEY=key"
+    "AI_API_KEY=secret-ai-value"
+    'SLACK_CHANNEL="#reviews"'
+    "SMTP_FROM=Test <test@example.org>"
+    "DRY_RUN=true"
+    "DRY_RUN_RECIPIENT=test@example.org"
+  )
+  local line name override
+  : > "$ENV_FILE"
+  for line in "${defaults[@]}"; do
+    name=${line%%=*}
+    for override in "$@"; do
+      [ "$(echo "$override" | sed -E 's/^export[[:space:]]+//; s/[[:space:]]*=.*//')" = "$name" ] && continue 2
+    done
+    echo "$line" >> "$ENV_FILE"
+  done
+  for override in "$@"; do echo "$override" >> "$ENV_FILE"; done
 }
 write_env
 
@@ -258,17 +268,29 @@ ran "-f .*/automation/infra/docker-compose.yml .*config --quiet"
 [ "$(cat "$MARKER")" = "$previous" ] || fail "the marker moved"
 [ "$(git -C "$WORK/box" rev-parse HEAD)" = "$head_before" ] || fail "the checkout moved"
 ran '^sync .*--dry-run'
+not_ran "^check $WORK/box/"
+ran '^check .*/automation/scripts/check-workflows.py .*/automation/n8n$'
 
 change automation/infra/docker-compose.yml "services: {g: {}}"
 previous=$(cat "$MARKER")
-write_env "SLACK_CHANNEL="
+write_env "SMTP_FROM="
 run "an empty required value stops the run before anything changes"
 exit_failed
 not_ran ' up -d'
 not_ran '^sync '
 [ "$(cat "$MARKER")" = "$previous" ] || fail "the marker moved"
-[ "$(grep -c 'SLACK_CHANNEL' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not name the empty variable"
-[ "$(grep -c '#reviews' "$WORK/out.log" || true)" -eq 0 ] || fail "a value reached the output"
+[ "$(grep -c 'SMTP_FROM' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not name the empty variable"
+[ "$(grep -c -e '#reviews' -e 'secret-ai-value' "$WORK/out.log" || true)" -eq 0 ] || fail "a value reached the output"
+
+write_env 'SLACK_CHANNEL="" # set later'
+run "an empty quoted value with a comment still counts as empty"
+exit_failed
+[ "$(grep -c 'SLACK_CHANNEL' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not name SLACK_CHANNEL"
+
+write_env "export AI_API_KEY=other-secret" "DRY_RUN=false # live" "DRY_RUN_RECIPIENT="
+run "an export prefix and a trailing comment read the way compose reads them"
+exit_ok
+ran "$UP_ALL"
 
 write_env "DRY_RUN_RECIPIENT="
 run "an empty recipient stops the run while mail is suppressed"
@@ -278,7 +300,7 @@ exit_failed
 write_env "DRY_RUN= FALSE " "DRY_RUN_RECIPIENT="
 run "an empty recipient is fine once DRY_RUN is false"
 exit_ok
-ran "$UP_ALL"
+ran '^sync '
 
 write_env
 finished=true

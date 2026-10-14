@@ -135,8 +135,8 @@ hears from us one sweep later, not never.
 ## Checking the exports
 
 [`scripts/check-workflows.py`](scripts/check-workflows.py) reads the exports in
-`automation/n8n/` and enforces seven of the invariants in `AGENTS.md`. Each one
-exists because that defect reached main at least once, and there are only seven
+`automation/n8n/` and enforces eight of the invariants in `AGENTS.md`. Each one
+exists because that defect reached main at least once, and there are only eight
 on purpose. A check that flags style rather than breakage gets switched off,
 and takes the real ones with it.
 
@@ -169,6 +169,12 @@ and takes the real ones with it.
    takes the fallback branch, so a community gets asked the project questions.
    The prefill link the apply 3 emails build stops filling the field, and the
    form still loads, just empty.
+8. **Every variable a workflow reads reaches n8n.** A `$env` read must name a
+   variable that `infra/docker-compose.yml` passes to the n8n container and
+   `.env.example` documents. A variable the compose file does not pass is
+   simply absent inside n8n, and the expression reads `undefined` with no
+   error. A `$env` use the check cannot name, such as destructuring, fails too,
+   so read each variable as `$env.NAME`.
 
 Run it from the repository root. It needs no arguments, no dependencies, no
 network and no API key, and it never touches the live instance.

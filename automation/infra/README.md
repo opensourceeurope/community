@@ -572,8 +572,9 @@ the workflows it would change, and changes nothing:
 The dry run checks the compose file and the Caddyfile from `origin/main`, not
 the checkout, so a check that fails here fails the real run too. An error names
 the assumption that is wrong: the key file, its mode, `N8N_HOST` in `.env`, a
-variable missing from `.env`, or a checkout on another branch or with local
-changes.
+required value that is empty, a variable missing from `.env`, or a checkout on
+another branch or with local changes. The export checks run from `origin/main`
+as well, against the compose file they will deploy with.
 
 > [!CAUTION]
 > Read the `n8n image` line of the dry run before the first real run. When it

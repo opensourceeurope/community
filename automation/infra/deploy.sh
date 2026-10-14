@@ -94,9 +94,13 @@ if [ "$pull" = true ]; then
     # A dry run leaves the checkout alone, so everything it checks has to come
     # out of origin/main rather than out of the working tree.
     tmp=$(mktemp -d)
-    git -C "$REPO" archive "origin/$BRANCH" "$EXPORTS" "$INFRA" | tar -x -C "$tmp"
+    # The checker and .env.example come along, so the export checks compare
+    # the new workflows with the new compose file and not the checkout's.
+    git -C "$REPO" archive "origin/$BRANCH" "$EXPORTS" "$INFRA" \
+      automation/scripts automation/.env.example | tar -x -C "$tmp"
     dir="$tmp/$EXPORTS"
     src="$tmp/$INFRA"
+    CHECK="$tmp/automation/scripts/check-workflows.py"
   else
     git -C "$REPO" merge --ff-only --quiet "origin/$BRANCH"
     say "fast-forwarded ${before:0:8} to ${after:0:8}:"
@@ -112,8 +116,20 @@ fi
 # ---------------------------------------------------------------------------
 REQUIRED_VALUES=(N8N_HOST APPLY_HOST POSTGRES_PASSWORD N8N_ENCRYPTION_KEY AI_API_KEY SLACK_CHANNEL SMTP_FROM)
 
+# Reads one value the way docker compose reads .env: the last line for the name
+# wins, an `export ` prefix is allowed, a quoted value ends at its closing
+# quote, and an unquoted value ends where a space and `#` start a comment.
 env_value() {
-  sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$INFRA_DIR/.env" | tail -n 1 | tr -d "\"'" | sed 's/[[:space:]]*$//'
+  local raw
+  raw=$(sed -n -E "s/^[[:space:]]*(export[[:space:]]+)?$1[[:space:]]*=//p" "$INFRA_DIR/.env" | tail -n 1 | tr -d '\r')
+  raw="${raw#"${raw%%[![:space:]]*}"}"
+  case "$raw" in
+    \"*) raw="${raw#\"}"; raw="${raw%%\"*}" ;;
+    \'*) raw="${raw#\'}"; raw="${raw%%\'*}" ;;
+    *) raw="${raw%%[[:space:]]#*}" ;;
+  esac
+  raw="${raw%"${raw##*[![:space:]]}"}"
+  printf '%s' "$raw"
 }
 
 # DRY_RUN_RECIPIENT receives every suppressed applicant email, and the pipeline
