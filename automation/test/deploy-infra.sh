@@ -77,7 +77,22 @@ dev commit -q -m seed
 dev push -q origin main 2>/dev/null
 
 git clone -q "$WORK/origin.git" "$WORK/box" 2>/dev/null
-echo "N8N_HOST=automation.example.org" > "$WORK/box/automation/infra/.env"
+ENV_FILE="$WORK/box/automation/infra/.env"
+write_env() {  # write_env [NAME=VALUE ...]: a complete .env, with overrides
+  {
+    echo "N8N_HOST=automation.example.org"
+    echo "APPLY_HOST=apply.example.org"
+    echo "POSTGRES_PASSWORD=pg"
+    echo "N8N_ENCRYPTION_KEY=key"
+    echo "AI_API_KEY=ai"
+    echo 'SLACK_CHANNEL="#reviews"'
+    echo "SMTP_FROM=Test <test@example.org>"
+    echo "DRY_RUN=true"
+    echo "DRY_RUN_RECIPIENT=test@example.org"
+    for pair in "$@"; do echo "$pair"; done
+  } > "$ENV_FILE"
+}
+write_env
 
 change() {  # change <path under the repo> <content>
   echo "$2" > "$WORK/dev/$1"
@@ -244,6 +259,28 @@ ran "-f .*/automation/infra/docker-compose.yml .*config --quiet"
 [ "$(git -C "$WORK/box" rev-parse HEAD)" = "$head_before" ] || fail "the checkout moved"
 ran '^sync .*--dry-run'
 
+change automation/infra/docker-compose.yml "services: {g: {}}"
+previous=$(cat "$MARKER")
+write_env "SLACK_CHANNEL="
+run "an empty required value stops the run before anything changes"
+exit_failed
+not_ran ' up -d'
+not_ran '^sync '
+[ "$(cat "$MARKER")" = "$previous" ] || fail "the marker moved"
+[ "$(grep -c 'SLACK_CHANNEL' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not name the empty variable"
+[ "$(grep -c '#reviews' "$WORK/out.log" || true)" -eq 0 ] || fail "a value reached the output"
+
+write_env "DRY_RUN_RECIPIENT="
+run "an empty recipient stops the run while mail is suppressed"
+exit_failed
+[ "$(grep -c 'DRY_RUN_RECIPIENT' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not name DRY_RUN_RECIPIENT"
+
+write_env "DRY_RUN= FALSE " "DRY_RUN_RECIPIENT="
+run "an empty recipient is fine once DRY_RUN is false"
+exit_ok
+ran "$UP_ALL"
+
+write_env
 finished=true
 if [ "$failures" -gt 0 ]; then
   echo "$failures assertion(s) failed"

@@ -105,6 +105,32 @@ if [ "$pull" = true ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Required values. The compose check further down catches a variable that is
+# missing from .env, but an empty one passes it and fails later, inside a
+# workflow. These are the ones the stack cannot work without, so an empty value
+# stops the run before anything changes. Only names are printed, never values.
+# ---------------------------------------------------------------------------
+REQUIRED_VALUES=(N8N_HOST APPLY_HOST POSTGRES_PASSWORD N8N_ENCRYPTION_KEY AI_API_KEY SLACK_CHANNEL SMTP_FROM)
+
+env_value() {
+  sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$INFRA_DIR/.env" | tail -n 1 | tr -d "\"'" | sed 's/[[:space:]]*$//'
+}
+
+# DRY_RUN_RECIPIENT receives every suppressed applicant email, and the pipeline
+# suppresses unless DRY_RUN is exactly false, the same test the render nodes use.
+if [ "$(env_value DRY_RUN | tr '[:upper:]' '[:lower:]')" != false ]; then
+  REQUIRED_VALUES+=(DRY_RUN_RECIPIENT)
+fi
+
+empty=()
+for name in "${REQUIRED_VALUES[@]}"; do
+  [ -n "$(env_value "$name")" ] || empty+=("$name")
+done
+if [ ${#empty[@]} -gt 0 ]; then
+  die "empty or missing in $INFRA_DIR/.env: ${empty[*]}. Set them, then the next run deploys. Nothing was changed"
+fi
+
+# ---------------------------------------------------------------------------
 # Infra. The marker names the last commit whose infra was applied, so a failed
 # apply is retried on the next run instead of being skipped because the
 # fast-forward already happened.
@@ -236,7 +262,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Workflows. The same seven checks CI runs on every pull request. An export
+# Workflows. The same eight checks CI runs on every pull request. An export
 # that fails one is a defect that has reached main before, and it must not
 # reach the instance.
 # ---------------------------------------------------------------------------
