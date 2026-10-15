@@ -21,16 +21,21 @@ flowchart TD
     FORM --> SUM["Automated summary<br>of the answers"]
     SUM --> DEC["A person approves or rejects<br>on Open Collective"]
     DEC --> MAIL(["Applicant receives<br>the decision by email"])
+    SUM --> MOVE(["Or the collective moves<br>to another fiscal host,<br>and no email is sent"])
 
     FORM -->|"no answer<br>after 7 days"| REM["Reminder email"]
     REM -->|"back to the form"| FORM
+    REM -->|"7 more days<br>of silence"| ESC["A person is asked<br>to pick it up"]
+    ESC --> DEC
 
     OC -.-> SL
     AI -.-> SL
     FORM -.-> SL
     REM -.-> SL
+    ESC -.-> SL
     SUM -.-> SL
     DEC -.-> SL
+    MOVE -.-> SL
 
     SL[["One Slack channel<br>one thread per application"]]
 ```
@@ -40,6 +45,9 @@ fiscal host, and a collective applies to a host from that host's page. Later, a
 person approves or rejects that same application in the same place. Open
 Collective holds the decision, and no automated step makes it, per the
 [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
+The applicant then receives an email with the outcome. A collective that moves
+to another fiscal host instead ends the application without one, because OSE
+decided nothing.
 
 The OSE application form is step 2. An application on Open Collective carries
 the collective's description, its links and a short message. The form collects
@@ -56,7 +64,8 @@ applied on Open Collective cannot get past the first page of the form.
 The automation connects the two forms. It picks up each new application and
 emails the invitation to the form. After 7 days of silence it sends one
 reminder. After 7 more days it asks in the Slack thread for a person to pick the
-application up.
+application up. When that person rejects an application whose form never came
+back, the email tells the applicant it was closed for lack of a response.
 
 A model hosted in the EU reads each application twice, and each read returns a
 verdict rather than a description. The first one reads the public project
@@ -73,8 +82,8 @@ a person makes the decision on Open Collective. The workflows run on
 
 Every update about every application appears in one Slack channel. The first
 message about an application starts a thread. Every later step replies in that
-thread: the review, the invitation, the reminder, the answers, the
-summary, and the decision. Reactions on the first message show the current
+thread: the review, the invitation, the reminder, the escalation, the
+answers, the summary, and the outcome. Reactions on the first message show the current
 stage. To follow one application, read its thread. To see all of them, read the
 channel.
 
