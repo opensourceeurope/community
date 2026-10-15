@@ -376,6 +376,9 @@ changes nothing, and the script never edits an existing `.env`. In order, it:
 3. Turns off password login for SSH. It skips this step and warns you when
    `~/.ssh/authorized_keys` holds no key, because turning passwords off without
    a key locks you out.
+   Then it switches on daily security updates, Docker's own packages included,
+   with a reboot at 04:30 when a kernel update needs one. See
+   [Keeping the box patched](#keeping-the-box-patched).
 4. Installs Docker and adds `debian` to the `docker` group.
 5. Clones the repository into `~/community`.
 6. Writes `.env` from `automation/.env.example`, with the hostnames you passed
@@ -1598,6 +1601,67 @@ curl -s https://apply.opensourceeurope.org/ | grep og:image
 
 The table in [Which backup to restore, when](#which-backup-to-restore-when)
 treats a bad upgrade as a restore from the dump the deploy took before it.
+
+### Knowing when an upgrade is due
+
+Nobody has to remember to look. `.github/workflows/check-n8n-version.yml`
+runs every morning and compares the pinned tag with n8n's published security
+advisories. When an advisory with a fix affects the pinned version, it opens
+an issue titled `n8n upgrade due: a security advisory affects the pinned
+version`, listing every advisory and the stable release to move to. It
+updates that issue daily and closes it once a merged bump clears it. To run
+the same check by hand:
+
+```bash
+GITHUB_TOKEN=$(gh auth token) python3 .github/scripts/check-n8n-version.py
+```
+
+Upgrade to the newest release that n8n does not mark as a prerelease. n8n
+tags its newest minor as a prerelease for about a week, and `2.44.x` next to a
+stable `2.43.x` is that. The check names the right one.
+
+How fast to act depends on the advisory:
+
+| Advisory | Upgrade within |
+|---|---|
+| Critical, or high and reachable without logging in | a day |
+| Any other high | a week |
+| Medium or low | the next routine bump, at least monthly |
+
+An advisory with no patched version, such as the one about the Execute
+Command node, is listed but never opens the issue. No upgrade fixes it. That
+node is excluded by n8n's default `NODES_EXCLUDE`, so keep it excluded.
+
+Also watch the source. On `github.com/n8n-io/n8n`, choose **Watch**,
+**Custom**, **Security alerts**, so an advisory reaches you the day it is
+published rather than the next morning.
+
+### The other two images
+
+Postgres and Caddy are pinned to exact versions too. A floating tag such as
+`caddy:2-alpine` is never refreshed here, because the deploy only acts on a tag
+that changed in git, so it would stay at whatever was pulled on install day.
+Dependabot opens a pull request for each new version, configured in
+`.github/dependabot.yml`. Merging it recreates that container within ten
+minutes. A Postgres major version is excluded, because moving from 16 to 17
+needs a dump and restore, not a new tag.
+
+### Keeping the box patched
+
+`bootstrap.sh` configures `unattended-upgrades` to install security updates
+daily, from Debian and from Docker's repository. Debian's default covers only
+Debian, so without the second origin the Docker engine, containerd and runc
+never update, and they are what keeps a container inside its box. When an
+update needs a reboot, the box reboots at 04:30, after the backup, and every
+container starts again by itself. On a box installed before this, run
+`bootstrap.sh units` once to get it.
+
+To see what it installed and whether a reboot is waiting:
+
+```bash
+sudo tail -n 30 /var/log/unattended-upgrades/unattended-upgrades.log
+[ -f /var/run/reboot-required ] && cat /var/run/reboot-required.pkgs
+```
 
 ## Alerts when a workflow fails
 
