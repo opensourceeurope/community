@@ -79,6 +79,7 @@ whoever searches the vault later:
 - `OSE automation — Postgres (n8n db)` (resettable)
 - `OSE — OVHcloud API` (re-issuable with `ovhcloud login`)
 - `OSE automation — backup decryption key` (unrecoverable if lost: every dump in the bucket becomes unreadable)
+- `OSE automation — n8n editor gate` (replaceable with `editor-password.sh --rotate`)
 
 ## Variables this compose file needs
 
@@ -107,8 +108,8 @@ container serves both.
 
 | Name | Who sees it | What it serves |
 |---|---|---|
-| `apply.opensourceeurope.org` | applicants | the OSE application form, at the bare URL |
-| `automation.opensourceeurope.org` | you | the n8n editor, and the OC webhook endpoint |
+| `apply.opensourceeurope.org` | applicants | the OSE application form, at the bare URL, and nothing else |
+| `automation.opensourceeurope.org` | you | the n8n editor behind [the editor password](#the-editor-password), and the OC webhook endpoint |
 
 The applicant's link is just `https://apply.opensourceeurope.org`, with no
 `/form/...` path. n8n serves forms at `/form/<path>` and keeps the editor at
@@ -121,6 +122,52 @@ one, so check a form submission after an upgrade.
 The admin name is not `n8n.` on purpose. Every hostname issued a certificate is
 published in Certificate Transparency logs, so a host named after its software
 advertises what runs there.
+
+### What each name lets through
+
+The database behind the editor holds every applicant's email address, so
+neither name hands n8n the whole internet. The Caddyfile decides, path by path:
+
+| Path | `apply.` | `automation.` |
+|---|---|---|
+| `/`, `/form/*`, `/form-waiting/*` | the form | open |
+| `/static/og_image.png` | served by Caddy | editor password |
+| `/webhook/*` | 404 | open, for Open Collective |
+| `/api/v1/*` | 404 | open, for the deploy and your tools. The API key is the lock |
+| `/healthz` | 404 | open, for the deploy |
+| everything else: the editor, `/signin`, `/rest/*`, `/webhook-test/*` | 404 | editor password |
+
+`automation/test/caddy-routes.sh` runs the real Caddyfile in Docker and checks
+every row of this table. CI runs it on each pull request. A path an n8n
+upgrade adds is closed on both names until someone opens it here.
+
+### The editor password
+
+Caddy asks for a password before a request reaches the editor or n8n's own
+login page. n8n advisories that need no account mostly attack those pages, so
+this keeps them off the internet. It does not replace n8n's login or its
+two-factor authentication, which still apply behind it. Turn two-factor on for
+every n8n account under **Settings**, **Personal**.
+
+The user name is `ose`. The bcrypt hash lives in
+`automation/infra/editor-auth.caddy`, mode 600, which git ignores and the
+Caddyfile imports. `deploy.sh` stops before touching anything when the file is
+missing, because Docker would otherwise mount an empty directory in its place
+and Caddy would not start, taking the form down with it.
+
+`bootstrap.sh` creates it, both on a fresh install and with `units`. To create
+it by hand, or replace it, run this on the box:
+
+```bash
+~/community/automation/infra/editor-password.sh            # create, if missing
+~/community/automation/infra/editor-password.sh --rotate   # replace
+```
+
+The script writes the hash and also the password itself to
+`~/.n8n-editor-password`, mode 600, and prints neither. Copy the password into
+the vault as `OSE automation — n8n editor gate`, then delete the file. A
+rotation takes effect once Caddy restarts, which the script tells you how to
+do.
 
 ## The form's link preview image
 

@@ -59,7 +59,7 @@ dev checkout -q -b main
 
 mkdir -p "$WORK/dev/automation/infra/systemd" "$WORK/dev/automation/infra/public" \
   "$WORK/dev/automation/n8n" "$WORK/dev/automation/scripts"
-echo ".env" > "$WORK/dev/.gitignore"
+printf '.env\nautomation/infra/editor-auth.caddy\n' > "$WORK/dev/.gitignore"
 echo "services: {}" > "$WORK/dev/automation/infra/docker-compose.yml"
 echo "example.org {}" > "$WORK/dev/automation/infra/Caddyfile"
 echo "[Service]" > "$WORK/dev/automation/infra/systemd/ose-test.service"
@@ -331,6 +331,41 @@ change automation/infra/public/og_image.png "png3"
 run "a change that restarts nothing does not wait for n8n"
 exit_ok
 not_ran '/healthz'
+
+AUTH_FILE="$WORK/box/automation/infra/editor-auth.caddy"
+change automation/infra/Caddyfile "example.org {
+	import editor-auth.caddy
+}"
+previous=$(cat "$MARKER")
+run "a Caddyfile that imports a missing editor password stops before anything changes"
+exit_failed
+not_ran "$VALIDATE"
+not_ran ' up -d'
+not_ran '^sync '
+[ "$(cat "$MARKER")" = "$previous" ] || fail "the marker moved"
+[ "$(grep -c 'editor-auth.caddy' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not name editor-auth.caddy"
+[ ! -e "$AUTH_FILE" ] || fail "the run created editor-auth.caddy"
+
+echo "# nothing yet" > "$AUTH_FILE"
+run "an editor password file without basic_auth stops the run"
+exit_failed
+not_ran "$RECREATE_CADDY"
+
+# shellcheck disable=SC2016  # a bcrypt hash is literal dollar signs
+printf 'basic_auth {\n\tose $2a$14$hash\n}\n' > "$AUTH_FILE"
+run "the run applies the Caddyfile once the editor password exists"
+exit_ok
+before "$VALIDATE" "$RECREATE_CADDY"
+marker_is HEAD
+
+change automation/infra/Caddyfile "example.org {
+	import editor-auth.caddy
+	respond 200
+}"
+run "a dry run validates against a copy that has the editor password" --dry-run
+exit_ok
+ran "$VALIDATE"
+not_ran ' up -d'
 
 finished=true
 if [ "$failures" -gt 0 ]; then

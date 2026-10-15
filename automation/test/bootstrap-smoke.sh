@@ -34,7 +34,7 @@ for cmd in systemctl ufw sshd; do
   printf '#!/bin/sh\necho "%s $*" >> /tmp/calls.log\n' "$cmd" > "/usr/local/sbin/$cmd"
 done
 printf '#!/bin/sh\necho "ufw $*" >> /tmp/calls.log\n[ "$1" = status ] && [ -f /tmp/ufw-on ] && echo "Status: active"\n[ "$1" = --force ] && touch /tmp/ufw-on\nexit 0\n' > /usr/local/sbin/ufw
-printf '#!/bin/sh\necho "docker $*" >> /tmp/calls.log\n' > /usr/local/sbin/docker
+printf '#!/bin/sh\necho "docker $*" >> /tmp/calls.log\ncase "$*" in *hash-password*) echo "\\$2a\\$14\\$stubhash" ;; esac\n' > /usr/local/sbin/docker
 chmod 755 /usr/local/sbin/*
 touch /tmp/calls.log && chmod 666 /tmp/calls.log
 
@@ -69,6 +69,16 @@ key=$(sed -n 's/^N8N_ENCRYPTION_KEY=//p' "$ENV")
 [ "${#key}" -eq 64 ] || fail "N8N_ENCRYPTION_KEY is ${#key} characters"
 [ "$(count "$pg" /tmp/first.log)" -eq 0 ] || fail "the Postgres password reached the output"
 [ "$(count "$key" /tmp/first.log)" -eq 0 ] || fail "the encryption key reached the output"
+AUTH=/home/debian/community/automation/infra/editor-auth.caddy
+PW=/home/debian/.n8n-editor-password
+[ -f "$AUTH" ] || fail "no editor-auth.caddy"
+[ "$(stat -c %a "$AUTH")" = 600 ] || fail "editor-auth.caddy is mode $(stat -c %a "$AUTH")"
+[ "$(stat -c %a "$PW")" = 600 ] || fail "the editor password file is mode $(stat -c %a "$PW")"
+[ "$(count '^[[:space:]]+ose [$]2a[$]14[$]stubhash$' "$AUTH")" -eq 1 ] || fail "editor-auth.caddy does not hold the hash"
+editor_pw=$(cat "$PW")
+[ "${#editor_pw}" -ge 32 ] || fail "the editor password is ${#editor_pw} characters"
+[ "$(grep -c -F -e "$editor_pw" /tmp/first.log || true)" -eq 0 ] || fail "the editor password reached the output"
+[ "$(git -C /home/debian/community status --porcelain | grep -c editor-auth || true)" -eq 0 ] || fail "editor-auth.caddy leaves the checkout dirty, which stops every deploy"
 
 for p in git ufw unattended-upgrades curl python3 age; do
   dpkg-query -W -f='${Status}' "$p" | grep -c 'install ok installed' >/dev/null || fail "$p not installed"
@@ -94,6 +104,7 @@ run all --n8n-host other.example.org --apply-host other.example.org > /tmp/secon
 [ "$(count '^installed: ' /tmp/second.log)" -eq 0 ] || fail "the second run installed packages again"
 [ "$(count 'ufw --force enable' /tmp/calls.log)" -eq 0 ] || fail "the second run enabled ufw again"
 [ "$(count 'reload ssh' /tmp/calls.log)" -eq 0 ] || fail "the second run reloaded sshd again"
+[ "$(count 'already exists' /tmp/second.log)" -eq 1 ] || fail "the second run replaced the editor password"
 
 : > /tmp/calls.log
 sudo -u debian sh -c 'umask 077; echo key > /home/debian/.n8n-api-key'

@@ -102,6 +102,11 @@ if [ "$pull" = true ]; then
       automation/scripts automation/.env.example | tar -x -C "$tmp"
     dir="$tmp/$EXPORTS"
     src="$tmp/$INFRA"
+    # Git never holds the editor password's hash, and the copy has to
+    # validate the way the box would.
+    if [ -f "$INFRA_DIR/editor-auth.caddy" ]; then
+      cp -p "$INFRA_DIR/editor-auth.caddy" "$src/"
+    fi
     CHECK="$tmp/automation/scripts/check-workflows.py"
   else
     git -C "$REPO" merge --ff-only --quiet "origin/$BRANCH"
@@ -146,6 +151,17 @@ for name in "${REQUIRED_VALUES[@]}"; do
 done
 if [ ${#empty[@]} -gt 0 ]; then
   die "empty or missing in $INFRA_DIR/.env: ${empty[*]}. Set them, then the next run deploys. Nothing was changed"
+fi
+
+# The Caddyfile puts the editor behind a password whose hash lives in
+# editor-auth.caddy, on the box and never in git. A bind mount of a missing
+# file makes Docker create an empty directory in its place, and Caddy then
+# refuses to start, taking the form down with it. So a missing file stops the
+# run here, before any container is touched.
+if [ "$(grep -c -E '^[[:space:]]*import[[:space:]]+editor-auth\.caddy' "$src/Caddyfile" || true)" -gt 0 ]; then
+  auth="$INFRA_DIR/editor-auth.caddy"
+  [ -f "$auth" ] || die "no $auth, which the Caddyfile imports. Create it as 'The editor password' in README.md describes. Nothing was changed"
+  [ "$(grep -c -E '^[[:space:]]*basic_auth' "$auth" || true)" -gt 0 ] || die "$auth holds no basic_auth block. Nothing was changed"
 fi
 
 # ---------------------------------------------------------------------------

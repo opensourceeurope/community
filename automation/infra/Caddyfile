@@ -11,6 +11,14 @@
 # endpoint. Deliberately not named after n8n: every hostname issued a
 # certificate appears in public Certificate Transparency logs, and there is no
 # reason to advertise which software is behind it.
+#
+# Neither name hands n8n the whole internet. The database behind the editor
+# holds every applicant's email address, and n8n's login page is a target for
+# every n8n advisory that needs no account. So APPLY_HOST answers only the
+# paths an applicant's browser uses, and N8N_HOST puts everything a person
+# uses, the editor and its login page included, behind a second password that
+# Caddy checks before n8n sees the request. That password's hash lives in
+# editor-auth.caddy next to this file, on the box only, never in git.
 
 {$APPLY_HOST} {
 	encode zstd gzip
@@ -26,16 +34,42 @@
 		file_server
 	}
 
-	handle {
-		# Only the bare path is rewritten. Page-to-page posts and assets keep
-		# their own paths, so a multi-page form stays on this hostname.
+	# What the form uses, and nothing else. The page is one HTML document with
+	# its script inline. It posts back to its own URL, and every later page
+	# lives under /form-waiting/, which n8n signs.
+	@form path / /form/* /form-waiting/*
+	handle @form {
+		# Only the bare path is rewritten. Page-to-page posts keep their own
+		# paths, so a multi-page form stays on this hostname.
 		rewrite / /form/apply-ose
 
 		reverse_proxy n8n:5678
+	}
+
+	# The editor, its login page, the REST and public APIs and the webhooks
+	# all used to answer here too. None of them is for applicants.
+	handle {
+		respond 404
 	}
 }
 
 {$N8N_HOST} {
 	encode zstd gzip
-	reverse_proxy n8n:5678
+
+	# Public, because a machine calls each without a person to type a password:
+	# Open Collective's webhook, the form's later pages when n8n links them
+	# here, the public API the deploy and the operator's tools use with an API
+	# key, and the health check the deploy waits on.
+	@machine path /webhook/* /form/* /form-waiting/* /api/v1/* /healthz
+	handle @machine {
+		reverse_proxy n8n:5678
+	}
+
+	# Everything a person uses: the editor, /signin, /rest and the test
+	# webhooks. A browser asks for this password once and sends it with every
+	# request after, the editor's own calls included.
+	handle {
+		import editor-auth.caddy
+		reverse_proxy n8n:5678
+	}
 }
