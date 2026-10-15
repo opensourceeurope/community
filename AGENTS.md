@@ -152,6 +152,21 @@ The rules below are the OSE-specific invariants on top of that skill:
   `Choose the repository URL` in apply 5 do. The line parses under plain `node`
   and `validate_workflow` says nothing, so the only way to see this is to run the
   node inside n8n. `automation/test/readme-fetch.py` does that in a container.
+  One module is the exception: the compose file sets
+  `NODE_FUNCTION_ALLOW_BUILTIN: crypto`, so `require('crypto')` works for the
+  form link token. The `crypto` global is still absent, and no other built-in
+  loads.
+- **The form opens only from the link the invitation sent.** That link
+  carries `t`, an HMAC-SHA256 of the slug under `FORM_LINK_SECRET`, in a hidden
+  field on page 1. `Derive slug` in apply 4 refuses a submission whose `t` does
+  not match the slug it names, before anything touches the row. Without it, a
+  stranger could type another collective's URL, replace its `contact_email` and
+  receive its decision. apply 3 builds the token in `Render form invitation`
+  and `Render reminder`, and all three compute it the same way:
+  `form-link:` plus the lowercase slug, digested as base64url.
+  `automation/test/form-link-token.py` runs the real nodes in n8n and fails
+  when they disagree. Never add a path to the form that skips this check, and
+  never let anything but a link holder write `contact_email`.
 - **Every applicant-facing email site checks `DRY_RUN`, and the check fails safe.** Each
   email node is fed by a render Code node that reads `DRY_RUN`: the pipeline suppresses
   applicant email unless the variable is explicitly and exactly `false`, after trimming

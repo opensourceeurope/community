@@ -49,6 +49,9 @@ services:
       # newer n8n blocks by default. Without this, no workflow can even be
       # activated ("access to env vars denied").
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      # The form link token is an HMAC, and the Code node sandbox only loads a
+      # built-in module it is told to. crypto and nothing else.
+      NODE_FUNCTION_ALLOW_BUILTIN: crypto
       # --- application config (see automation/infra/README.md) ---
       DRY_RUN: ${DRY_RUN}
       DRY_RUN_RECIPIENT: ${DRY_RUN_RECIPIENT}
@@ -61,6 +64,7 @@ services:
       AI_MODEL: ${AI_MODEL}
       AI_BASE_URL: ${AI_BASE_URL}
       FORM_URL_OSE: ${FORM_URL_OSE}
+      FORM_LINK_SECRET: ${FORM_LINK_SECRET}
       SMTP_FROM: ${SMTP_FROM}
       SLACK_CHANNEL: ${SLACK_CHANNEL}
     volumes:

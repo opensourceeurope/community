@@ -116,7 +116,7 @@ fi
 # workflow. These are the ones the stack cannot work without, so an empty value
 # stops the run before anything changes. Only names are printed, never values.
 # ---------------------------------------------------------------------------
-REQUIRED_VALUES=(N8N_HOST APPLY_HOST POSTGRES_PASSWORD N8N_ENCRYPTION_KEY AI_API_KEY SLACK_CHANNEL SMTP_FROM)
+REQUIRED_VALUES=(N8N_HOST APPLY_HOST POSTGRES_PASSWORD N8N_ENCRYPTION_KEY AI_API_KEY SLACK_CHANNEL SMTP_FROM FORM_LINK_SECRET)
 
 # Reads one value the way docker compose reads .env: the last line for the name
 # wins, an `export ` prefix is allowed, a quoted value ends at its closing
