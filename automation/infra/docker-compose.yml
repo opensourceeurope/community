@@ -83,6 +83,9 @@ services:
       # The one file Caddy serves itself, rather than proxying: the link
       # preview image for the application form. See the Caddyfile.
       - ./public:/srv/public:ro
+      # The editor password's hash, which the Caddyfile imports. It exists
+      # only on the box, mode 600, and deploy.sh refuses to run without it.
+      - ./editor-auth.caddy:/etc/caddy/editor-auth.caddy:ro
       - caddy_data:/data
       - caddy_config:/config
 

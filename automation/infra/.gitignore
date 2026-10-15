@@ -1,0 +1,3 @@
+# The editor password hash the Caddyfile imports. It exists on the box only,
+# and an untracked copy would make deploy.sh refuse the checkout as dirty.
+editor-auth.caddy

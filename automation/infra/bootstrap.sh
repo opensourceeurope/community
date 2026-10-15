@@ -204,7 +204,9 @@ next_steps() {
 == What is left, by hand, in this order (each is a section of automation/infra/README.md)
 
   1. Copy N8N_ENCRYPTION_KEY from $INFRA_DIR/.env into the password vault.
-     Losing it makes every stored credential unrecoverable.
+     Losing it makes every stored credential unrecoverable. Copy the editor
+     password from ~/.n8n-editor-password there too, then delete that file.
+     The browser asks for it, user ose, before n8n's own login.
   2. Open https://$N8N_HOST and create the owner account.
   3. Create an n8n API key with workflow:list, workflow:read and workflow:update,
      into ~/.n8n-api-key, mode 600. Then: bootstrap.sh units
@@ -232,6 +234,8 @@ if [ "$mode" = all ]; then
   checkout
   step "config"
   env_file
+  step "editor password"
+  REPO="$REPO" "$INFRA_DIR/editor-password.sh"
   step "stack"
   stack
 else
@@ -241,6 +245,13 @@ fi
 
 step "journal access, for the failure alert"
 join_group systemd-journal
+if [ "$mode" = units ]; then
+  # An existing box gets the editor password here too. The Caddyfile imports
+  # it, and the deploy refuses to run without it.
+  step "editor password"
+  REPO="$REPO" "$INFRA_DIR/editor-password.sh"
+fi
+
 step "systemd units"
 units
 
