@@ -98,6 +98,7 @@ write_env() {  # write_env [LINE ...]: a complete .env, each LINE replacing the 
     "SMTP_FROM=Test <test@example.org>"
     "DRY_RUN=true"
     "DRY_RUN_RECIPIENT=test@example.org"
+    "FORM_LINK_SECRET=0123456789abcdef0123456789abcdef"
   )
   local line name override
   : > "$ENV_FILE"

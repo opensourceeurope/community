@@ -134,6 +134,7 @@ env_file() {
     umask 077
     cp "$REPO/automation/.env.example" "$env"
     sed -i "s|^FORM_URL_OSE=.*|FORM_URL_OSE=https://$APPLY_HOST|" "$env"
+    sed -i "s|^FORM_LINK_SECRET=.*|FORM_LINK_SECRET=$(openssl rand -hex 32)|" "$env"
     {
       echo
       echo "# --- infra (written by bootstrap.sh) ---"

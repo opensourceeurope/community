@@ -67,6 +67,9 @@ pg=$(sed -n 's/^POSTGRES_PASSWORD=//p' "$ENV")
 key=$(sed -n 's/^N8N_ENCRYPTION_KEY=//p' "$ENV")
 [ "${#pg}" -eq 48 ] || fail "POSTGRES_PASSWORD is ${#pg} characters"
 [ "${#key}" -eq 64 ] || fail "N8N_ENCRYPTION_KEY is ${#key} characters"
+link=$(sed -n 's/^FORM_LINK_SECRET=//p' "$ENV")
+[ "${#link}" -eq 64 ] || fail "FORM_LINK_SECRET is ${#link} characters"
+[ "$(count "$link" /tmp/first.log)" -eq 0 ] || fail "the form link secret reached the output"
 [ "$(count "$pg" /tmp/first.log)" -eq 0 ] || fail "the Postgres password reached the output"
 [ "$(count "$key" /tmp/first.log)" -eq 0 ] || fail "the encryption key reached the output"
 

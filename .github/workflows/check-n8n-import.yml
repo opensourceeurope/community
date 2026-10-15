@@ -26,3 +26,9 @@ jobs:
 
       - name: Boot n8n and import the exports
         run: automation/test/n8n-import-check.sh
+
+      # Runs apply 3's link builder and apply 4's link check, as committed, in the
+      # same image, and fails when a link the email sends is refused or a forged
+      # one is accepted.
+      - name: The form accepts only the link the invitation sends
+        run: python3 automation/test/form-link-token.py
