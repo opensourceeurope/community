@@ -1,0 +1,26 @@
+# Pull requests for new versions of the images production runs and of the
+# actions CI uses. Merging an image bump upgrades production within ten
+# minutes, as "Deploying on merge" in automation/infra/README.md describes, so
+# merge one when someone can watch it land.
+version: 2
+updates:
+  - package-ecosystem: docker-compose
+    directory: /automation/infra
+    schedule:
+      interval: weekly
+    ignore:
+      # n8n has its own check, .github/workflows/check-n8n-version.yml, which
+      # knows stable releases from prereleases and fires on advisories.
+      - dependency-name: '*n8n*'
+      # A new Postgres major needs a dump and restore, not a tag bump.
+      - dependency-name: postgres
+        update-types: ['version-update:semver-major']
+    commit-message:
+      prefix: fix
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci

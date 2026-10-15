@@ -1,0 +1,80 @@
+# Opens an issue when a published n8n security advisory affects the version
+# production runs, and closes it once the pinned tag is clear again.
+#
+# n8n is not left to Dependabot. Dependabot cannot tell n8n's stable releases
+# from its prereleases, which share one tag scheme, and it would propose a bump
+# every week whether or not anything was fixed. This check fires on what
+# matters, a fix for a published advisory, and names the stable release to move
+# to. The bump itself is a pull request against docker-compose.yml, and the
+# merge upgrades production, as "Upgrading n8n" in automation/infra/README.md
+# describes.
+name: check n8n version
+
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - automation/infra/docker-compose.yml
+      - .github/scripts/check-n8n-version.py
+      - .github/workflows/check-n8n-version.yml
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: check-n8n-version
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+      TITLE: 'n8n upgrade due: a security advisory affects the pinned version'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Compare the pinned n8n with releases and advisories
+        id: check
+        run: |
+          set +e
+          python3 .github/scripts/check-n8n-version.py > report.md
+          code=$?
+          set -e
+          cat report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -eq 2 ]; then
+            echo "::error::the check could not run"
+            exit 1
+          fi
+          echo "affected=$([ "$code" -eq 1 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Open, update or close the upgrade issue
+        run: |
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq '.[] | "\(.number)\t\(.title)"' \
+            | awk -F '\t' -v t="$TITLE" '$2 == t && !n { print $1; n = 1 }')
+          {
+            cat report.md
+            echo
+            echo "Written by \`.github/workflows/check-n8n-version.yml\`, which updates this issue daily and closes it once the pinned version is clear."
+          } > body.md
+          if [ "${{ steps.check.outputs.affected }}" = true ]; then
+            if [ -n "$existing" ]; then
+              gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --body-file body.md
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body-file body.md
+            fi
+          elif [ -n "$existing" ]; then
+            gh issue close "$existing" --repo "$GITHUB_REPOSITORY" \
+              --comment "The pinned n8n version has no open advisory with a fix any more."
+          fi
