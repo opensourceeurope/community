@@ -48,7 +48,14 @@ tofu apply
 
 The state file stays in this directory and git ignores it. It holds no secret,
 but keep it: it is what lets a later `tofu plan` compare the bucket with this
-module.
+module. Keep it in your main checkout, not in a worktree, because removing the
+worktree deletes it. A `tofu plan` that reports no changes proves a moved copy
+still matches the bucket.
+
+An expired key fails with `denied authentication: API key is expired`. The
+`scw` CLI cannot renew it, because creating a key needs a working one. Generate
+a new key in the console under **IAM**, **API keys**, then run `scw init` and
+answer `Y` when it asks to override the `default` profile.
 
 ## Then
 

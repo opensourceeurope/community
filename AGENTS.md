@@ -65,6 +65,16 @@ This repository is the home for community-related discussions, governance proces
 - A credential belongs on whichever machine actually uses it. Do not move one
   onto a server for the feeling of safety: the API calls are TLS-protected either
   way, and the detour just forces every command through `ssh`.
+- **An agent never fetches a secret for the operator.** n8n's API does not
+  return a credential's value, and a secret an agent reads is in its transcript.
+  Point the operator at the source, such as the Slack app page or the Scaleway
+  console, and have them type it into the file on the machine that reads it.
+  An agent may create a short-lived key for a test, written straight to a
+  mode-600 file and never printed, and must delete that key afterwards even when
+  the test fails.
+- **Never write the box's IP address or provider hostname into this
+  repository.** The repository is public. Use `{VPS_IP}` or `{VPS_HOST}` in
+  commands. The vault holds the real values.
 
 ## Shell Scripts
 
@@ -77,6 +87,14 @@ This repository is the home for community-related discussions, governance proces
   *because* the pattern was found. Use `grep -c` and test the count. This has
   already caused a verification script to declare a perfectly good backup
   broken.
+- **Run `shellcheck` at its default severity before you push.** CI does, and it
+  reports style notes such as SC2001 and SC2015 that `-S info` hides. Two pull
+  requests here failed CI on a note the local run had filtered out.
+- **Commands for the operator's own machine carry no inline `#` comments.** The
+  operator's shell is zsh without `interactivecomments`, so a pasted
+  `grep -c x # expect 3` passes `#`, `expect` and `3` to `grep` as file names.
+  Put the expectation in the prose. Commands that run on the box, in bash, may
+  keep their comments.
 
 ## Automation Workflows (`automation/n8n/`)
 
@@ -411,6 +429,11 @@ The rules below are the OSE-specific invariants on top of that skill:
   `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all five and
   `tofu validate`. Each test fails loudly when a helper dies under `set -e`,
   because a test that stops silently reads as a pass.
+- **Back up off the box before a manual change to it.** A change the deploy
+  does not make for you, such as moving an existing box onto the timer, starts
+  with a fresh dump and a verified copy off the box, in the bucket or by hand as
+  `automation/infra/README.md` describes. The local dumps live on the same disk
+  as the database.
 - **`tofu/vps/` is a template and is never applied to the production box.**
   Applying it orders and bills a new VPS, and destroying it terminates one.
   `tofu/backup-storage/` is applied, from the operator's laptop. State for both

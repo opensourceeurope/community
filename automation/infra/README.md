@@ -19,6 +19,8 @@ all three containers.
 | Admin URL | https://automation.opensourceeurope.org |
 | Applicant URL | https://apply.opensourceeurope.org |
 | Backups | `~/backups/n8n-*.sql.gz`, daily, 14 days. An encrypted copy in the `ose-n8n-backups` bucket at Scaleway `pl-waw`, 90 days |
+| Deploys | `ose-deploy.timer`, every 10 minutes, from `origin/main` |
+| Failure alerts | the reviewers' Slack channel, from `ose-alert@.service` |
 
 ## What do you need to do?
 
@@ -400,11 +402,13 @@ docker compose exec -T postgres psql -U n8n -d n8n -c "\dt" | head
 docker compose logs n8n | grep -ci sqlite      # expect 0
 ```
 
-Then check the certificates and both hostnames from outside the box:
+Then check the certificates and both hostnames from outside the box. The
+admin hostname must answer `200`, and the applicant hostname `404` until the
+form workflow is active:
 
 ```bash
-curl -sS -o /dev/null -w '%{http_code}\n' https://{ADMIN_HOSTNAME}/    # 200
-curl -sS -o /dev/null -w '%{http_code}\n' https://{APPLY_HOSTNAME}/    # 404 until the form workflow is active
+curl -sS -o /dev/null -w '%{http_code}\n' https://{ADMIN_HOSTNAME}/
+curl -sS -o /dev/null -w '%{http_code}\n' https://{APPLY_HOSTNAME}/
 ```
 
 A 404 on the applicant hostname is correct until the form workflow is active.
@@ -552,18 +556,36 @@ wc -c ~/.n8n-api-key   # the key length plus one for the newline
 ### Install the timer
 
 [`bootstrap.sh`](bootstrap.sh) installs the units. On a box that already runs
-the stack, bring the checkout up to date first, because the scripts arrive with
-it. Then install only the units and what they need:
+the stack, follow this order. Nothing in it changes a running container until
+the first real deploy.
 
-```bash
-cd ~/community && git pull
-~/community/automation/infra/bootstrap.sh units
-```
+1. Take a dump and get a verified copy off the box, either in the bucket or as
+   in [Take a verified copy by hand](#take-a-verified-copy-by-hand).
+2. Bring the checkout up to date, because the scripts arrive with it:
+
+   ```bash
+   cd ~/community && git checkout main && git pull --ff-only
+   ```
+
+3. Put the deploy key in `~/.n8n-api-key`, as in
+   [The API key the box uses](#the-api-key-the-box-uses), and the Slack token in
+   `~/.slack-bot-token`, as in [The token](#the-token).
+4. Install the units, then stop the deploy timer at once, so that nothing
+   deploys before you have read a dry run:
+
+   ```bash
+   ~/community/automation/infra/bootstrap.sh units
+   sudo systemctl stop ose-deploy.timer
+   ```
+
+5. Send a test alert, as in [Test the alert](#test-the-alert).
 
 `units` installs `python3`, `curl` and `age`, adds `debian` to
 `systemd-journal`, copies every file in [`systemd/`](systemd/) into
 `/etc/systemd/system/`, and enables the backup timer. It enables the deploy
-timer only when `~/.n8n-api-key` exists.
+timer only when `~/.n8n-api-key` exists, which is why step 4 stops it. The
+`systemd-journal` group applies from the next login, so until then read the
+journal with `sudo journalctl`.
 
 Prove the deploy works before the timer runs it. The dry run reads the
 instance, prints the commits it would fast-forward past, the infra actions and
@@ -574,7 +596,10 @@ the workflows it would change, and changes nothing:
 ```
 
 The dry run checks the compose file and the Caddyfile from `origin/main`, not
-the checkout, so a check that fails here fails the real run too. An error names
+the checkout, so a check that fails here fails the real run too. A variable
+the compose file names but `.env` lacks stops it. Add each one it names. To
+keep today's behaviour for a variable whose workflows fall back to a default,
+write that default explicitly, using the value in `automation/.env.example`. An error names
 the assumption that is wrong: the key file, its mode, `N8N_HOST` in `.env`, a
 required value that is empty, a variable missing from `.env`, or a checkout on
 another branch or with local changes. The export checks run from `origin/main`
@@ -593,10 +618,21 @@ The following commands deploy by hand, twice:
 ~/community/automation/infra/deploy.sh
 ```
 
-The second run must report `no infra changes` and every export as unchanged.
-Anything else means the comparison is wrong, and the timer would rewrite those
-workflows every ten minutes for as long as it is enabled. Stop here if that
-happens.
+The first run of a full apply recreates n8n and Caddy, so the form and the
+editor are away for about a minute. The second run must report
+`no infra changes` and every export as unchanged. Anything else means the
+comparison is wrong, and the timer would rewrite those workflows every ten
+minutes for as long as it is enabled. Stop here if that happens.
+
+Then start the timer, and watch its first run:
+
+```bash
+sudo systemctl start ose-deploy.timer
+sudo journalctl -u ose-deploy.service -f
+```
+
+A merge to `main` is the end-to-end test. Within about ten minutes the journal
+shows the fast-forward to the merge commit, followed by the same report.
 
 ### See what it did
 
@@ -662,8 +698,10 @@ next failure.
 ### The token
 
 The script posts with the Slack bot token that n8n uses for the `slack-bot`
-credential. Copy it from the Slack app's **OAuth & Permissions** page into a
-file that is already mode 600, and check its length rather than its content:
+credential. n8n's API never returns a credential's value, so take it from the
+source: the **Bot User OAuth Token** on the Slack app's **OAuth & Permissions**
+page. Paste it into a file that is already mode 600, and check its length rather
+than its content:
 
 ```bash
 touch ~/.slack-bot-token && chmod 600 ~/.slack-bot-token
@@ -756,12 +794,13 @@ is a committed template whose secret values are empty on purpose, and a key
 written there is published in a public repository. Check the path, not the
 contents.
 
-Set it by editing the file on the box, and watch what you type:
+Set it by editing the file on the box, and watch what you type. In `nano`,
+press `Ctrl+W`, search for `AI_API_KEY`, paste the key after the `=` with no
+spaces and no quotes, then save with `Ctrl+O` and `Enter` and leave with
+`Ctrl+X`. Then recreate n8n so it reads the new value:
 
 ```bash
 ssh -t debian@{VPS_IP} 'nano ~/community/automation/infra/.env'
-# Ctrl+W, search AI_API_KEY, paste the secret key after the = (no spaces, no quotes)
-# Ctrl+O, Enter to save, Ctrl+X to exit
 ssh debian@{VPS_IP} 'cd ~/community/automation/infra && docker compose up -d n8n'
 ```
 
@@ -1262,15 +1301,19 @@ To set it up, follow the steps in order:
 
 1. Create the bucket with the steps in
    [`tofu/backup-storage/README.md`](tofu/backup-storage/README.md).
-2. On your own machine, generate the key pair:
+2. On your own machine, generate the key pair. On macOS, install `age` first
+   with `brew install age`.
 
    ```bash
-   age-keygen -o ose-backup.key
+   age-keygen -o ~/ose-backup.key
+   chmod 600 ~/ose-backup.key
    ```
 
-   The command prints the public key, which starts with `age1`. Store the
-   whole content of `ose-backup.key` in the vault entry named above, then delete
-   the file. The public key is not a secret.
+   The command prints the public key, which starts with `age1` and is not a
+   secret. Store the whole content of the file in the vault entry named above:
+   the `# created`, the `# public key` and the `AGE-SECRET-KEY-1` lines. On
+   macOS, `pbcopy < ~/ose-backup.key` copies it without printing it. Keep the
+   file until step 6 has proved a restore.
 
 3. In the Scaleway console, open **IAM**, **Applications**, choose
    `ose-n8n-backups-uploader`, and generate an API key. Choose
@@ -1304,10 +1347,48 @@ To set it up, follow the steps in order:
    ```
 
    `ok uploaded n8n-{STAMP}.sql.gz.age to ose-n8n-backups` confirms the copy. The
-   object also appears in the bucket in the Scaleway console.
+   object also appears in the bucket in the Scaleway console. The console lists
+   buckets per project, so switch to the `ose-n8n-backups` project to see it.
+
+6. Prove the copy restores. Download that object from the console, then
+   decrypt it on your own machine with the key from step 2. The pipe never
+   writes the decrypted dump to disk:
+
+   ```bash
+   F=~/Downloads/n8n-{STAMP}.sql.gz.age
+   age -d -i ~/ose-backup.key "$F" | gunzip | grep -c '^CREATE TABLE'
+   rm -f "$F"
+   ```
+
+   The count must match the table count of the `ok` line on the box. Then
+   delete `~/ose-backup.key`, because the vault holds it.
 
 Without `~/.config/ose-backup/backup.env`, the script skips the upload with a
 warning and the dumps stay only on the box.
+
+### Take a verified copy by hand
+
+Before a change to the box, or while the bucket is not set up, copy a fresh
+dump to your own machine and prove it arrived whole. On the box, take the dump
+and print its checksum:
+
+```bash
+~/community/automation/infra/backup.sh
+F=$(ls -t ~/backups/n8n-*.sql.gz | head -1); echo "$F"; sha256sum "$F"
+```
+
+On your own machine, copy that file and compare. The two checksums must match
+character for character, and the table count must match the `ok` line:
+
+```bash
+mkdir -p ~/ose-backups && chmod 700 ~/ose-backups
+scp "debian@{VPS_HOST}:{DUMP_PATH}" ~/ose-backups/
+shasum -a 256 ~/ose-backups/n8n-*.sql.gz
+gunzip -c ~/ose-backups/n8n-*.sql.gz | grep -c '^CREATE TABLE'
+```
+
+The copy holds applicant addresses and form answers in the clear, so delete it
+once the bucket holds an encrypted copy of the same day.
 
 ## Which backup to restore, when
 
