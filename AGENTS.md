@@ -211,6 +211,15 @@ The rules below are the OSE-specific invariants on top of that skill:
   `STALE_CLAIM_MINUTES` is claimable again, so a run that dies cannot strand an
   application. The three claim columns, and what separates a claim from a
   result, are in `automation/docs/data-tables.md`.
+- **The column table in `automation/docs/data-tables.md` builds the data
+  table.** `automation/scripts/create-data-table.py` reads it to create
+  `ose_applications` on a new instance, so a column a workflow writes is
+  documented there in the same change, or a fresh install lacks it.
+- **Workflow ids belong to one instance.** The exports name other workflows by
+  id in Execute Workflow targets and in `settings.errorWorkflow`, and
+  `export-workflows.py` maps ids to files. A new instance assigns new ids, so
+  those are replaced in git after the first `deploy.sh --allow-create`, as the
+  first-install checklist in `automation/infra/README.md` says.
 - **An active workflow cannot reference an unpublished sub-workflow.** n8n only
   creates a published version of a workflow the first time it is activated, and
   saving a change to an active workflow requires every sub-workflow its Execute

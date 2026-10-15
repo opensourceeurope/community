@@ -15,6 +15,12 @@ string and parsed by whichever node reads it.
 Column names are final. The workflows in `automation/n8n/` use them verbatim.
 "Written by" names the workflow that owns each column.
 
+The table below is also what creates the table on a new instance.
+`automation/scripts/create-data-table.py` reads the column names and types
+from it and adds whatever the instance lacks. So a new column goes into this
+table in the same pull request as the workflow that writes it, and the type
+cell starts with one of the four types.
+
 | Column | Type | Written by | Notes |
 |---|---|---|---|
 | `slug` | String | intake | Open Collective collective slug. Primary key. |
