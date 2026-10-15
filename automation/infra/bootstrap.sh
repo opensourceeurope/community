@@ -179,6 +179,13 @@ units() {
   sudo systemctl daemon-reload
   note "installed: $(cd "$INFRA_DIR/systemd" && echo *)"
 
+  # The old backup unit had systemd write this log, so it belongs to root, and
+  # backup.sh, which now writes it itself, could not append to it.
+  if [ -e "$HOME/backups/backup.log" ] && [ ! -w "$HOME/backups/backup.log" ]; then
+    sudo chown "$(id -un):$(id -gn)" "$HOME/backups/backup.log"
+    note "gave $(id -un) the backup log the old unit left behind"
+  fi
+
   sudo systemctl enable --now ose-backup.timer >/dev/null 2>&1
   note "ose-backup.timer enabled"
   if [ -f "$HOME/.n8n-api-key" ]; then

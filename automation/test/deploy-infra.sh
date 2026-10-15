@@ -38,7 +38,15 @@ cat > "$BIN/sudo" <<'EOF'
 #!/usr/bin/env bash
 echo "sudo $*" >> "$STUB_LOG"
 EOF
-chmod +x "$BIN/docker" "$BIN/sudo"
+# /healthz answers 502 for the first STUB_HEALTH_FAILS calls, then 200.
+cat > "$BIN/curl" <<'EOF'
+#!/usr/bin/env bash
+echo "curl $*" >> "$STUB_LOG"
+n=$(cat "$STUB_LOG.health" 2>/dev/null || echo 0)
+echo $((n + 1)) > "$STUB_LOG.health"
+if [ "$n" -lt "${STUB_HEALTH_FAILS:-0}" ]; then printf 502; else printf 200; fi
+EOF
+chmod +x "$BIN/docker" "$BIN/sudo" "$BIN/curl"
 
 # --- the repository, as origin and as the box's checkout -------------------
 git init -q --bare "$WORK/origin.git"
@@ -115,6 +123,7 @@ change() {  # change <path under the repo> <content>
 export PATH="$BIN:$PATH"
 export REPO="$WORK/box" N8N_API_URL=https://automation.example.org N8N_API_KEY=stub
 export OSE_DEPLOY_STATE_DIR="$WORK/state" OSE_UNIT_DIR="$WORK/units"
+export OSE_HEALTH_TRIES=3 OSE_HEALTH_INTERVAL=0
 MARKER="$WORK/state/infra-applied"
 
 failures=0
@@ -129,6 +138,7 @@ trap 'rc=$?; [ $rc -eq 0 ] || [ "$finished" = true ] || echo "deploy-infra: the 
 run() {  # run <case name> [deploy.sh arguments]
   case_name="$1"; shift
   : > "$STUB_LOG"
+  rm -f "$STUB_LOG.health"
   rc=0
   "$DEPLOY" "$@" > "$WORK/out.log" 2>&1 || rc=$?
 }
@@ -303,6 +313,25 @@ exit_ok
 ran '^sync '
 
 write_env
+change automation/infra/docker-compose.yml "services: {h: {}}"
+STUB_HEALTH_FAILS=2 run "the sync waits for n8n to come back after a restart"
+exit_ok
+before "$UP_ALL" '/healthz'
+before '/healthz' '^sync '
+[ "$(count '/healthz')" -eq 3 ] || fail "expected two failed health checks and one good one"
+
+change automation/infra/docker-compose.yml "services: {i: {}}"
+STUB_HEALTH_FAILS=9 run "an n8n that never comes back stops before the sync, with the infra recorded"
+exit_failed
+not_ran '^sync '
+marker_is HEAD
+[ "$(grep -c 'did not answer' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not say n8n did not answer"
+
+change automation/infra/public/og_image.png "png3"
+run "a change that restarts nothing does not wait for n8n"
+exit_ok
+not_ran '/healthz'
+
 finished=true
 if [ "$failures" -gt 0 ]; then
   echo "$failures assertion(s) failed"

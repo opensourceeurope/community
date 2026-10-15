@@ -20,7 +20,14 @@ CONFIG="${BACKUP_CONFIG:-$HOME/.config/ose-backup/backup.env}"
 mkdir -p "$DEST"
 # The log file keeps the history, and stdout still reaches the journal, so
 # `journalctl -u ose-backup.service` and the failure alert both see the run.
-exec > >(tee -a "$DEST/backup.log") 2>&1
+# A log left by the old unit belongs to root, because systemd created it. The
+# run must not fail over that, so it logs to the journal only and says why.
+LOG="$DEST/backup.log"
+if [ ! -e "$LOG" ] || [ -w "$LOG" ]; then
+  exec > >(tee -a "$LOG") 2>&1
+else
+  echo "WARNING: $LOG is not writable, so this run is logged to the journal only. Fix: sudo chown $(id -un): $LOG" >&2
+fi
 
 STAMP=$(date -u +%Y-%m-%dT%H%M%SZ)
 OUT="$DEST/n8n-$STAMP.sql.gz"

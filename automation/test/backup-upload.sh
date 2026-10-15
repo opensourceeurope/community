@@ -120,6 +120,17 @@ run "a missing setting is named"
 [ "$(grep -c 'missing: BACKUP_AGE_RECIPIENT' "$WORK/out.log" || true)" -eq 1 ] || fail "the error does not name the setting"
 [ "$(count '^curl ')" -eq 0 ] || fail "uploaded without a recipient"
 
+rm -f "$WORK/backup.env"
+case_name="a root-owned log does not stop the backup"
+: > "$STUB_LOG"; rm -rf "$DEST"; mkdir -p "$DEST"
+echo "old" > "$DEST/backup.log"; chmod 444 "$DEST/backup.log"
+rc=0; "$BACKUP" > "$WORK/out.log" 2>&1 || rc=$?
+[ "$rc" -eq 0 ] || fail "expected exit 0, got $rc"
+[ "$(dumps)" -eq 1 ] || fail "no dump was written"
+[ "$(grep -c 'not writable' "$WORK/out.log" || true)" -gt 0 ] || fail "no warning about the unwritable log"
+[ "$(grep -c -E ' ok .*tables' "$WORK/out.log" || true)" -gt 0 ] || fail "the ok line did not reach the output"
+chmod 644 "$DEST/backup.log"
+
 finished=true
 if [ "$failures" -gt 0 ]; then
   echo "$failures assertion(s) failed"
