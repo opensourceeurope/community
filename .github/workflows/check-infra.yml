@@ -38,6 +38,9 @@ jobs:
       - name: check 8 names every variable a workflow reads
         run: automation/test/check-workflows-env.sh
 
+      - name: create-data-table.py builds the table from the document
+        run: python3 -B automation/test/create-data-table.py
+
       - name: bootstrap.sh builds a Debian 13 box and changes nothing the second time
         run: automation/test/bootstrap-smoke.sh
 

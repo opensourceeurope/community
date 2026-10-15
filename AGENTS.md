@@ -65,6 +65,16 @@ This repository is the home for community-related discussions, governance proces
 - A credential belongs on whichever machine actually uses it. Do not move one
   onto a server for the feeling of safety: the API calls are TLS-protected either
   way, and the detour just forces every command through `ssh`.
+- **An agent never fetches a secret for the operator.** n8n's API does not
+  return a credential's value, and a secret an agent reads is in its transcript.
+  Point the operator at the source, such as the Slack app page or the Scaleway
+  console, and have them type it into the file on the machine that reads it.
+  An agent may create a short-lived key for a test, written straight to a
+  mode-600 file and never printed, and must delete that key afterwards even when
+  the test fails.
+- **Never write the box's IP address or provider hostname into this
+  repository.** The repository is public. Use `{VPS_IP}` or `{VPS_HOST}` in
+  commands. The vault holds the real values.
 
 ## Shell Scripts
 
@@ -77,6 +87,14 @@ This repository is the home for community-related discussions, governance proces
   *because* the pattern was found. Use `grep -c` and test the count. This has
   already caused a verification script to declare a perfectly good backup
   broken.
+- **Run `shellcheck` at its default severity before you push.** CI does, and it
+  reports style notes such as SC2001 and SC2015 that `-S info` hides. Two pull
+  requests here failed CI on a note the local run had filtered out.
+- **Commands for the operator's own machine carry no inline `#` comments.** The
+  operator's shell is zsh without `interactivecomments`, so a pasted
+  `grep -c x # expect 3` passes `#`, `expect` and `3` to `grep` as file names.
+  Put the expectation in the prose. Commands that run on the box, in bash, may
+  keep their comments.
 
 ## Automation Workflows (`automation/n8n/`)
 
@@ -193,6 +211,15 @@ The rules below are the OSE-specific invariants on top of that skill:
   `STALE_CLAIM_MINUTES` is claimable again, so a run that dies cannot strand an
   application. The three claim columns, and what separates a claim from a
   result, are in `automation/docs/data-tables.md`.
+- **The column table in `automation/docs/data-tables.md` builds the data
+  table.** `automation/scripts/create-data-table.py` reads it to create
+  `ose_applications` on a new instance, so a column a workflow writes is
+  documented there in the same change, or a fresh install lacks it.
+- **Workflow ids belong to one instance.** The exports name other workflows by
+  id in Execute Workflow targets and in `settings.errorWorkflow`, and
+  `export-workflows.py` maps ids to files. A new instance assigns new ids, so
+  those are replaced in git after the first `deploy.sh --allow-create`, as the
+  first-install checklist in `automation/infra/README.md` says.
 - **An active workflow cannot reference an unpublished sub-workflow.** n8n only
   creates a published version of a workflow the first time it is activated, and
   saving a change to an active workflow requires every sub-workflow its Execute
@@ -411,6 +438,11 @@ The rules below are the OSE-specific invariants on top of that skill:
   `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all five and
   `tofu validate`. Each test fails loudly when a helper dies under `set -e`,
   because a test that stops silently reads as a pass.
+- **Back up off the box before a manual change to it.** A change the deploy
+  does not make for you, such as moving an existing box onto the timer, starts
+  with a fresh dump and a verified copy off the box, in the bucket or by hand as
+  `automation/infra/README.md` describes. The local dumps live on the same disk
+  as the database.
 - **`tofu/vps/` is a template and is never applied to the production box.**
   Applying it orders and bills a new VPS, and destroying it terminates one.
   `tofu/backup-storage/` is applied, from the operator's laptop. State for both
