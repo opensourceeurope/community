@@ -19,6 +19,8 @@ BRANCH="${BRANCH:-main}"
 KEY_FILE="${N8N_API_KEY_FILE:-$HOME/.n8n-api-key}"
 STATE_DIR="${OSE_DEPLOY_STATE_DIR:-$HOME/.local/state/ose-deploy}"
 UNIT_DIR="${OSE_UNIT_DIR:-/etc/systemd/system}"
+HEALTH_TRIES="${OSE_HEALTH_TRIES:-24}"
+HEALTH_INTERVAL="${OSE_HEALTH_INTERVAL:-5}"
 
 EXPORTS="automation/n8n"
 INFRA="automation/infra"
@@ -176,6 +178,21 @@ running_image() {
   docker inspect --format '{{.Config.Image}}' "$id"
 }
 
+# A recreated n8n takes 30 to 60 seconds to boot, and Caddy answers 502 until
+# it does, so the workflow sync waits for /healthz instead of failing on it.
+wait_for_n8n() {
+  local try code
+  for ((try = 1; try <= HEALTH_TRIES; try++)); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$N8N_API_URL/healthz" || true)
+    if [ "$code" = 200 ]; then
+      say "n8n is up"
+      return 0
+    fi
+    [ "$try" -lt "$HEALTH_TRIES" ] && sleep "$HEALTH_INTERVAL"
+  done
+  return 1
+}
+
 applied=""
 if [ -f "$MARKER" ]; then
   applied=$(tr -d '[:space:]' < "$MARKER")
@@ -274,6 +291,9 @@ else
     say "no infra changes"
   else
     say "infra applied at ${target:0:8}"
+  fi
+  if [ "$compose_changed" = true ] || [ "$caddy_changed" = true ]; then
+    wait_for_n8n || die "n8n did not answer $N8N_API_URL/healthz after the restart. The infra is applied, and the next run syncs the workflows"
   fi
 fi
 
