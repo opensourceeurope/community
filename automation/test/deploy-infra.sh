@@ -34,11 +34,25 @@ case "$*" in
 esac
 exit 0
 EOF
+# sudo records every call and really runs `install`, so the files land in the
+# test's own directories and the next run can compare them with git.
 cat > "$BIN/sudo" <<'EOF'
 #!/usr/bin/env bash
 echo "sudo $*" >> "$STUB_LOG"
+if [ "${1:-}" = install ]; then shift; install "$@"; fi
+exit 0
 EOF
-# /healthz answers 502 for the first STUB_HEALTH_FAILS calls, then 200.
+# systemctl, unprivileged, answers is-enabled. Timers named in
+# STUB_TIMERS_OFF report disabled, every other one enabled.
+cat > "$BIN/systemctl" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = is-enabled ]; then
+  case " ${STUB_TIMERS_OFF:-} " in *" $2 "*) echo disabled; exit 1 ;; esac
+  echo enabled
+fi
+exit 0
+EOF
+# The n8n API answers 502 for the first STUB_HEALTH_FAILS calls, then 200.
 cat > "$BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo "curl $*" >> "$STUB_LOG"
@@ -46,7 +60,7 @@ n=$(cat "$STUB_LOG.health" 2>/dev/null || echo 0)
 echo $((n + 1)) > "$STUB_LOG.health"
 if [ "$n" -lt "${STUB_HEALTH_FAILS:-0}" ]; then printf 502; else printf 200; fi
 EOF
-chmod +x "$BIN/docker" "$BIN/sudo" "$BIN/curl"
+chmod +x "$BIN/docker" "$BIN/sudo" "$BIN/curl" "$BIN/systemctl"
 
 # --- the repository, as origin and as the box's checkout -------------------
 git init -q --bare "$WORK/origin.git"
@@ -128,6 +142,7 @@ export REPO="$WORK/box" N8N_API_URL=https://automation.example.org N8N_API_KEY=s
 export OSE_DEPLOY_STATE_DIR="$WORK/state" OSE_UNIT_DIR="$WORK/units" OSE_APT_CONF_DIR="$WORK/apt"
 export OSE_HEALTH_TRIES=3 OSE_HEALTH_INTERVAL=0
 MARKER="$WORK/state/infra-applied"
+mkdir -p "$WORK/units" "$WORK/apt"
 
 failures=0
 case_name=""
@@ -322,9 +337,11 @@ write_env
 change automation/infra/docker-compose.yml "services: {h: {}}"
 STUB_HEALTH_FAILS=2 run "the sync waits for n8n to come back after a restart"
 exit_ok
-before "$UP_ALL" '/healthz'
-before '/healthz' '^sync '
-[ "$(count '/healthz')" -eq 3 ] || fail "expected two failed health checks and one good one"
+before "$UP_ALL" '/api/v1/workflows'
+before '/api/v1/workflows' '^sync '
+[ "$(count '/api/v1/workflows')" -eq 3 ] || fail "expected two failed API checks and one good one"
+not_ran 'curl .*stub'
+not_ran '/healthz' 
 
 change automation/infra/docker-compose.yml "services: {i: {}}"
 STUB_HEALTH_FAILS=9 run "an n8n that never comes back stops before the sync, with the infra recorded"
@@ -336,7 +353,7 @@ marker_is HEAD
 change automation/infra/public/og_image.png "png3"
 run "a change that restarts nothing does not wait for n8n"
 exit_ok
-not_ran '/healthz'
+not_ran '/api/v1/workflows'
 
 change automation/infra/apt/52ose-unattended-upgrades 'Unattended-Upgrade::Automatic-Reboot-Time "04:30";'
 run "an apt setting change installs that file only, and makes sure the package is there"
@@ -359,6 +376,42 @@ run "a new timer is installed and switched on"
 exit_ok
 before 'sudo systemctl daemon-reload' 'sudo systemctl enable --now ose-test.timer'
 not_ran 'enable --now ose-test.service'
+
+STUB_TIMERS_OFF="ose-test.timer" run "a timer in git that is off is switched on, even with nothing changed"
+exit_ok
+ran 'sudo systemctl enable --now ose-test.timer'
+
+STUB_TIMERS_OFF="ose-test.timer" run "a dry run only says it would switch a timer on" --dry-run
+exit_ok
+not_ran 'enable --now'
+[ "$(grep -c 'would enable ose-test.timer' "$WORK/out.log" || true)" -eq 1 ] || fail "the dry run did not say it would enable the timer"
+
+change automation/infra/systemd/ose-deploy.timer "[Timer]
+OnCalendar=*:0/10"
+STUB_TIMERS_OFF="ose-deploy.timer" run "a deploy timer a person switched off stays off"
+exit_ok
+not_ran 'enable --now ose-deploy.timer'
+
+rm -f "$WORK/apt/20auto-upgrades"
+run "an apt setting missing from the box is put back, even with nothing changed"
+exit_ok
+ran 'sudo install -m 644 .*/apt/20auto-upgrades'
+run "and the run after that touches nothing"
+exit_ok
+not_ran '^sudo '
+
+# deploy.sh changing in git: the run must continue as the new version. The
+# stand-in records how it was started.
+# shellcheck disable=SC2016  # the stand-in expands these when it runs, not now
+printf '#!/usr/bin/env bash\necho "reexec $* REEXEC=${OSE_DEPLOY_REEXEC:-}" >> "$STUB_LOG"\n' > "$WORK/dev/automation/infra/deploy.sh"
+chmod +x "$WORK/dev/automation/infra/deploy.sh"
+dev add -A
+dev commit -q -m "change deploy.sh"
+dev push -q origin main 2>/dev/null
+run "a fast-forward that changes deploy.sh continues as the new version, without pulling again"
+exit_ok
+ran '^reexec --no-pull REEXEC=1$'
+not_ran '^sync '
 
 finished=true
 if [ "$failures" -gt 0 ]; then
