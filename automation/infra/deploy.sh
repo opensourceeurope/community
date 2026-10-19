@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Bring the checkout on this box up to origin/main, apply what changed in
 # automation/infra, then push the workflow exports in automation/n8n into the
-# running n8n.
+# running n8n, after adding any data table column the docs name and the
+# instance lacks.
 #
 # The box pulls. GitHub never pushes, so no n8n API key lives in a GitHub
 # secret and nothing has to be opened inbound for a deploy.
@@ -28,6 +29,7 @@ INFRA="automation/infra"
 INFRA_DIR="$REPO/$INFRA"
 SYNC="$INFRA_DIR/sync-workflows.py"
 CHECK="$REPO/automation/scripts/check-workflows.py"
+TABLE="$REPO/automation/scripts/create-data-table.py"
 BACKUP="$INFRA_DIR/backup.sh"
 MARKER="$STATE_DIR/infra-applied"
 
@@ -104,11 +106,14 @@ if [ "$pull" = true ]; then
     tmp=$(mktemp -d)
     # The checker and .env.example come along, so the export checks compare
     # the new workflows with the new compose file and not the checkout's.
+    # The column table comes along too, because create-data-table.py reads it
+    # from beside itself.
     git -C "$REPO" archive "origin/$BRANCH" "$EXPORTS" "$INFRA" \
-      automation/scripts automation/.env.example | tar -x -C "$tmp"
+      automation/scripts automation/docs automation/.env.example | tar -x -C "$tmp"
     dir="$tmp/$EXPORTS"
     src="$tmp/$INFRA"
     CHECK="$tmp/automation/scripts/check-workflows.py"
+    TABLE="$tmp/automation/scripts/create-data-table.py"
   else
     git -C "$REPO" merge --ff-only --quiet "origin/$BRANCH"
     say "fast-forwarded ${before:0:8} to ${after:0:8}:"
@@ -391,6 +396,22 @@ if [ -f "$CHECK" ]; then
   python3 "$CHECK" "$dir"
 else
   echo "WARNING: no $CHECK, so the export checks did not run" >&2
+fi
+
+# ---------------------------------------------------------------------------
+# Columns. A pull request that adds a column to automation/docs/data-tables.md
+# usually ships the workflow that writes it, and a data table node writing to
+# a column the table lacks fails on every row it touches. So the columns go in
+# first, and a run that cannot add them stops before the workflows change.
+# The script only adds: it never removes, renames or retypes a column.
+# ---------------------------------------------------------------------------
+if [ -f "$TABLE" ]; then
+  table_args=()
+  [ "$dry_run" = true ] && table_args+=(--dry-run)
+  python3 "$TABLE" ${table_args[@]+"${table_args[@]}"} \
+    || die "could not bring the ose_applications columns up to date, so the workflows were not synced. The deploy key needs the dataTable:read and dataTableColumn:create scopes"
+else
+  echo "WARNING: no $TABLE, so no data table column was added" >&2
 fi
 
 python3 "$SYNC" --dir "$dir" ${sync_args[@]+"${sync_args[@]}"}

@@ -595,6 +595,16 @@ It waits for the API rather than `/healthz` because n8n answers `/healthz` a few
 seconds before it mounts `/api/v1`, and a sync started in that gap fails with
 `Cannot GET /api/v1/workflows`.
 
+Before it syncs the workflows, every run adds any column that
+[`automation/docs/data-tables.md`](../docs/data-tables.md) lists and the
+`ose_applications` table lacks, with `create-data-table.py`. A pull request
+that adds a column ships the workflow that writes it, and that workflow would
+fail on every row it touched against a table without the column. So a run
+that cannot add a column stops before the workflows change, and posts an
+alert. The script only adds. It never removes, renames or retypes a column,
+and it does not create a missing table: that is step 4 of the rebuild, with
+your own key.
+
 A run never stops or removes a container, never pulls an image whose tag did
 not change, and never edits `.env`. Deleting a unit file in git does not remove
 it from the box. The run warns, and you remove it by hand.
@@ -620,9 +630,12 @@ file is injected into the n8n container, and nothing in the container reads
 this key.
 
 Create the key in the n8n UI under **Settings**, **n8n API**. Where the dialog
-offers scopes, give it `workflow:list`, `workflow:read` and `workflow:update`
-and nothing else. A key without `workflow:activate` cannot start a workflow even
-if something asks it to.
+offers scopes, give it `workflow:list`, `workflow:read`, `workflow:update`,
+`dataTable:read` and `dataTableColumn:create`, and nothing else. The last two
+let the deploy add the columns a merge brings, as
+[What an infra change does](#what-an-infra-change-does) describes. A key
+without `workflow:activate` cannot start a workflow even if something asks it
+to, and a key without `dataTable:create` cannot create a second table.
 
 The following commands create the file with mode 600 before the key goes in,
 then check its length rather than its content:

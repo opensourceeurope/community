@@ -226,8 +226,8 @@ next_steps() {
   1. Copy N8N_ENCRYPTION_KEY from $INFRA_DIR/.env into the password vault.
      Losing it makes every stored credential unrecoverable.
   2. Open https://$N8N_HOST and create the owner account.
-  3. Create an n8n API key with workflow:list, workflow:read and workflow:update,
-     into ~/.n8n-api-key, mode 600. Then: bootstrap.sh units
+  3. Create an n8n API key with workflow:list, workflow:read, workflow:update,
+     dataTable:read and dataTableColumn:create, into ~/.n8n-api-key, mode 600. Then: bootstrap.sh units
   4. Write the Slack bot token into ~/.slack-bot-token, mode 600, and set
      SLACK_CHANNEL in .env.
   5. Write the backup bucket settings into ~/.config/ose-backup/backup.env, mode 600.

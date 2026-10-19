@@ -73,7 +73,7 @@ dev checkout -q -b main
 
 mkdir -p "$WORK/dev/automation/infra/systemd" "$WORK/dev/automation/infra/public" \
   "$WORK/dev/automation/infra/apt" \
-  "$WORK/dev/automation/n8n" "$WORK/dev/automation/scripts"
+  "$WORK/dev/automation/n8n" "$WORK/dev/automation/scripts" "$WORK/dev/automation/docs"
 echo ".env" > "$WORK/dev/.gitignore"
 echo "services: {}" > "$WORK/dev/automation/infra/docker-compose.yml"
 echo "example.org {}" > "$WORK/dev/automation/infra/Caddyfile"
@@ -82,10 +82,16 @@ echo 'APT::Periodic::Unattended-Upgrade "1";' > "$WORK/dev/automation/infra/apt/
 echo 'Unattended-Upgrade::Automatic-Reboot "true";' > "$WORK/dev/automation/infra/apt/52ose-unattended-upgrades"
 echo "png" > "$WORK/dev/automation/infra/public/og_image.png"
 echo "{}" > "$WORK/dev/automation/n8n/flow.json"
+echo "| Column | Type |" > "$WORK/dev/automation/docs/data-tables.md"
 cat > "$WORK/dev/automation/infra/sync-workflows.py" <<'EOF'
 import os, sys
 open(os.environ["STUB_LOG"], "a").write("sync %s\n" % " ".join(sys.argv[1:]))
 sys.exit(int(os.environ.get("STUB_SYNC_RC", "0")))
+EOF
+cat > "$WORK/dev/automation/scripts/create-data-table.py" <<'EOF'
+import os, sys
+open(os.environ["STUB_LOG"], "a").write("table %s %s\n" % (sys.argv[0], " ".join(sys.argv[1:])))
+sys.exit(int(os.environ.get("STUB_TABLE_RC", "0")))
 EOF
 cat > "$WORK/dev/automation/scripts/check-workflows.py" <<'EOF'
 import os, sys
@@ -199,6 +205,7 @@ ran "$RECREATE_CADDY"
 ran 'sudo install -m 644 .*/systemd/ose-test.service'
 ran 'sudo systemctl daemon-reload'
 ran '^sync '
+before '^table ' '^sync '
 marker_is HEAD
 
 ran 'sudo install -m 644 .*/apt/20auto-upgrades .*/apt/20auto-upgrades$'
@@ -280,6 +287,16 @@ run "the fixed environment applies the pending Caddyfile"
 exit_ok
 ran "$RECREATE_CADDY"
 
+change automation/n8n/flow.json '{"columns": "new"}'
+STUB_TABLE_RC=1 run "a column that cannot be added stops the workflow sync"
+exit_failed
+ran '^table '
+not_ran '^sync '
+[ "$(grep -c 'dataTableColumn:create' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not name the scope"
+run "the next run adds the column and syncs"
+exit_ok
+before '^table ' '^sync '
+
 change automation/infra/docker-compose.yml "services: {e: {}}"
 STUB_SYNC_RC=1 run "a failed workflow sync still records the infra apply"
 exit_failed
@@ -301,6 +318,8 @@ ran "-f .*/automation/infra/docker-compose.yml .*config --quiet"
 ran '^sync .*--dry-run'
 not_ran "^check $WORK/box/"
 ran '^check .*/automation/scripts/check-workflows.py .*/automation/n8n$'
+not_ran "^table $WORK/box/"
+ran '^table .*/automation/scripts/create-data-table.py --dry-run$'
 
 change automation/infra/docker-compose.yml "services: {g: {}}"
 previous=$(cat "$MARKER")
