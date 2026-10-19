@@ -38,7 +38,12 @@ sync_args=()
 die() { echo "ERROR: $*" >&2; exit 1; }
 say() { echo "$(date -u +%FT%TZ) $*"; }
 
+reexec_args=()
 while [ $# -gt 0 ]; do
+  case "$1" in
+    --no-pull) ;;
+    *) reexec_args+=("$1") ;;
+  esac
   case "$1" in
     --dry-run) dry_run=true; sync_args+=(--dry-run) ;;
     --no-pull) pull=false ;;
@@ -108,6 +113,16 @@ if [ "$pull" = true ]; then
     git -C "$REPO" merge --ff-only --quiet "origin/$BRANCH"
     say "fast-forwarded ${before:0:8} to ${after:0:8}:"
     git -C "$REPO" log --oneline --no-decorate "$before..$after" | sed 's/^/  /'
+    # Bash has already loaded this script, so after a fast-forward that changed
+    # it the rest of this run would still be the old version. It would then
+    # record the new commit as applied, and whatever the new version does
+    # differently would never happen. So the run starts again as the new
+    # version, once, without pulling a second time.
+    if [ -z "${OSE_DEPLOY_REEXEC:-}" ] \
+      && [ -n "$(git -C "$REPO" diff --name-only "$before" "$after" -- "$INFRA/deploy.sh")" ]; then
+      say "deploy.sh changed, so the run continues as the new version"
+      OSE_DEPLOY_REEXEC=1 exec "$INFRA_DIR/deploy.sh" --no-pull ${reexec_args[@]+"${reexec_args[@]}"}
+    fi
   fi
 fi
 
@@ -247,6 +262,26 @@ elif [ "$applied" != "$target" ]; then
   done < <(git -C "$REPO" diff --name-only "$applied" "$target" -- "$INFRA")
 fi
 
+# Every run, not only after a change, checks the apt settings against git and
+# that every timer in git is switched on. A run that missed them, such as the
+# one that first brought them while still executing an older deploy.sh, is then
+# repaired by the next run instead of never.
+for f in "$src"/apt/*; do
+  [ -f "$f" ] || continue
+  a=$(basename "$f")
+  cmp -s "$f" "$APT_CONF_DIR/$a" && continue
+  case " ${apt_files[*]-} " in *" $a "*) ;; *) apt_files+=("$a") ;; esac
+done
+timers_off=()
+for f in "$src"/systemd/*.timer; do
+  [ -f "$f" ] || continue
+  t=$(basename "$f")
+  # Switching the deploy timer off is how a person pauses deploys, so a manual
+  # run never switches it back on.
+  [ "$t" = ose-deploy.timer ] && continue
+  [ "$(systemctl is-enabled "$t" 2>/dev/null || true)" = enabled ] || timers_off+=("$t")
+done
+
 if [ "$compose_changed" = true ] || [ "$caddy_changed" = true ]; then
   # Compose only warns about a variable missing from .env and substitutes an
   # empty string, which is how a new variable would reach production empty.
@@ -285,7 +320,8 @@ if [ "$dry_run" = true ]; then
   [ "$caddy_changed" = true ] && say "would recreate caddy"
   for u in ${units[@]+"${units[@]}"}; do say "would install $u"; done
   for a in ${apt_files[@]+"${apt_files[@]}"}; do say "would install apt setting $a"; done
-  if [ "$compose_changed" = false ] && [ "$caddy_changed" = false ] && [ ${#units[@]} -eq 0 ] && [ ${#apt_files[@]} -eq 0 ]; then
+  for t in ${timers_off[@]+"${timers_off[@]}"}; do say "would enable $t"; done
+  if [ "$compose_changed" = false ] && [ "$caddy_changed" = false ] && [ ${#units[@]} -eq 0 ] && [ ${#apt_files[@]} -eq 0 ] && [ ${#timers_off[@]} -eq 0 ]; then
     say "no infra changes"
   fi
 else
@@ -307,16 +343,20 @@ else
       say "installed $u"
     done
     sudo systemctl daemon-reload
-    # A timer that arrives through git is switched on here, so a new one needs
-    # nobody on the box. Enabling one that already runs changes nothing.
+    # A timer that was installed just now is not enabled yet either.
     for u in "${units[@]}"; do
       case "$u" in
-        *.timer)
-          sudo systemctl enable --now "$u" >/dev/null 2>&1
-          say "enabled $u" ;;
+        ose-deploy.timer) ;;
+        *.timer) case " ${timers_off[*]-} " in *" $u "*) ;; *) timers_off+=("$u") ;; esac ;;
       esac
     done
   fi
+  # A timer that arrives through git is switched on here, so nobody does it on
+  # the box. Only a timer that is not enabled is touched.
+  for t in ${timers_off[@]+"${timers_off[@]}"}; do
+    sudo systemctl enable --now "$t" >/dev/null 2>&1
+    say "enabled $t"
+  done
   if [ ${#apt_files[@]} -gt 0 ]; then
     # The box patches itself: security updates daily, Docker's packages
     # included, and a reboot when a kernel update needs one. The settings live
@@ -332,7 +372,7 @@ else
   fi
   mkdir -p "$STATE_DIR"
   echo "$target" > "$MARKER"
-  if [ "$compose_changed" = false ] && [ "$caddy_changed" = false ] && [ ${#units[@]} -eq 0 ] && [ ${#apt_files[@]} -eq 0 ]; then
+  if [ "$compose_changed" = false ] && [ "$caddy_changed" = false ] && [ ${#units[@]} -eq 0 ] && [ ${#apt_files[@]} -eq 0 ] && [ ${#timers_off[@]} -eq 0 ]; then
     say "no infra changes"
   else
     say "infra applied at ${target:0:8}"

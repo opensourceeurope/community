@@ -420,7 +420,10 @@ The rules below are the OSE-specific invariants on top of that skill:
 - **Nothing is set up on the box by hand.** Every change reaches it through
   git and the deploy. Something the box needs, a unit, a timer or a setting,
   is a file in `automation/infra/` that `deploy.sh` installs. Never write "run
-  this on the box" into a pull request as a step.
+  this on the box" into a pull request as a step. Prefer a check that runs on
+  every deploy over one that runs only when a file changes: the run that first
+  brings a feature is still executing the previous `deploy.sh`, which is how
+  the advisory timer arrived installed but never switched on.
 - **A new variable in the compose file must reach the box's `.env` before the
   merge.** `deploy.sh` never edits `.env`. It refuses to apply a compose file
   that names a variable `.env` lacks, and it stops the whole run, so workflow

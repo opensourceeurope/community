@@ -549,6 +549,17 @@ changed path triggers:
 | `Caddyfile` | Checks the file, then recreates the `caddy` container |
 | `systemd/*` | Copies each changed unit into `/etc/systemd/system/`, reloads systemd, and enables and starts each timer it copied |
 | `apt/*` | Installs `unattended-upgrades` if it is missing, then copies each changed file into `/etc/apt/apt.conf.d/` |
+
+Two things are checked on every run, changed or not, because a run can miss
+them: each timer in `systemd/` must be enabled, and each file in `apt/` must
+match the copy in `/etc/apt/apt.conf.d/`. A run puts right whichever is not.
+`ose-deploy.timer` is the exception: switching it off is how a person pauses
+deploys, so the deploy never switches it back on.
+
+When a fast-forward changes `deploy.sh` itself, the run starts again as the new
+version before it applies anything. Bash has already read the old script, and
+without the restart the old version would apply the new commit and record it,
+so whatever the new version does differently would never happen.
 | `public/*` | Nothing. The directory is mounted, so the pull alone makes it live |
 | a script | Nothing. The units run the scripts out of the checkout |
 
