@@ -44,6 +44,8 @@ cell starts with one of the four types.
 | `ai_model` | String | AI review | The model identifier used for this review (`AI_MODEL`), so old verdicts stay traceable after a model or prompt change. |
 | `ai_reviewed_at` | Date | AI review | When the review ran. |
 | `contact_email` | String | form workflow | Given by the applicant on form page 1. Distinct from `applicant_email`. This is who the applicant says to contact, which may differ from the address the OC application came from. Personal data. |
+| `alternative_admin_name` | String | form workflow | Optional, from form page 6: someone else who could also administer the collective. Empty when the applicant left it blank. Personal data. |
+| `alternative_admin_email` | String | form workflow | Optional, from form page 6: that second admin's email address. Empty when the applicant left it blank. Personal data. |
 | `form_invite_claimed_at` | Date | follow-up | When apply 3 took this row to work on. A claim, not a result. See "The three claim columns" below. |
 | `form_invited_at` | Date | follow-up | When the invitation email was sent. The template varies by verdict, and every reviewed application is invited. On a rejection, this column and `form_submitted_at` choose the closing email: invited and never submitted gets the no-response rejection. |
 | `form_reminded_at` | Date | follow-up | When the `reminder` email was sent, after silence following the invite. Driven by `REMINDER_AFTER_MINUTES` and `SWEEP_CRON`. |
@@ -182,8 +184,12 @@ a page that does not carry the question at all, so on that branch
 
 Page 5 has `activities`, `mission_fit` and `notes`.
 
-Page 6 shows every answer back for correction, and asks one question of its
-own: `form_feedback`, where the applicant says how the form could be better.
+Page 6 shows every answer back for correction. It then suggests that the
+collective have more than one admin and asks, optionally, for a second admin's
+name and email. Those two are stored as the columns `alternative_admin_name`
+and `alternative_admin_email` rather than in `answers`, so like `contact_email`
+they reach neither the Slack thread nor the model. Last comes one question of
+its own: `form_feedback`, where the applicant says how the form could be better.
 It is optional, and it is not part of the application. The Slack thread reply
 carries it so that a person reads it. The summary prompt in apply 5 names the
 keys it sends to the model, and this one is kept out of that list.
@@ -216,8 +222,9 @@ the workflow derives the slug from it to look up the row keyed on `slug`.
 
 ## Personal data
 
-`applicant_email` and `contact_email` are the only personal data in this
-table. Neither is ever sent to the model. `automation/prompts/review.user.md`
+`applicant_email`, `contact_email`, `alternative_admin_name` and
+`alternative_admin_email` are the only personal data in this table. None of
+them is ever sent to the model. `automation/prompts/review.user.md`
 sends only `org_name`, `collective_name`, `collective_slug`, `description`,
 `long_description`, `repository_url`, `website_url` and
 `application_message`. No name and no email address, for either the applicant

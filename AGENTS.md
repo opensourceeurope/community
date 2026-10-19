@@ -117,7 +117,8 @@ The rules below are the OSE-specific invariants on top of that skill:
   public Open Collective page. The summary in apply 5 additionally sees the
   applicant's form answers and the project's README, because a reviewer needs
   the form read for them and the form is where the thin descriptions get filled
-  in. `contact_email` and `applicant_email` are never included: every render
+  in. `contact_email`, `applicant_email` and the two `alternative_admin_*`
+  columns are never included: every render
   node selects from a fixed key list rather than iterating the row, so sending
   an address takes a deliberate edit rather than an oversight. State the rule
   this way round and not as "no personal data reaches the model", which is a
