@@ -1,0 +1,4 @@
+// Installed into /etc/apt/apt.conf.d/ by deploy.sh and bootstrap.sh.
+// Refresh the package lists and run unattended-upgrades once a day.
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";

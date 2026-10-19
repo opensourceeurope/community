@@ -19,6 +19,7 @@ BRANCH="${BRANCH:-main}"
 KEY_FILE="${N8N_API_KEY_FILE:-$HOME/.n8n-api-key}"
 STATE_DIR="${OSE_DEPLOY_STATE_DIR:-$HOME/.local/state/ose-deploy}"
 UNIT_DIR="${OSE_UNIT_DIR:-/etc/systemd/system}"
+APT_CONF_DIR="${OSE_APT_CONF_DIR:-/etc/apt/apt.conf.d}"
 HEALTH_TRIES="${OSE_HEALTH_TRIES:-24}"
 HEALTH_INTERVAL="${OSE_HEALTH_INTERVAL:-5}"
 
@@ -205,11 +206,13 @@ fi
 compose_changed=false
 caddy_changed=false
 units=()
+apt_files=()
 if [ -z "$applied" ]; then
   say "no infra marker, so this is a full apply"
   compose_changed=true
   caddy_changed=true
   for f in "$src"/systemd/*; do units+=("$(basename "$f")"); done
+  for f in "$src"/apt/*; do [ -f "$f" ] && apt_files+=("$(basename "$f")"); done
 elif [ "$applied" != "$target" ]; then
   while IFS= read -r path; do
     case "$path" in
@@ -220,6 +223,12 @@ elif [ "$applied" != "$target" ]; then
           units+=("$(basename "$path")")
         else
           echo "WARNING: $path was deleted in git. Disable and remove it from $UNIT_DIR by hand" >&2
+        fi ;;
+      "$INFRA"/apt/*)
+        if [ -f "$src/apt/$(basename "$path")" ]; then
+          apt_files+=("$(basename "$path")")
+        else
+          echo "WARNING: $path was deleted in git. Remove it from $APT_CONF_DIR by hand" >&2
         fi ;;
     esac
   done < <(git -C "$REPO" diff --name-only "$applied" "$target" -- "$INFRA")
@@ -262,7 +271,8 @@ if [ "$dry_run" = true ]; then
   [ "$n8n_upgrade" = true ] && say "would back up the database first, because the n8n image changes"
   [ "$caddy_changed" = true ] && say "would recreate caddy"
   for u in ${units[@]+"${units[@]}"}; do say "would install $u"; done
-  if [ "$compose_changed" = false ] && [ "$caddy_changed" = false ] && [ ${#units[@]} -eq 0 ]; then
+  for a in ${apt_files[@]+"${apt_files[@]}"}; do say "would install apt setting $a"; done
+  if [ "$compose_changed" = false ] && [ "$caddy_changed" = false ] && [ ${#units[@]} -eq 0 ] && [ ${#apt_files[@]} -eq 0 ]; then
     say "no infra changes"
   fi
 else
@@ -285,9 +295,22 @@ else
     done
     sudo systemctl daemon-reload
   fi
+  if [ ${#apt_files[@]} -gt 0 ]; then
+    # The box patches itself: security updates daily, Docker's packages
+    # included, and a reboot when a kernel update needs one. The settings live
+    # in git like everything else, so nobody configures them by hand.
+    if [ "$(dpkg-query -W -f='${Status}' unattended-upgrades 2>/dev/null | grep -c 'install ok installed' || true)" -eq 0 ]; then
+      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unattended-upgrades
+      say "installed unattended-upgrades"
+    fi
+    for a in "${apt_files[@]}"; do
+      sudo install -m 644 "$src/apt/$a" "$APT_CONF_DIR/$a"
+      say "installed apt setting $a"
+    done
+  fi
   mkdir -p "$STATE_DIR"
   echo "$target" > "$MARKER"
-  if [ "$compose_changed" = false ] && [ "$caddy_changed" = false ] && [ ${#units[@]} -eq 0 ]; then
+  if [ "$compose_changed" = false ] && [ "$caddy_changed" = false ] && [ ${#units[@]} -eq 0 ] && [ ${#apt_files[@]} -eq 0 ]; then
     say "no infra changes"
   else
     say "infra applied at ${target:0:8}"

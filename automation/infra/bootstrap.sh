@@ -102,30 +102,21 @@ ssh_hardening() {
 }
 
 auto_updates() {
-  # Debian's unattended-upgrades installs Debian security updates only. Docker
-  # comes from Docker's own repository, so without the origin below the engine,
-  # containerd and runc never update, and they are what keeps a container
-  # inside its box. A kernel update needs a reboot to take effect, so one is
-  # taken at 04:30 when an update asks for it, after the 03:17 backup. Every
-  # container has restart: unless-stopped and comes back by itself.
-  local conf=/etc/apt/apt.conf.d/52ose-unattended-upgrades
-  local periodic=/etc/apt/apt.conf.d/20auto-upgrades
-  local want want_periodic
-  want=$(printf '%s\n' \
-    'Unattended-Upgrade::Origins-Pattern:: "origin=Docker,label=Docker CE";' \
-    'Unattended-Upgrade::Automatic-Reboot "true";' \
-    'Unattended-Upgrade::Automatic-Reboot-Time "04:30";')
-  want_periodic=$(printf '%s\n' \
-    'APT::Periodic::Update-Package-Lists "1";' \
-    'APT::Periodic::Unattended-Upgrade "1";')
-  if [ "$(sudo cat "$conf" 2>/dev/null || true)" = "$want" ] \
-    && [ "$(sudo cat "$periodic" 2>/dev/null || true)" = "$want_periodic" ]; then
+  # The settings live in automation/infra/apt/, and deploy.sh installs them
+  # again whenever they change in git. See the comments in those files.
+  local f changed=0
+  for f in "$INFRA_DIR"/apt/*; do
+    if sudo cmp -s "$f" "/etc/apt/apt.conf.d/$(basename "$f")"; then
+      continue
+    fi
+    sudo install -m 644 "$f" "/etc/apt/apt.conf.d/$(basename "$f")"
+    changed=1
+  done
+  if [ "$changed" -eq 0 ]; then
     note "automatic security updates already configured"
-    return
+  else
+    note "daily security updates on, Docker's packages included, reboot at 04:30 when one is needed"
   fi
-  printf '%s\n' "$want" | sudo tee "$conf" >/dev/null
-  printf '%s\n' "$want_periodic" | sudo tee "$periodic" >/dev/null
-  note "daily security updates on, Docker's packages included, reboot at 04:30 when one is needed"
 }
 
 docker_engine() {
@@ -253,12 +244,12 @@ if [ "$mode" = all ]; then
   firewall
   step "ssh"
   ssh_hardening
-  step "automatic security updates"
-  auto_updates
   step "docker"
   docker_engine
   step "checkout"
   checkout
+  step "automatic security updates"
+  auto_updates
   step "config"
   env_file
   step "stack"

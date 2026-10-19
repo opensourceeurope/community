@@ -1648,13 +1648,17 @@ needs a dump and restore, not a new tag.
 
 ### Keeping the box patched
 
-`bootstrap.sh` configures `unattended-upgrades` to install security updates
-daily, from Debian and from Docker's repository. Debian's default covers only
-Debian, so without the second origin the Docker engine, containerd and runc
-never update, and they are what keeps a container inside its box. When an
-update needs a reboot, the box reboots at 04:30, after the backup, and every
-container starts again by itself. On a box installed before this, run
-`bootstrap.sh units` once to get it.
+The box installs security updates daily, from Debian and from Docker's
+repository. Debian's default covers only Debian, so without the second origin
+the Docker engine, containerd and runc never update, and they are what keeps a
+container inside its box. When an update needs a reboot, the box reboots at
+04:30, after the backup, and every container starts again by itself.
+
+The settings are the files in [`apt/`](apt/). The deploy installs them into
+`/etc/apt/apt.conf.d/` whenever they change in git, and installs
+`unattended-upgrades` first if it is missing, the same way it installs the
+systemd units. `bootstrap.sh` installs them on a new box. Nobody configures
+this by hand.
 
 To see what it installed and whether a reboot is waiting:
 

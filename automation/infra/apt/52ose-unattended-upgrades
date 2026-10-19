@@ -1,0 +1,11 @@
+// Installed into /etc/apt/apt.conf.d/ by deploy.sh and bootstrap.sh.
+//
+// Debian's unattended-upgrades installs Debian security updates only. Docker
+// comes from Docker's own repository, so without this origin the engine,
+// containerd and runc never update, and they are what keeps a container inside
+// its box. A kernel update needs a reboot to take effect, so one is taken at
+// 04:30 when an update asks for it, after the 03:17 backup. Every container has
+// restart: unless-stopped and comes back by itself.
+Unattended-Upgrade::Origins-Pattern:: "origin=Docker,label=Docker CE";
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "04:30";
