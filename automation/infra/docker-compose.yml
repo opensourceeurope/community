@@ -26,7 +26,7 @@ services:
     # unattended. Bump this deliberately; see automation/infra/README.md.
     # ose-n8n-advisories.timer alerts Slack daily while a published security
     # advisory with a fix affects this tag.
-    image: docker.n8n.io/n8nio/n8n:2.43.6
+    image: docker.n8n.io/n8nio/n8n:2.43.8
     restart: unless-stopped
     depends_on:
       postgres:
@@ -60,6 +60,11 @@ services:
       # Usage telemetry to n8n. The editor shows applicant rows, and nothing
       # about this instance needs to leave the box to make it work.
       N8N_DIAGNOSTICS_ENABLED: "false"
+      # n8n's own isolation guide clears these too. Without them the editor
+      # can still load n8n's tracking scripts in the browser.
+      EXTERNAL_FRONTEND_HOOKS_URLS: ""
+      N8N_DIAGNOSTICS_CONFIG_FRONTEND: ""
+      N8N_DIAGNOSTICS_CONFIG_BACKEND: ""
       N8N_PERSONALIZATION_ENABLED: "false"
       # Every node here is a core node. A community package is third-party
       # code running inside n8n with access to every credential.
