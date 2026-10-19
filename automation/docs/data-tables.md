@@ -51,7 +51,7 @@ cell starts with one of the four types.
 | `answers` | String (JSON) | form workflow | Form responses so far. Shape below. |
 | `form_submitted_at` | Date | form workflow | When the final form page was submitted. On a rejection, see `form_invited_at`. |
 | `slack_notified_at` | Date | form workflow and follow-up | When the pipeline reached a stage that tells Slack about this row, either ready for evaluation or an escalation. It records the attempt, not the delivery: a Slack post that failed or was skipped for a row with no thread still stamps it, because the stage advanced either way. Nothing reads it. |
-| `decision` | String | intake (decision branch) | `approved`, `rejected` or `resigned`. The first two are the human decision made on Open Collective. The third is read off the same query and is not a decision at all. See "The three outcomes of the status query" below. |
+| `decision` | String | intake (decision branch) | `approved`, `rejected` or `resigned`. The first two are the human decision made on Open Collective. The third is read off the same query and is not a decision at all. See "What the status query can return" below. |
 | `decided_at` | Date | intake (decision branch) | When that decision was recorded. |
 | `dry_run` | Boolean | every workflow that emails an applicant | Set when an applicant-facing email for this row went to `DRY_RUN_RECIPIENT` instead of the applicant, so a row that advanced during a rehearsal is visibly a rehearsal. Slack messages are internal and always send, so they never set it. |
 | `freshdesk_ticket_id` | String | none | Reserved for a possible future Freshdesk integration. No workflow writes it. |
@@ -110,13 +110,13 @@ In order through a normal application, plus the escalation branch:
 7. `approved`: the terminal decision, recorded from Open Collective.
 8. `rejected`: the terminal decision, recorded from Open Collective.
 9. `resigned`: terminal, and not a decision. The collective is hosted
-   somewhere other than OSE, so the application can end in neither an
-   approval nor a rejection here.
+   somewhere other than OSE, or no longer exists on Open Collective, so the
+   application can end in neither an approval nor a rejection here.
 10. `escalated`: no activity within `ESCALATE_AFTER_MINUTES` of the reminder,
    so the sweep flags it for a human. Not terminal. An escalated row resumes
    its normal path once the applicant acts.
 
-### The three outcomes of the status query
+### What the status query can return
 
 The decision branch of apply 1a and apply 1b asks Open Collective for the
 applicant's own public account fields, and reads `host` and `isApproved` off
