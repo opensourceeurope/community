@@ -21,7 +21,14 @@ IMAGE=$(sed -n -E 's/^[[:space:]]*image:[[:space:]]*(caddy:[^[:space:]]+).*/\1/p
 AUTH="$INFRA/editor-auth.caddy"
 hashes=$(grep -c -E '^[[:space:]]+ose [$]2[aby][$][0-9]{2}[$][./A-Za-z0-9]{53}[[:space:]]*$' "$AUTH" || true)
 if [ "$hashes" -ne 1 ]; then
-  echo "FAIL: $AUTH holds no bcrypt hash for ose. Generate one as 'The editor password' in automation/infra/README.md describes"
+  echo "FAIL: $AUTH holds no bcrypt hash for ose. Generate one as 'The editor gate' in automation/infra/README.md describes"
+  exit 1
+fi
+# One user and nothing else: a second line inside basic_auth would be a second
+# way in that nobody reviewed.
+users=$(sed -n '/^[[:space:]]*basic_auth/,/^[[:space:]]*}/p' "$AUTH" | grep -c -v -E '^[[:space:]]*(basic_auth|}|#|$)' || true)
+if [ "$users" -ne 1 ]; then
+  echo "FAIL: $AUTH has $users credential lines inside basic_auth. It must have exactly one, for ose"
   exit 1
 fi
 cost=$(sed -n -E 's/^[[:space:]]+ose [$]2[aby][$]([0-9]{2})[$].*/\1/p' "$AUTH")
@@ -45,7 +52,7 @@ docker network create "$RUN" >/dev/null
 
 # The stand-in for n8n echoes the request line, so a test can see both that the
 # request got through and what the rewrite turned it into.
-printf ':5678 {\n\trespond "upstream {method} {uri}" 200\n}\n' > "$WORK/upstream.caddy"
+printf ':5678 {\n\trespond "upstream {method} {uri} auth={header.Authorization}" 200\n}\n' > "$WORK/upstream.caddy"
 docker run -d --name "$RUN-n8n" --network "$RUN" --network-alias n8n \
   -v "$WORK/upstream.caddy:/etc/caddy/Caddyfile:ro" "$IMAGE" >/dev/null
 
@@ -66,7 +73,9 @@ fail() { echo "FAIL: $*"; failures=$((failures + 1)); }
 fetch() {
   local host=$1 method=$2 path=$3
   shift 3
-  curl -sk --max-time 10 -X "$method" --resolve "$host.localhost:$PORT:127.0.0.1" \
+  # --path-as-is: curl would otherwise collapse ../ itself, and the dot-segment
+  # cases would test nothing.
+  curl -sk --path-as-is --max-time 10 -X "$method" --resolve "$host.localhost:$PORT:127.0.0.1" \
     -o "$WORK/body" -w '%{http_code}' "$@" "https://$host.localhost:$PORT$path" > "$WORK/code" || true
   printf '%s %s' "$(cat "$WORK/code")" "$(cat "$WORK/body" 2>/dev/null)"
 }
@@ -126,6 +135,26 @@ expect admin GET / 401 "" -- -u "ose:wrong-password"
 expect admin GET /signin 200 "upstream GET /signin" -- "${AUTH[@]}"
 expect admin POST /rest/login 200 "upstream POST /rest/login" -- "${AUTH[@]}"
 expect admin GET /rest/push 200 "upstream GET /rest/push" -- "${AUTH[@]}"
+
+echo "== a path that is not clean is refused on both hosts"
+# Caddy matches the cleaned path but forwards the raw one, so each of these
+# would otherwise pass an open rule and land on a router n8n matches by prefix.
+for p in "/webhook-test/x/../../form/x" "/mcp/x/../../form/x" "/form-test/x/../../form/x" \
+  "/rest/settings/../../form/x" "/rest/settings/../../api/v1/x" "/webhook-test/x/%2e%2e/%2e%2e/form/x" \
+  "/webhook-test%2f..%2f..%2fform/x" "/webhook-test%5cx" "//rest/settings" "/form/x;y" "/api/v1/..%2frest"; do
+  expect apply GET "$p" 400
+  expect admin GET "$p" 400
+done
+# An encoded slash with no dot segment cleans to an ordinary path, so it gets
+# that path's answer: closed on apply, gated on admin.
+expect apply GET "/webhook-test%2fx" 404
+expect admin GET "/webhook-test%2fx" 401
+
+echo "== the gate password never reaches n8n"
+expect admin GET /signin 200 "upstream GET /signin auth=" -- "${AUTH[@]}"
+expect admin GET /form/apply-ose 200 "upstream GET /form/apply-ose auth=" -- "${AUTH[@]}"
+expect admin GET /api/v1/workflows 200 "upstream GET /api/v1/workflows auth=Bearer x" -- -H "Authorization: Bearer x"
+expect admin GET /api/v1/openapi.yml 404
 
 if [ "$failures" -gt 0 ]; then
   echo "caddy-routes: $failures failure(s)"

@@ -137,6 +137,13 @@ The Caddyfile decides, path by path:
 | `/api/v1/*` | 404 | open, for the deploy and your tools. The API key is the lock |
 | `/healthz` | 404 | open, for the deploy |
 | everything else: the editor, `/signin`, `/rest/*`, `/webhook-test/*` | 404 | editor gate |
+| a path with `..`, an encoded `.` or `\`, `//` or `;` | 400 | 400 |
+
+The last row is there because Caddy matches the cleaned path but hands n8n the
+raw one, so `/webhook-test/x/../../form/x` would pass the `/form/*` rule and
+still reach n8n's test-webhook router. No real link or API call needs such a
+path. The gate password also stops at Caddy: it is removed from every request
+before n8n sees it, so a Webhook node can never record it.
 
 `automation/test/caddy-routes.sh` runs the real Caddyfile in Docker and checks
 every row of this table. CI runs it on each pull request. A path a new n8n
