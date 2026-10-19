@@ -547,7 +547,8 @@ changed path triggers:
 |---|---|
 | `docker-compose.yml` | Checks the file, then runs `docker compose up -d` |
 | `Caddyfile` | Checks the file, then recreates the `caddy` container |
-| `systemd/*` | Copies each changed unit into `/etc/systemd/system/` and reloads systemd |
+| `systemd/*` | Copies each changed unit into `/etc/systemd/system/`, reloads systemd, and enables and starts each timer it copied |
+| `apt/*` | Installs `unattended-upgrades` if it is missing, then copies each changed file into `/etc/apt/apt.conf.d/` |
 | `public/*` | Nothing. The directory is mounted, so the pull alone makes it live |
 | a script | Nothing. The units run the scripts out of the checkout |
 
