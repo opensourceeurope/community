@@ -614,7 +614,7 @@ changed path triggers:
 | Changed path | What the run does |
 |---|---|
 | `docker-compose.yml` | Checks the file, then runs `docker compose up -d` |
-| `Caddyfile` | Checks the file, then recreates the `caddy` container |
+| `Caddyfile`, `editor-auth.caddy` | Checks the file, then recreates the `caddy` container |
 | `systemd/*` | Copies each changed unit into `/etc/systemd/system/`, reloads systemd, and enables and starts each timer it copied |
 | `apt/*` | Installs `unattended-upgrades` if it is missing, then copies each changed file into `/etc/apt/apt.conf.d/` |
 

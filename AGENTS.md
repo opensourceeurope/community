@@ -449,7 +449,8 @@ The rules below are the OSE-specific invariants on top of that skill:
   `automation/test/deploy-infra.sh`, `alert-slack.sh`, `backup-upload.sh`,
   `check-workflows-env.sh` and `check-n8n-version.py` stub every external
   command and finish in seconds.
-  `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all six and
+  `automation/test/bootstrap-smoke.sh` and `caddy-routes.sh` need Docker. CI
+  runs all of them and
   `tofu validate`. Each test fails loudly when a helper dies under `set -e`,
   because a test that stops silently reads as a pass.
 - **Back up off the box before a manual change to it.** A change the deploy
