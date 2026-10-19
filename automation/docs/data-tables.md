@@ -120,7 +120,7 @@ In order through a normal application, plus the escalation branch:
 
 The decision branch of apply 1a and apply 1b asks Open Collective for the
 applicant's own public account fields, and reads `host` and `isApproved` off
-the answer. Four shapes come back, and only three of them end the application:
+the answer. Five shapes come back, and all but one end the application:
 
 | `host` | `isApproved` | Outcome |
 |---|---|---|
@@ -128,6 +128,7 @@ the answer. Four shapes come back, and only three of them end the application:
 | the row's `host_slug` | `true` | `approved` |
 | `null` | any | `rejected` |
 | any other host | any | `resigned` |
+| no collective with that slug | | `resigned` |
 
 `resigned` is the one outcome the applicant is never told about. `approved`
 and `rejected` each send the applicant an email, because OSE made a decision
@@ -137,8 +138,13 @@ host it found, and marks the parent message with an amber light. Nothing on
 that path can send mail, which is what makes a wrong reading cost one edit of
 the row rather than a message to an applicant.
 
-A collective that cannot be read at all, because it was deleted or renamed,
-leaves the row untouched for a person to look at.
+A collective that no longer exists is closed as `resigned` too, on the same
+branch, and its Slack reply says the collective was deleted or changed its slug
+instead of naming a host. Open Collective reports it as an `errors` array
+saying `No collective found with slug <slug>`, and that exact message for the
+row's own slug is the only error the decision branch accepts. Any other error
+fails the run. Throwing on this one used to fail every sweep, because a single
+deleted applicant aborted the batch and no other row got its decision.
 
 ### Shape of `answers`
 

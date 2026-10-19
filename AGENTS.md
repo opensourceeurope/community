@@ -319,7 +319,13 @@ The rules below are the OSE-specific invariants on top of that skill:
   `host_slug` with `isApproved` is an approval, a null `host` is a rejection,
   and a different `host` is `resigned`: the collective is hosted elsewhere, so
   the application can end in neither. Any node reading an Open Collective
-  response must throw on an `errors` array rather than skipping the item.
+  response must throw on an `errors` array rather than skipping the item,
+  with one exception. `No collective found with slug <slug>` for the row's
+  own slug means the collective was deleted, and it is closed as `resigned`.
+  Throwing on it let one deleted applicant fail every sweep for a week, and
+  no other row got its decision. An error about one row must never stop the
+  rows beside it, so an exception like this one is matched exactly and
+  covers that row alone.
 - **An outcome the applicant did not ask for tells them nothing.** `approved`
   and `rejected` email the applicant, because OSE decided and owes them the
   answer. `resigned` is read off the same query but is not a decision, so its
