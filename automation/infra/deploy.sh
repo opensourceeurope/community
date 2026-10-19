@@ -181,12 +181,25 @@ running_image() {
 
 # A recreated n8n takes 30 to 60 seconds to boot, and Caddy answers 502 until
 # it does, so the workflow sync waits for /healthz instead of failing on it.
+# The workflow sync needs the public API, and /healthz is not enough to know it
+# is there. n8n answers /healthz as soon as its web server listens, seconds
+# before it mounts /api/v1, and a sync started in that gap fails with "Cannot
+# GET /api/v1/workflows". So this waits for the API itself, with the same key
+# the sync uses. The key reaches curl on stdin, never as an argument.
+api_answers() {
+  local key="${N8N_API_KEY:-}"
+  [ -n "$key" ] || key=$(tr -d '[:space:]' < "$N8N_API_KEY_FILE")
+  printf 'header = "X-N8N-API-KEY: %s"\n' "$key" \
+    | curl -s -o /dev/null -w '%{http_code}' --max-time 5 -K - "$N8N_API_URL/api/v1/workflows?limit=1" \
+    || true
+}
+
 wait_for_n8n() {
   local try code
   for ((try = 1; try <= HEALTH_TRIES; try++)); do
-    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$N8N_API_URL/healthz" || true)
+    code=$(api_answers)
     if [ "$code" = 200 ]; then
-      say "n8n is up"
+      say "n8n is up and its API answers"
       return 0
     fi
     [ "$try" -lt "$HEALTH_TRIES" ] && sleep "$HEALTH_INTERVAL"
@@ -325,7 +338,7 @@ else
     say "infra applied at ${target:0:8}"
   fi
   if [ "$compose_changed" = true ] || [ "$caddy_changed" = true ]; then
-    wait_for_n8n || die "n8n did not answer $N8N_API_URL/healthz after the restart. The infra is applied, and the next run syncs the workflows"
+    wait_for_n8n || die "the n8n API at $N8N_API_URL did not answer after the restart. The infra is applied, and the next run syncs the workflows"
   fi
 fi
 

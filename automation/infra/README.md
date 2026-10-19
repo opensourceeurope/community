@@ -577,9 +577,12 @@ container uses. Then the run calls `backup.sh` first, and stops if the backup
 fails. That covers a version bump merged to `main`, and a box whose n8n never
 matched the compose file.
 
-After it restarts n8n or Caddy, the run waits up to two minutes for
-`/healthz` to answer before it syncs the workflows. A recreated n8n takes 30 to
-60 seconds to boot, and until then Caddy answers 502.
+After it restarts n8n or Caddy, the run waits up to two minutes for n8n's
+public API to answer, with the deploy key, before it syncs the workflows. A
+recreated n8n takes 30 to 60 seconds to boot, and until then Caddy answers 502.
+It waits for the API rather than `/healthz` because n8n answers `/healthz` a few
+seconds before it mounts `/api/v1`, and a sync started in that gap fails with
+`Cannot GET /api/v1/workflows`.
 
 A run never stops or removes a container, never pulls an image whose tag did
 not change, and never edits `.env`. Deleting a unit file in git does not remove
@@ -1762,7 +1765,7 @@ in this repository. Put the account credentials in the shared vault.
 | `deploy.sh` stops with `variable(s) missing from .env` | A merged compose file names a variable the box's `.env` lacks. Workflow deploys stop too until it is fixed | Add the variable to `.env`. The next run applies the change |
 | `deploy.sh` stops with `empty or missing in .../.env: …` | A value the stack needs is empty, often right after `bootstrap.sh all`, which leaves `AI_API_KEY`, `SLACK_CHANNEL`, `SMTP_FROM` and `DRY_RUN_RECIPIENT` for you | Set each named variable in `.env` |
 | `deploy.sh` stops with `the Caddyfile does not validate` | A merged Caddyfile has a syntax error | Fix it in a pull request. The running Caddy is untouched |
-| `deploy.sh` stops with `n8n did not answer …/healthz after the restart` | n8n took longer than two minutes to boot, or failed to start | Read `docker compose logs --tail=50 n8n`. The infra is already applied, so the next run only syncs the workflows |
+| `deploy.sh` stops with `the n8n API at … did not answer after the restart` | n8n took longer than two minutes to boot, or failed to start | Read `docker compose logs --tail=50 n8n`. The infra is already applied, so the next run only syncs the workflows |
 | A backup prints `backup.log is not writable` | The old backup unit left a log owned by root | `sudo chown debian: ~/backups/backup.log`, or run `bootstrap.sh units`, which fixes it |
 | Backup log ends with `upload ... failed` | The upload key, the bucket name or its preferred project is wrong in `backup.env` | Check the settings in `~/.config/ose-backup/backup.env`. `AccessDenied` means the key's preferred project is not `ose-n8n-backups` |
 | The same workflow reports `updated` on every deploy run | It is being edited in the n8n UI, and each run puts the exported version back over the edit | Export the instance's version with `automation/scripts/export-workflows.py` and open a pull request for it |

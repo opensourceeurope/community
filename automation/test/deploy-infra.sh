@@ -38,7 +38,7 @@ cat > "$BIN/sudo" <<'EOF'
 #!/usr/bin/env bash
 echo "sudo $*" >> "$STUB_LOG"
 EOF
-# /healthz answers 502 for the first STUB_HEALTH_FAILS calls, then 200.
+# The n8n API answers 502 for the first STUB_HEALTH_FAILS calls, then 200.
 cat > "$BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo "curl $*" >> "$STUB_LOG"
@@ -322,9 +322,11 @@ write_env
 change automation/infra/docker-compose.yml "services: {h: {}}"
 STUB_HEALTH_FAILS=2 run "the sync waits for n8n to come back after a restart"
 exit_ok
-before "$UP_ALL" '/healthz'
-before '/healthz' '^sync '
-[ "$(count '/healthz')" -eq 3 ] || fail "expected two failed health checks and one good one"
+before "$UP_ALL" '/api/v1/workflows'
+before '/api/v1/workflows' '^sync '
+[ "$(count '/api/v1/workflows')" -eq 3 ] || fail "expected two failed API checks and one good one"
+not_ran 'curl .*stub'
+not_ran '/healthz' 
 
 change automation/infra/docker-compose.yml "services: {i: {}}"
 STUB_HEALTH_FAILS=9 run "an n8n that never comes back stops before the sync, with the infra recorded"
@@ -336,7 +338,7 @@ marker_is HEAD
 change automation/infra/public/og_image.png "png3"
 run "a change that restarts nothing does not wait for n8n"
 exit_ok
-not_ran '/healthz'
+not_ran '/api/v1/workflows'
 
 change automation/infra/apt/52ose-unattended-upgrades 'Unattended-Upgrade::Automatic-Reboot-Time "04:30";'
 run "an apt setting change installs that file only, and makes sure the package is there"
