@@ -442,7 +442,9 @@ The script ends with the steps it cannot do for you. Do them in this order:
 10. Ask whoever owns the instance before activating anything. Activate each
     callee before its caller, because n8n refuses to save an active workflow
     whose callee has never been active: apply 5 and apply 3 first, then
-    apply 2 and apply 4, then apply 1a and apply 1b.
+    apply 2 and apply 4, then apply 1a and apply 1b. Activate
+    `ops — alert Slack when any apply workflow fails` as well, or no failure
+    reaches Slack.
 11. [Register the Open Collective webhook](#registering-the-open-collective-webhook).
 12. Set up [the copy off the box](#the-copy-off-the-box) and
     [the external uptime monitor](#the-external-uptime-monitor).
@@ -1733,6 +1735,13 @@ curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
 
 A new workflow does not inherit the setting. Set it when you add one, or that
 workflow fails silently.
+
+The handler itself must be active. n8n only publishes a workflow the first
+time it is activated, and an error workflow with no published version never
+runs, however many workflows name it. This one sat inactive with no execution
+at all while apply 1b failed every hour for a week. To check it, read
+`active` from the same endpoint, or list the handler's executions after any
+failure: none at all means it is not running.
 
 The handler itself has no **Error Workflow**. If it pointed at itself, a Slack
 outage would make it fail while handling its own failure.
