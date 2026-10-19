@@ -7,5 +7,5 @@
 # request. The deploy restarts Caddy with it, and the old password stops
 # working.
 basic_auth {
-	ose REPLACE_WITH_THE_BCRYPT_HASH
+	ose $2a$10$Ulbp8KkU8DDhyzZDkTE5CO7KhwHcB7f2rQHYNwLcveJYed6yRXDni
 }
