@@ -174,5 +174,45 @@
     "answers": "{\"responses\": {\"applicant_type\": \"A community, meetup or events\", \"community_home\": \"https://example.com/acme/events\"}}",
     "expect_host_kind": "none",
     "expect_readme": false
+  },
+  {
+    "case": "a short IP form is refused",
+    "slug": "case-127-1",
+    "repository_url": "",
+    "answers": "{\"responses\": {\"repository_url\": \"https://127.1/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "a two-part private IP is refused",
+    "slug": "case-10-1",
+    "repository_url": "",
+    "answers": "{\"responses\": {\"repository_url\": \"https://10.1/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "a hex IP is refused",
+    "slug": "case-0x7f-1",
+    "repository_url": "",
+    "answers": "{\"responses\": {\"repository_url\": \"https://0x7f.1/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "an octal IP is refused",
+    "slug": "case-0177-0-0-1",
+    "repository_url": "",
+    "answers": "{\"responses\": {\"repository_url\": \"https://0177.0.0.1/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
+  },
+  {
+    "case": "a dotted decimal IP is still refused",
+    "slug": "case-192-168-1-10",
+    "repository_url": "",
+    "answers": "{\"responses\": {\"repository_url\": \"https://192.168.1.10/owner/repo\"}}",
+    "expect_host_kind": "none",
+    "expect_readme": false
   }
 ]

@@ -124,9 +124,13 @@ The rules below are the OSE-specific invariants on top of that skill:
   promise the pipeline cannot keep: form answers and READMEs are free text, and
   an applicant who signs a comment with their name and address has sent them.
 - **A URL an applicant supplied is a request they are asking this server to
-  make.** apply 5 fetches a README from the repository they named, which is the
-  only place the pipeline reaches a host of someone else's choosing. It is
-  `https` only, never an IP literal, never `localhost` or a `.local` or
+  make.** Two places reach a host of someone else's choosing: apply 2 fetches
+  repository evidence from the link on the collective's page or in its
+  application message, and apply 5 fetches a README from the repository named
+  in the form. Both run the same `Choose the repository URL` checks, and a
+  change to one goes into the other. It is
+  `https` only, never an IP literal in any spelling the resolver accepts, which
+  includes `127.1`, `0x7f.1` and `0177.0.0.1`, never `localhost` or a `.local` or
   `.internal` name, never a port or a `user@host` prefix, never a `.` or `..`
   path segment, and no redirects at all: a repository link resolves in one
   hop or it does not resolve, because every host check runs on the first URL and
