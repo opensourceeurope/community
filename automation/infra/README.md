@@ -578,7 +578,10 @@ After it restarts n8n or Caddy, the run waits up to two minutes for
 60 seconds to boot, and until then Caddy answers 502.
 
 A run never stops or removes a container, never pulls an image whose tag did
-not change, and never edits `.env`. Deleting a unit file in git does not remove
+not change, and never changes a value in `.env`. The one write it makes there
+is to append a secret listed in `GENERATED_SECRETS`, such as `FORM_LINK_SECRET`,
+the first time it is missing. No person needs those, so the box makes them
+itself. Deleting a unit file in git does not remove
 it from the box. The run warns, and you remove it by hand.
 
 ### What it never does to a workflow

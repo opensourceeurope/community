@@ -98,7 +98,6 @@ write_env() {  # write_env [LINE ...]: a complete .env, each LINE replacing the 
     "SMTP_FROM=Test <test@example.org>"
     "DRY_RUN=true"
     "DRY_RUN_RECIPIENT=test@example.org"
-    "FORM_LINK_SECRET=0123456789abcdef0123456789abcdef"
   )
   local line name override
   : > "$ENV_FILE"
@@ -332,6 +331,29 @@ change automation/infra/public/og_image.png "png3"
 run "a change that restarts nothing does not wait for n8n"
 exit_ok
 not_ran '/healthz'
+
+write_env
+run "a missing form link secret is generated on the box, and never printed"
+exit_ok
+secret=$(sed -n 's/^FORM_LINK_SECRET=//p' "$ENV_FILE")
+[ "$(printf '%s' "$secret" | grep -c -E '^[0-9a-f]{64}$' || true)" -eq 1 ] || fail "expected one 64-character hex FORM_LINK_SECRET, got '${#secret}' characters"
+[ -z "$secret" ] || [ "$(grep -c -F -e "$secret" "$WORK/out.log" || true)" -eq 0 ] || fail "the secret reached the output"
+
+run "a second run keeps the secret it generated"
+exit_ok
+[ "$(grep -c '^FORM_LINK_SECRET=' "$ENV_FILE" || true)" -eq 1 ] || fail "the secret was generated twice"
+[ "$(sed -n 's/^FORM_LINK_SECRET=//p' "$ENV_FILE")" = "$secret" ] || fail "the secret changed"
+
+write_env "FORM_LINK_SECRET=set-by-a-person-0123456789abcdef"
+run "a secret a person set is left alone"
+exit_ok
+[ "$(grep -c '^FORM_LINK_SECRET=' "$ENV_FILE" || true)" -eq 1 ] || fail "a second secret was appended"
+
+write_env
+run "a dry run generates nothing" --dry-run
+exit_ok
+[ "$(grep -c '^FORM_LINK_SECRET=' "$ENV_FILE" || true)" -eq 0 ] || fail "the dry run wrote a secret"
+[ "$(grep -c 'would generate FORM_LINK_SECRET' "$WORK/out.log" || true)" -eq 1 ] || fail "the dry run did not say it would generate the secret"
 
 finished=true
 if [ "$failures" -gt 0 ]; then

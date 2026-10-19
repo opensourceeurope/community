@@ -427,8 +427,14 @@ The rules below are the OSE-specific invariants on top of that skill:
   `docker-compose.yml`, `Caddyfile` or unit file within ten minutes, then syncs
   the workflows. A new n8n tag in the compose file upgrades production on the
   next run, after a backup. Write the pull request knowing it deploys itself.
+- **Nothing is set up on the box by hand.** Every change reaches it through
+  git and the deploy. A secret no person ever needs to read, such as
+  `FORM_LINK_SECRET`, goes into `GENERATED_SECRETS` in `deploy.sh`, which
+  appends it to `.env` the first time it is missing and never changes a value
+  that is already there. That append is the only write `deploy.sh` makes to
+  `.env`. Never write "run this on the box" into a pull request as a step.
 - **A new variable in the compose file must reach the box's `.env` before the
-  merge.** `deploy.sh` never edits `.env`. It refuses to apply a compose file
+  merge.** Apart from generated secrets, `deploy.sh` never edits `.env`. It refuses to apply a compose file
   that names a variable `.env` lacks, and it stops the whole run, so workflow
   deploys stop too until someone adds the variable on the box. Say so in the
   pull request when you add one. A workflow that reads a new `$env` variable
