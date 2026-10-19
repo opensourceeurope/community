@@ -172,16 +172,19 @@ To set or change it, on your own machine:
 1. Generate a password with the vault's generator: 32 characters or more,
    random. Save it in the vault as `OSE automation — n8n editor gate` first, so
    it exists before anything depends on it.
-2. Turn it into a hash. The command asks for the password without showing it
-   and prints only the hash, so the password reaches neither the screen nor
-   your shell history:
+2. Turn it into a hash. Copy the password from the vault, then on a Mac run
+   the following. It reads the password from the clipboard, so it reaches
+   neither the screen, nor your shell history, nor an argument list, and
+   prints only the hash. The `echo` adds the line ending Caddy waits for,
+   without which it stops with `EOF`:
 
    ```bash
-   docker run --rm -it caddy:2.11.7-alpine caddy hash-password --algorithm bcrypt --bcrypt-cost 10
+   { pbpaste; echo; } | docker run --rm -i caddy:2.11.7-alpine caddy hash-password --algorithm bcrypt --bcrypt-cost 10
    ```
 
-   Paste the password at the prompt, twice if it asks. The output starts with
-   `$2a$10$`.
+   Then empty the clipboard with `pbcopy < /dev/null`. The output starts
+   with `$2a$10$`. Without a clipboard, drop the pipe and add `-t` to
+   `docker run`, and Caddy asks for the password without showing it.
 3. Put the hash in `editor-auth.caddy` in place of the old one, after `ose `,
    in a pull request. The password itself never goes into git, a pull request
    or a chat.
