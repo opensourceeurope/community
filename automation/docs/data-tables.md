@@ -17,9 +17,11 @@ Column names are final. The workflows in `automation/n8n/` use them verbatim.
 
 The table below is also what creates the table on a new instance.
 `automation/scripts/create-data-table.py` reads the column names and types
-from it and adds whatever the instance lacks. So a new column goes into this
-table in the same pull request as the workflow that writes it, and the type
-cell starts with one of the four types.
+from it and adds whatever the instance lacks. The deploy on the box runs it
+before every workflow sync, so a column added here reaches the live table
+before the workflow that writes it does. A new column goes into this table in
+the same pull request as the workflow that writes it, and the type cell starts
+with one of the four types.
 
 | Column | Type | Written by | Notes |
 |---|---|---|---|

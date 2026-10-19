@@ -435,6 +435,12 @@ The rules below are the OSE-specific invariants on top of that skill:
   the box guard covers every variable a workflow depends on. Read it as
   `$env.NAME`: CI also fails a `$env` use it cannot name, such as
   destructuring.
+- **A new data table column is added by the deploy, from the docs.** Every
+  run calls `create-data-table.py` before the workflow sync, so a column listed
+  in `automation/docs/data-tables.md` exists before the workflow that writes it.
+  Never add a column by hand ahead of a merge. A run that cannot add one stops
+  before the sync, so a workflow is never deployed against a table that lacks
+  its column.
 - **An empty required value stops the deploy too.** `REQUIRED_VALUES` in
   `deploy.sh` lists the variables the stack cannot work without, plus
   `DRY_RUN_RECIPIENT` while `DRY_RUN` is not `false`. An empty one stops the
