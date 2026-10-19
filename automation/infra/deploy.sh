@@ -294,6 +294,15 @@ else
       say "installed $u"
     done
     sudo systemctl daemon-reload
+    # A timer that arrives through git is switched on here, so a new one needs
+    # nobody on the box. Enabling one that already runs changes nothing.
+    for u in "${units[@]}"; do
+      case "$u" in
+        *.timer)
+          sudo systemctl enable --now "$u" >/dev/null 2>&1
+          say "enabled $u" ;;
+      esac
+    done
   fi
   if [ ${#apt_files[@]} -gt 0 ]; then
     # The box patches itself: security updates daily, Docker's packages

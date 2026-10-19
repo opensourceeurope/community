@@ -353,6 +353,13 @@ exit_ok
 not_ran 'sudo install'
 [ "$(grep -c 'would install apt setting 20auto-upgrades' "$WORK/out.log" || true)" -eq 1 ] || fail "the dry run did not say it would install the apt setting"
 
+change automation/infra/systemd/ose-test.timer "[Timer]
+OnCalendar=daily"
+run "a new timer is installed and switched on"
+exit_ok
+before 'sudo systemctl daemon-reload' 'sudo systemctl enable --now ose-test.timer'
+not_ran 'enable --now ose-test.service'
+
 finished=true
 if [ "$failures" -gt 0 ]; then
   echo "$failures assertion(s) failed"

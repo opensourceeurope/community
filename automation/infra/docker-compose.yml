@@ -24,8 +24,8 @@ services:
     # Pinned, not :latest — this stores live application state, and
     # `docker compose pull` must never drag a major n8n version across it
     # unattended. Bump this deliberately; see automation/infra/README.md.
-    # .github/workflows/check-n8n-version.yml opens an issue when this tag
-    # has a published security advisory or falls behind n8n's stable release.
+    # ose-n8n-advisories.timer alerts Slack daily while a published security
+    # advisory with a fix affects this tag.
     image: docker.n8n.io/n8nio/n8n:2.43.6
     restart: unless-stopped
     depends_on:

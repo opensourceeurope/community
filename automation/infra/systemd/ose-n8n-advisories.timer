@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily check of n8n's security advisories against the version this box runs
+Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
+
+[Timer]
+OnCalendar=*-*-* 07:05:00 UTC
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

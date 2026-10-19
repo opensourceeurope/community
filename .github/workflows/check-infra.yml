@@ -38,6 +38,9 @@ jobs:
       - name: check 8 names every variable a workflow reads
         run: automation/test/check-workflows-env.sh
 
+      - name: check-n8n-version.py alerts only on an advisory a release fixes
+        run: python3 -B automation/test/check-n8n-version.py
+
       - name: create-data-table.py builds the table from the document
         run: python3 -B automation/test/create-data-table.py
 

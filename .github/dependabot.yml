@@ -9,8 +9,8 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      # n8n has its own check, .github/workflows/check-n8n-version.yml, which
-      # knows stable releases from prereleases and fires on advisories.
+      # n8n has its own check, automation/infra/check-n8n-version.py, which
+      # knows stable releases from prereleases and alerts on advisories.
       - dependency-name: '*n8n*'
       # A new Postgres major needs a dump and restore, not a tag bump.
       - dependency-name: postgres

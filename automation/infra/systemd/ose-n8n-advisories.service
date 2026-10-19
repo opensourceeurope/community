@@ -1,0 +1,15 @@
+[Unit]
+Description=Check whether a published security advisory affects the n8n version this box runs
+Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
+After=network-online.target
+Wants=network-online.target
+# The check exits non-zero when an advisory with a fix affects the pinned
+# n8n, which fails this unit and posts the report to the alerts channel, once.
+OnFailure=ose-alert@%n.service
+
+[Service]
+Type=oneshot
+User=debian
+ExecStart=/usr/bin/python3 /home/debian/community/automation/infra/check-n8n-version.py /home/debian/community
+# Posts that the advisories are cleared once an upgrade lands, and only then.
+ExecStartPost=-/home/debian/community/automation/infra/alert-slack.sh --recovered %n

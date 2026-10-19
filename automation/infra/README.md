@@ -1604,16 +1604,24 @@ treats a bad upgrade as a restore from the dump the deploy took before it.
 
 ### Knowing when an upgrade is due
 
-Nobody has to remember to look. `.github/workflows/check-n8n-version.yml`
-runs every morning and compares the pinned tag with n8n's published security
-advisories. When an advisory with a fix affects the pinned version, it opens
-an issue titled `n8n upgrade due: a security advisory affects the pinned
-version`, listing every advisory and the stable release to move to. It
-updates that issue daily and closes it once a merged bump clears it. To run
-the same check by hand:
+Nobody has to remember to look. `ose-n8n-advisories.timer` runs
+[`check-n8n-version.py`](check-n8n-version.py) on this box every morning. It
+compares the n8n tag in `docker-compose.yml` with n8n's published security
+advisories. When an advisory with a fix affects that version, the unit fails,
+and `ose-alert@` posts the report to the alerts channel, the same way a failed
+deploy or backup does: once, with the worst advisories and the stable release
+to move to. It posts again as recovered once a merged upgrade clears it.
+
+The check runs here rather than in GitHub Actions so that it reuses the alert
+path and the Slack token the box already has, and no Slack token sits in a
+GitHub secret. It runs outside n8n so that it still reports when n8n is the
+thing in trouble. The deploy installs and enables the units from git like any
+other.
+
+To run the same check by hand, on the box or anywhere with a checkout:
 
 ```bash
-GITHUB_TOKEN=$(gh auth token) python3 .github/scripts/check-n8n-version.py
+python3 automation/infra/check-n8n-version.py
 ```
 
 Upgrade to the newest release that n8n does not mark as a prerelease. n8n
@@ -1629,7 +1637,7 @@ How fast to act depends on the advisory:
 | Medium or low | the next routine bump, at least monthly |
 
 An advisory with no patched version, such as the one about the Execute
-Command node, is listed but never opens the issue. No upgrade fixes it. That
+Command node, never fails the check. No upgrade fixes it. That
 node is excluded by n8n's default `NODES_EXCLUDE`, so keep it excluded.
 
 Also watch the source. On `github.com/n8n-io/n8n`, choose **Watch**,
