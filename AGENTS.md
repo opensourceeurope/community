@@ -413,9 +413,14 @@ The rules below are the OSE-specific invariants on top of that skill:
 
 - **A merge to `main` changes production infra, not only workflows.** Once
   `ose-deploy.timer` is installed on the box, `deploy.sh` applies a changed
-  `docker-compose.yml`, `Caddyfile` or unit file within ten minutes, then syncs
-  the workflows. A new n8n tag in the compose file upgrades production on the
-  next run, after a backup. Write the pull request knowing it deploys itself.
+  `docker-compose.yml`, `Caddyfile`, unit file or `apt/` setting within ten
+  minutes, switches on any timer it installs, then syncs the workflows. A new
+  n8n tag in the compose file upgrades production on the next run, after a
+  backup. Write the pull request knowing it deploys itself.
+- **Nothing is set up on the box by hand.** Every change reaches it through
+  git and the deploy. Something the box needs, a unit, a timer or a setting,
+  is a file in `automation/infra/` that `deploy.sh` installs. Never write "run
+  this on the box" into a pull request as a step.
 - **A new variable in the compose file must reach the box's `.env` before the
   merge.** `deploy.sh` never edits `.env`. It refuses to apply a compose file
   that names a variable `.env` lacks, and it stops the whole run, so workflow
@@ -437,9 +442,10 @@ The rules below are the OSE-specific invariants on top of that skill:
   never makes every run re-apply the infra. Deleting it forces a full apply,
   which recreates Caddy.
 - **Run the infra tests before you push a change to a script.**
-  `automation/test/deploy-infra.sh`, `alert-slack.sh`, `backup-upload.sh` and
-  `check-workflows-env.sh` stub every external command and finish in seconds.
-  `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all five and
+  `automation/test/deploy-infra.sh`, `alert-slack.sh`, `backup-upload.sh`,
+  `check-workflows-env.sh` and `check-n8n-version.py` stub every external
+  command and finish in seconds.
+  `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all six and
   `tofu validate`. Each test fails loudly when a helper dies under `set -e`,
   because a test that stops silently reads as a pass.
 - **Back up off the box before a manual change to it.** A change the deploy

@@ -101,6 +101,24 @@ ssh_hardening() {
   note "key-only SSH enabled"
 }
 
+auto_updates() {
+  # The settings live in automation/infra/apt/, and deploy.sh installs them
+  # again whenever they change in git. See the comments in those files.
+  local f changed=0
+  for f in "$INFRA_DIR"/apt/*; do
+    if sudo cmp -s "$f" "/etc/apt/apt.conf.d/$(basename "$f")"; then
+      continue
+    fi
+    sudo install -m 644 "$f" "/etc/apt/apt.conf.d/$(basename "$f")"
+    changed=1
+  done
+  if [ "$changed" -eq 0 ]; then
+    note "automatic security updates already configured"
+  else
+    note "daily security updates on, Docker's packages included, reboot at 04:30 when one is needed"
+  fi
+}
+
 docker_engine() {
   if command -v docker >/dev/null; then
     note "docker already installed"
@@ -188,6 +206,8 @@ units() {
 
   sudo systemctl enable --now ose-backup.timer >/dev/null 2>&1
   note "ose-backup.timer enabled"
+  sudo systemctl enable --now ose-n8n-advisories.timer >/dev/null 2>&1
+  note "ose-n8n-advisories.timer enabled"
   if [ -f "$HOME/.n8n-api-key" ]; then
     sudo systemctl enable --now ose-deploy.timer >/dev/null 2>&1
     note "ose-deploy.timer enabled"
@@ -230,13 +250,17 @@ if [ "$mode" = all ]; then
   docker_engine
   step "checkout"
   checkout
+  step "automatic security updates"
+  auto_updates
   step "config"
   env_file
   step "stack"
   stack
 else
   step "packages"
-  packages git curl python3 age
+  packages git curl python3 age unattended-upgrades
+  step "automatic security updates"
+  auto_updates
 fi
 
 step "journal access, for the failure alert"

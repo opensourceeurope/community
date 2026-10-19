@@ -75,6 +75,9 @@ for p in git ufw unattended-upgrades curl python3 age; do
 done
 [ "$(id -nG debian | tr ' ' '\n' | grep -c -x -e docker -e systemd-journal)" -eq 2 ] || fail "debian is not in docker and systemd-journal"
 [ -f /etc/ssh/sshd_config.d/99-ose-hardening.conf ] || fail "no SSH hardening drop-in"
+[ "$(count 'origin=Docker' /etc/apt/apt.conf.d/52ose-unattended-upgrades)" -eq 1 ] || fail "unattended-upgrades does not cover Docker's packages"
+[ "$(count 'Automatic-Reboot "true"' /etc/apt/apt.conf.d/52ose-unattended-upgrades)" -eq 1 ] || fail "no automatic reboot for kernel updates"
+[ "$(count 'Unattended-Upgrade "1"' /etc/apt/apt.conf.d/20auto-upgrades)" -eq 1 ] || fail "unattended-upgrades is not switched on"
 for u in ose-deploy.service ose-deploy.timer ose-backup.service ose-backup.timer ose-alert@.service; do
   [ -f "/etc/systemd/system/$u" ] || fail "$u not installed"
 done
@@ -94,6 +97,7 @@ run all --n8n-host other.example.org --apply-host other.example.org > /tmp/secon
 [ "$(count '^installed: ' /tmp/second.log)" -eq 0 ] || fail "the second run installed packages again"
 [ "$(count 'ufw --force enable' /tmp/calls.log)" -eq 0 ] || fail "the second run enabled ufw again"
 [ "$(count 'reload ssh' /tmp/calls.log)" -eq 0 ] || fail "the second run reloaded sshd again"
+[ "$(count 'automatic security updates already configured' /tmp/second.log)" -eq 1 ] || fail "the second run rewrote the update settings"
 
 : > /tmp/calls.log
 sudo -u debian sh -c 'umask 077; echo key > /home/debian/.n8n-api-key'

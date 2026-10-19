@@ -58,11 +58,14 @@ dev config user.name test
 dev checkout -q -b main
 
 mkdir -p "$WORK/dev/automation/infra/systemd" "$WORK/dev/automation/infra/public" \
+  "$WORK/dev/automation/infra/apt" \
   "$WORK/dev/automation/n8n" "$WORK/dev/automation/scripts"
 echo ".env" > "$WORK/dev/.gitignore"
 echo "services: {}" > "$WORK/dev/automation/infra/docker-compose.yml"
 echo "example.org {}" > "$WORK/dev/automation/infra/Caddyfile"
 echo "[Service]" > "$WORK/dev/automation/infra/systemd/ose-test.service"
+echo 'APT::Periodic::Unattended-Upgrade "1";' > "$WORK/dev/automation/infra/apt/20auto-upgrades"
+echo 'Unattended-Upgrade::Automatic-Reboot "true";' > "$WORK/dev/automation/infra/apt/52ose-unattended-upgrades"
 echo "png" > "$WORK/dev/automation/infra/public/og_image.png"
 echo "{}" > "$WORK/dev/automation/n8n/flow.json"
 cat > "$WORK/dev/automation/infra/sync-workflows.py" <<'EOF'
@@ -122,7 +125,7 @@ change() {  # change <path under the repo> <content>
 # --- running and asserting --------------------------------------------------
 export PATH="$BIN:$PATH"
 export REPO="$WORK/box" N8N_API_URL=https://automation.example.org N8N_API_KEY=stub
-export OSE_DEPLOY_STATE_DIR="$WORK/state" OSE_UNIT_DIR="$WORK/units"
+export OSE_DEPLOY_STATE_DIR="$WORK/state" OSE_UNIT_DIR="$WORK/units" OSE_APT_CONF_DIR="$WORK/apt"
 export OSE_HEALTH_TRIES=3 OSE_HEALTH_INTERVAL=0
 MARKER="$WORK/state/infra-applied"
 
@@ -182,6 +185,9 @@ ran 'sudo install -m 644 .*/systemd/ose-test.service'
 ran 'sudo systemctl daemon-reload'
 ran '^sync '
 marker_is HEAD
+
+ran 'sudo install -m 644 .*/apt/20auto-upgrades .*/apt/20auto-upgrades$'
+ran 'sudo install -m 644 .*/apt/52ose-unattended-upgrades .*/apt/52ose-unattended-upgrades$'
 
 run "nothing changed runs no docker action"
 exit_ok
@@ -331,6 +337,28 @@ change automation/infra/public/og_image.png "png3"
 run "a change that restarts nothing does not wait for n8n"
 exit_ok
 not_ran '/healthz'
+
+change automation/infra/apt/52ose-unattended-upgrades 'Unattended-Upgrade::Automatic-Reboot-Time "04:30";'
+run "an apt setting change installs that file only, and makes sure the package is there"
+exit_ok
+ran 'sudo install -m 644 .*/apt/52ose-unattended-upgrades'
+not_ran 'sudo install -m 644 .*/apt/20auto-upgrades'
+before 'apt-get install -y -qq unattended-upgrades' 'sudo install -m 644 .*/apt/52ose-unattended-upgrades'
+not_ran ' up -d'
+marker_is HEAD
+
+change automation/infra/apt/20auto-upgrades 'APT::Periodic::Unattended-Upgrade "0";'
+run "a dry run installs no apt setting" --dry-run
+exit_ok
+not_ran 'sudo install'
+[ "$(grep -c 'would install apt setting 20auto-upgrades' "$WORK/out.log" || true)" -eq 1 ] || fail "the dry run did not say it would install the apt setting"
+
+change automation/infra/systemd/ose-test.timer "[Timer]
+OnCalendar=daily"
+run "a new timer is installed and switched on"
+exit_ok
+before 'sudo systemctl daemon-reload' 'sudo systemctl enable --now ose-test.timer'
+not_ran 'enable --now ose-test.service'
 
 finished=true
 if [ "$failures" -gt 0 ]; then
