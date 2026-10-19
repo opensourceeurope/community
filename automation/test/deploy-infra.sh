@@ -413,6 +413,14 @@ exit_ok
 ran '^reexec --no-pull REEXEC=1$'
 not_ran '^sync '
 
+change automation/infra/editor-auth.caddy "basic_auth {
+	ose new-hash
+}"
+run "a new editor gate hash validates then recreates caddy"
+exit_ok
+before "$VALIDATE" "$RECREATE_CADDY"
+not_ran "$UP_ALL"
+
 finished=true
 if [ "$failures" -gt 0 ]; then
   echo "$failures assertion(s) failed"

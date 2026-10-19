@@ -457,6 +457,15 @@ The rules below are the OSE-specific invariants on top of that skill:
   with a fresh dump and a verified copy off the box, in the bucket or by hand as
   `automation/infra/README.md` describes. The local dumps live on the same disk
   as the database.
+- **Each hostname lets through only what its users need.** The applicant host
+  serves the form paths and answers 404 to everything else. The admin host
+  leaves `/webhook/*`, `/form/*`, `/form-waiting/*`, `/api/v1/*` and `/healthz`
+  open for machines and puts the rest, the editor and its login page included,
+  behind the editor gate in `editor-auth.caddy`. Opening a path is a change to
+  the Caddyfile and to the checks in `automation/test/caddy-routes.sh` in the
+  same pull request, never a catch-all `handle`. The gate's password is in the
+  vault only. Its bcrypt hash is in git, and an agent never sees the password:
+  the operator generates it and hands over the hash.
 - **`tofu/vps/` is a template and is never applied to the production box.**
   Applying it orders and bills a new VPS, and destroying it terminates one.
   `tofu/backup-storage/` is applied, from the operator's laptop. State for both

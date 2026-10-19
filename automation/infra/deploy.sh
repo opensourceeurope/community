@@ -245,7 +245,7 @@ elif [ "$applied" != "$target" ]; then
   while IFS= read -r path; do
     case "$path" in
       "$INFRA/docker-compose.yml") compose_changed=true ;;
-      "$INFRA/Caddyfile") caddy_changed=true ;;
+      "$INFRA/Caddyfile" | "$INFRA/editor-auth.caddy") caddy_changed=true ;;
       "$INFRA"/systemd/*)
         if [ -f "$src/systemd/$(basename "$path")" ]; then
           units+=("$(basename "$path")")

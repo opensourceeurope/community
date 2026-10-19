@@ -111,6 +111,8 @@ services:
       # The one file Caddy serves itself, rather than proxying: the link
       # preview image for the application form. See the Caddyfile.
       - ./public:/srv/public:ro
+      # The editor gate's user and password hash, which the Caddyfile imports.
+      - ./editor-auth.caddy:/etc/caddy/editor-auth.caddy:ro
       - caddy_data:/data
       - caddy_config:/config
 

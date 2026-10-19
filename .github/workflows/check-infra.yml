@@ -47,6 +47,9 @@ jobs:
       - name: bootstrap.sh builds a Debian 13 box and changes nothing the second time
         run: automation/test/bootstrap-smoke.sh
 
+      - name: Caddy serves applicants only the form, and the editor only behind its gate
+        run: automation/test/caddy-routes.sh
+
   tofu:
     runs-on: ubuntu-latest
     timeout-minutes: 10

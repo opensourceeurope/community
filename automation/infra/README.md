@@ -79,6 +79,7 @@ whoever searches the vault later:
 - `OSE automation — Postgres (n8n db)` (resettable)
 - `OSE — OVHcloud API` (re-issuable with `ovhcloud login`)
 - `OSE automation — backup decryption key` (unrecoverable if lost: every dump in the bucket becomes unreadable)
+- `OSE automation — n8n editor gate` (replaceable: a new password and a pull request with its hash)
 
 ## Variables this compose file needs
 
@@ -107,8 +108,8 @@ container serves both.
 
 | Name | Who sees it | What it serves |
 |---|---|---|
-| `apply.opensourceeurope.org` | applicants | the OSE application form, at the bare URL |
-| `automation.opensourceeurope.org` | you | the n8n editor, and the OC webhook endpoint |
+| `apply.opensourceeurope.org` | applicants | the OSE application form, at the bare URL, and nothing else |
+| `automation.opensourceeurope.org` | you | the n8n editor behind [the editor gate](#the-editor-gate), and the OC webhook endpoint |
 
 The applicant's link is just `https://apply.opensourceeurope.org`, with no
 `/form/...` path. n8n serves forms at `/form/<path>` and keeps the editor at
@@ -121,6 +122,66 @@ one, so check a form submission after an upgrade.
 The admin name is not `n8n.` on purpose. Every hostname issued a certificate is
 published in Certificate Transparency logs, so a host named after its software
 advertises what runs there.
+
+### What each name lets through
+
+The database behind the editor holds every applicant's email address and the
+Open Collective host-admin token, so neither name hands n8n the whole internet.
+The Caddyfile decides, path by path:
+
+| Path | `apply.` | `automation.` |
+|---|---|---|
+| `/`, `/form/*`, `/form-waiting/*` | the form | open |
+| `/static/og_image.png` | served by Caddy | editor gate |
+| `/webhook/*` | 404 | open, for Open Collective |
+| `/api/v1/*` | 404 | open, for the deploy and your tools. The API key is the lock |
+| `/healthz` | 404 | open, for the deploy |
+| everything else: the editor, `/signin`, `/rest/*`, `/webhook-test/*` | 404 | editor gate |
+
+`automation/test/caddy-routes.sh` runs the real Caddyfile in Docker and checks
+every row of this table. CI runs it on each pull request. A path a new n8n
+version adds is closed on both names until someone opens it here.
+
+### The editor gate
+
+Before a request reaches the editor or n8n's own login page, Caddy asks for a
+password. The browser shows its own small dialog: user `ose`, and the password
+from the vault entry `OSE automation — n8n editor gate`. It asks once per
+browser session, and then n8n's normal login follows.
+
+It is there for one case: a bug in n8n that skips n8n's login entirely, the
+kind n8n has published several of. Such a bug needs a request to reach n8n,
+and without the gate password Caddy never passes one on. A long n8n password
+and two-factor login still matter, for everything else.
+
+The password is in the vault and nowhere else. Its bcrypt hash is in
+[`editor-auth.caddy`](editor-auth.caddy), in git. That is safe for a long random
+password: a hash can check a password, it cannot be turned back into one. A
+change to the file reaches the box like any other, and the deploy restarts
+Caddy with it.
+
+To set or change it, on your own machine:
+
+1. Generate a password with the vault's generator: 32 characters or more,
+   random. Save it in the vault as `OSE automation — n8n editor gate` first, so
+   it exists before anything depends on it.
+2. Turn it into a hash. The command asks for the password without showing it
+   and prints only the hash, so the password reaches neither the screen nor
+   your shell history:
+
+   ```bash
+   docker run --rm -it caddy:2.11.7-alpine caddy hash-password --algorithm bcrypt --bcrypt-cost 10
+   ```
+
+   Paste the password at the prompt, twice if it asks. The output starts with
+   `$2a$10$`.
+3. Put the hash in `editor-auth.caddy` in place of the old one, after `ose `,
+   in a pull request. The password itself never goes into git, a pull request
+   or a chat.
+
+The cost is 10 on purpose. Every wrong guess makes the box compute one hash,
+and a slow hash would let a flood of guesses load it. A random password needs
+no slow hash to be safe. CI fails a hash with a cost above 12.
 
 ## The form's link preview image
 
