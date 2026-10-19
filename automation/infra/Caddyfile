@@ -11,9 +11,35 @@
 # endpoint. Deliberately not named after n8n: every hostname issued a
 # certificate appears in public Certificate Transparency logs, and there is no
 # reason to advertise which software is behind it.
+#
+# Neither name hands n8n the whole internet. The database behind the editor
+# holds every applicant's email address, and n8n's login page is a target for
+# every n8n advisory that needs no account. So APPLY_HOST answers only the
+# paths an applicant's browser uses, and N8N_HOST puts everything a person
+# uses, the editor and its login page included, behind a second password that
+# Caddy checks before n8n sees the request. A bug in n8n's own login then
+# cannot be reached from the internet. The password lives in the vault only.
+# Its bcrypt hash is in editor-auth.caddy next to this file, in git, which is
+# safe for a long random password: a hash checks a password, it cannot be
+# turned back into one.
+
+# Caddy matches a path after cleaning it, but passes the raw path on to n8n,
+# which does not clean it. So /webhook-test/x/../../form/x passes the /form/*
+# rule here and then reaches n8n's test-webhook router. No real link, form or
+# API call has a dot segment, an encoded slash or backslash, an empty segment
+# or a ; parameter in its path, so a path with any of them is refused before
+# any other rule sees it. It is a handle, not a bare respond, because Caddy
+# orders a bare respond after every handle.
+(clean_path_only) {
+	@unclean vars_regexp {http.request.orig_uri.path} `(?i)(\.\.|%2e|%2f|%5c|\\|//|;)`
+	handle @unclean {
+		respond 400
+	}
+}
 
 {$APPLY_HOST} {
 	encode zstd gzip
+	import clean_path_only
 
 	# The link preview image. n8n hardcodes
 	# <meta property="og:image" content="/static/og_image.png"> into its form
@@ -26,16 +52,57 @@
 		file_server
 	}
 
-	handle {
-		# Only the bare path is rewritten. Page-to-page posts and assets keep
-		# their own paths, so a multi-page form stays on this hostname.
+	# What the form uses, and nothing else. The page is one HTML document with
+	# its script inline. It posts back to its own URL, and every later page
+	# lives under /form-waiting/, which n8n signs.
+	@form path / /form/* /form-waiting/*
+	handle @form {
+		# Only the bare path is rewritten. Page-to-page posts keep their own
+		# paths, so a multi-page form stays on this hostname.
 		rewrite / /form/apply-ose
 
 		reverse_proxy n8n:5678
+	}
+
+	# The editor, its login page, the REST and public APIs and the webhooks
+	# all used to answer here too. None of them is for applicants.
+	handle {
+		respond 404
 	}
 }
 
 {$N8N_HOST} {
 	encode zstd gzip
-	reverse_proxy n8n:5678
+	import clean_path_only
+
+	# The public API's machine-readable spec. Nothing here reads it, so it is
+	# not served to the internet.
+	handle /api/v1/openapi.yml {
+		respond 404
+	}
+
+	# Public, because a machine calls each without a person to type a password:
+	# Open Collective's webhook, the form's later pages when n8n links them
+	# here, the public API the deploy and the operator's tools use with an API
+	# key, and the health check the deploy waits on.
+	@machine path /webhook/* /form/* /form-waiting/* /api/v1/* /healthz
+	handle @machine {
+		# A browser that holds the editor gate password sends it to every path
+		# on this host, these included. n8n never needs it, and a Webhook node
+		# would record it in execution data, so it is dropped here. A Bearer
+		# token or the API key header passes through untouched.
+		@basic header Authorization "Basic *"
+		request_header @basic -Authorization
+		reverse_proxy n8n:5678
+	}
+
+	# Everything a person uses: the editor, /signin, /rest and the test
+	# webhooks. A browser asks for this password once and sends it with every
+	# request after, the editor's own calls included.
+	handle {
+		import editor-auth.caddy
+		# The gate password stops here. n8n has its own login and never sees it.
+		request_header -Authorization
+		reverse_proxy n8n:5678
+	}
 }

@@ -462,7 +462,8 @@ The rules below are the OSE-specific invariants on top of that skill:
   `automation/test/deploy-infra.sh`, `alert-slack.sh`, `backup-upload.sh`,
   `check-workflows-env.sh` and `check-n8n-version.py` stub every external
   command and finish in seconds.
-  `automation/test/bootstrap-smoke.sh` needs Docker. CI runs all six and
+  `automation/test/bootstrap-smoke.sh` and `caddy-routes.sh` need Docker. CI
+  runs all of them and
   `tofu validate`. Each test fails loudly when a helper dies under `set -e`,
   because a test that stops silently reads as a pass.
 - **Back up off the box before a manual change to it.** A change the deploy
@@ -470,6 +471,18 @@ The rules below are the OSE-specific invariants on top of that skill:
   with a fresh dump and a verified copy off the box, in the bucket or by hand as
   `automation/infra/README.md` describes. The local dumps live on the same disk
   as the database.
+- **Each hostname lets through only what its users need.** The applicant host
+  serves the form paths and answers 404 to everything else. The admin host
+  leaves `/webhook/*`, `/form/*`, `/form-waiting/*`, `/api/v1/*` and `/healthz`
+  open for machines and puts the rest, the editor and its login page included,
+  behind the editor gate in `editor-auth.caddy`. Opening a path is a change to
+  the Caddyfile and to the checks in `automation/test/caddy-routes.sh` in the
+  same pull request, never a catch-all `handle`. Caddy matches the cleaned
+  path but forwards the raw one, so `clean_path_only` refuses any path with a
+  dot segment or an encoded separator before any rule runs. Keep it first in
+  both sites. The gate's password is in the
+  vault only. Its bcrypt hash is in git, and an agent never sees the password:
+  the operator generates it and hands over the hash.
 - **`tofu/vps/` is a template and is never applied to the production box.**
   Applying it orders and bills a new VPS, and destroying it terminates one.
   `tofu/backup-storage/` is applied, from the operator's laptop. State for both

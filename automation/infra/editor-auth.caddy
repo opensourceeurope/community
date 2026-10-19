@@ -1,0 +1,11 @@
+# The editor gate the Caddyfile imports on the admin host. One user, `ose`,
+# and the bcrypt hash of a long random password. The password itself is in
+# the vault as "OSE automation — n8n editor gate" and nowhere else.
+#
+# To change it, generate a new password and its hash as "The editor password"
+# in automation/infra/README.md describes, and replace the hash below in a pull
+# request. The deploy restarts Caddy with it, and the old password stops
+# working.
+basic_auth {
+	ose $2a$10$Ulbp8KkU8DDhyzZDkTE5CO7KhwHcB7f2rQHYNwLcveJYed6yRXDni
+}
