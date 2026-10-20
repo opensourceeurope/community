@@ -313,10 +313,11 @@ The rules below are the OSE-specific invariants on top of that skill:
   what an applicant sees, and claiming otherwise has already been done here and
   been wrong. n8n also filters both the `customCss` and the Custom HTML
   elements before rendering: a raw `<svg>` is stripped, which is why the
-  wordmark is a percent-encoded data URI. A `mailto:` link in a completion message keeps its text
-  and loses its `href`, so it looks clickable and does nothing: write an email
-  address as plain text. So anything beyond plain text in a
-  form field is verified by opening the page, not by reading the export back.
+  wordmark is a percent-encoded data URI. A link keeps its `href` only for
+  `http` and `https`, so a `mailto:` link keeps its text, loses its target,
+  and looks clickable while doing nothing. Write an email address as text, in
+  `<strong>` if it needs to stand out. So anything beyond plain text in a form
+  field is verified by opening the page, not by reading the export back.
   Saving without an error only proves n8n stored it.
 - **The form's field labels are part of the emailed link.** n8n keys prefill
   query parameters on a field's label, so the invitation and reminder emails
