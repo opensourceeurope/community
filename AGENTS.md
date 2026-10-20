@@ -172,6 +172,19 @@ The rules below are the OSE-specific invariants on top of that skill:
   `Choose the repository URL` in apply 5 do. The line parses under plain `node`
   and `validate_workflow` says nothing, so the only way to see this is to run the
   node inside n8n. `automation/test/readme-fetch.py` does that in a container.
+- **A change to what a model reads is tested before it merges, and the tests
+  stay out of the pull request description.** apply 2 and apply 5 behave
+  through their prompts, so `validate_workflow` and the export checks say
+  nothing about what the model will write. Before merging a change to a
+  prompt, a render node, the licence check or `AI_MODEL`, run
+  `python3 automation/test/licence-check.py` and
+  `python3 automation/test/readme-fetch.py`, which need Docker and a network,
+  and `AI_API_KEY=... AI_MODEL=<model> node automation/test/review-eval.mjs`,
+  which needs the operator's own key. The eval covers apply 2's prompt only.
+  A change to the summary is checked by running made-up answers through the
+  committed nodes against the model and reading what comes back. A pull
+  request description says what changes and why. Which tests ran is not part
+  of it.
 - **Every applicant-facing email site checks `DRY_RUN`, and the check fails safe.** Each
   email node is fed by a render Code node that reads `DRY_RUN`: the pipeline suppresses
   applicant email unless the variable is explicitly and exactly `false`, after trimming
