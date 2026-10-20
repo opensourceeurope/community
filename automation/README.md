@@ -30,11 +30,15 @@ columns, so sending one takes a deliberate edit rather than an oversight.
 
 Free text is the other way in. The form has free text boxes, and a README or
 a public description is whatever its authors wrote. So both render steps
-replace every email address in the message with `[email address removed]`
-before it goes to the model, the spelled-out `name [at] example [dot] org`
-included. A `git@host` clone URL is left alone.
+replace email addresses in the message with `[email address removed]` before
+it goes to the model. That covers an address written with `@`, a fullwidth
+`＠`, `%40` or `&#64;`, with letters from any script, and the bracketed forms
+READMEs and imprint pages use, such as `name(at)example.de` and
+`name [at] example [dot] org`. A `git@host:` clone URL is left alone.
 
-That covers addresses, not every personal detail an applicant can type. A
+Two forms still get through: `name at example dot org` written as bare words,
+which looks too much like ordinary prose to remove safely, and an address
+broken across a line. Nor does any of this cover other personal details. A
 name, a phone number or a street address written into a free text answer
 still reaches the model. Anyone assessing what this pipeline discloses should
 read that sentence as the real boundary.
@@ -181,10 +185,12 @@ and takes the real ones with it.
    simply absent inside n8n, and the expression reads `undefined` with no
    error. A `$env` use the check cannot name, such as destructuring, fails too,
    so read each variable as `$env.NAME`.
-9. **No email address reaches a model.** A Code node that builds a model
-   request must pass its user message through `redactAddresses`, and must not
-   read `contact_email`, `applicant_email` or either `alternative_admin_*`
-   column. [`test/model-input-redaction.mjs`](test/model-input-redaction.mjs)
+9. **No email address reaches a model.** Every HTTP node that calls a model
+   is traced back to the Code node that builds its request. There, each user
+   message must be exactly one `redactAddresses(...)` call, the helper must
+   match the copy in the other node, and the node must not name
+   `contact_email`, `applicant_email` or either `alternative_admin_*` column
+   or read the row whole. [`test/model-input-redaction.mjs`](test/model-input-redaction.mjs)
    runs both nodes on text full of addresses and checks that none comes out.
 
 Run it from the repository root. It needs no arguments, no dependencies, no

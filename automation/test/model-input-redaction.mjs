@@ -40,8 +40,20 @@ const COLUMNS = {
 const PLANTED = [
   'maintainer@project.example',
   'first.last+tag@sub.domain.example.org',
+  'Maintainer@Project.Example',
   'security (at) project [dot] example',
   'press [at] project [dot] co [dot] uk',
+  'impressum(at)verein-beispiel.de',
+  'kontakt [at] verein.example.org',
+  'board{at}project{dot}example',
+  'ops<at>project<dot>example',
+  'someone @ project.example',
+  'italic.user@project.example',
+  'mailto-encoded%40project.example',
+  'entity&#64;project.example',
+  'fullwidth\uFF20project.example',
+  'jürgen@bücher.example',
+  'git@impostor.example',
 ]
 
 const KEPT = [
@@ -50,9 +62,8 @@ const KEPT = [
   'https://social.example/@someone',
 ]
 
-const freeText = `Write to ${PLANTED[0]} or ${PLANTED[1]}. Reports go to ${PLANTED[2]}, `
-  + `press to ${PLANTED[3]}. Clone ${KEPT[0]}, install ${KEPT[1]}, follow ${KEPT[2]}.`
-
+const freeText = PLANTED.map((address, i) => (i % 2 ? `write to ${address}.` : `Reach _${address}_ today,`)).join(' ')
+  + ` Clone ${KEPT[0]}, install ${KEPT[1]}, follow ${KEPT[2]}.`
 const answers = {
   applicant_type: 'Open source project',
   repository_url: 'https://codeberg.org/someone/project',
@@ -99,7 +110,7 @@ const check = (label, items) => {
   for (const address of [...PLANTED, ...Object.values(COLUMNS)]) {
     if (request.includes(address)) failures.push(`${label}: request still contains ${address}`)
   }
-  if (/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/.test(request.replaceAll(KEPT[0], ''))) {
+  if (/[\p{L}\p{N}._%+-]+(@|\uFF20)[\p{L}\p{N}-]+\.\p{L}{2,}/u.test(request.replaceAll(KEPT[0], ''))) {
     failures.push(`${label}: request still contains something shaped like an address`)
   }
   for (const kept of KEPT) {

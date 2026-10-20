@@ -63,14 +63,20 @@ CHECKS = """\
    that names a variable .env lacks, so this check is what makes that guard
    cover every variable the workflows depend on.
 
-9. No email address reaches a model. Every Code node that builds a model
-   request, recognised by a message with role 'user', must pass that message's
-   content through redactAddresses, which replaces every address in the free
-   text an applicant, a README or a public page supplied. The same node must
-   not read an address column at all: contact_email, applicant_email or either
-   alternative_admin_* column, by property or by quoted key, outside a comment.
-   The form keeps those fields out of the answers, and this keeps a later edit
-   from putting them back.
+9. No email address reaches a model. A model request is found two ways: an
+   HTTP node whose URL or body names a chat completions, messages or
+   responses endpoint, traced back to the Code node that feeds it, and any
+   Code node that writes a message with role user, in either quote style. In
+   each one, the content of every user message must be a single call to
+   redactAddresses with nothing added after it, and the helper must be the
+   same text in every node that has one. A behaviour test,
+   automation/test/model-input-redaction.mjs, checks what that helper
+   removes. Outside comments, the node must not name an address column at
+   all (contact_email, applicant_email, alternative_admin_name or
+   alternative_admin_email), and must not read the row whole: no
+   JSON.stringify(row), no Object.keys, values or entries of it, no for...in
+   over it, and no row[key] with a computed key. The form keeps those fields
+   out of the answers, and this keeps a later edit from putting them back.
 """
 
 DATA_TABLE = "ose_applications"
@@ -92,7 +98,15 @@ MODEL_FREE_KEYS = {"form_feedback"}
 # may read one.
 ADDRESS_COLUMNS = ("contact_email", "applicant_email",
                    "alternative_admin_name", "alternative_admin_email")
-MODEL_USER_MESSAGE = re.compile(r"role:\s*'user'\s*,\s*content:\s*(?P<content>\S+)")
+HTTP_TYPE = "n8n-nodes-base.httpRequest"
+MODEL_ENDPOINT = re.compile(r"chat/completions|/v1/messages|/v1/responses")
+USER_ROLE = re.compile(r"""["']?role["']?\s*:\s*["'`]user["'`]""")
+CONTENT_KEY = re.compile(r"""["']?content["']?\s*:\s*""")
+REDACT_CALL = "redactAddresses("
+HELPER_START = "const ADDRESS_REMOVED"
+HELPER_END = ".replace(SPELLED_ADDRESS, ADDRESS_REMOVED);"
+WHOLE_ROW = re.compile(r"JSON\.stringify\(\s*row\b|Object\.(?:keys|values|entries)\(\s*row\b"
+                       r"|\bin\s+row\b|\brow\s*\[\s*[^'\"\s\]]")
 
 FORM_FILE = "form-ose.json"
 FORM_TYPES = ("n8n-nodes-base.formTrigger", "n8n-nodes-base.form")
@@ -633,32 +647,126 @@ def check_env_reads(workflow, passed, documented, problems):
 
 
 # --- check 9 ---------------------------------------------------------------
-def check_model_input(workflow, problems):
+def enclosing_object(code, start, end):
+    """The text between the braces around code[start:end], or None."""
+    depth = 0
+    for opening in range(start - 1, -1, -1):
+        if code[opening] == "}":
+            depth += 1
+        elif code[opening] == "{":
+            if depth == 0:
+                break
+            depth -= 1
+    else:
+        return None
+    depth = 0
+    for closing in range(end, len(code)):
+        if code[closing] == "{":
+            depth += 1
+        elif code[closing] == "}":
+            if depth == 0:
+                return code[opening + 1:closing]
+            depth -= 1
+    return None
+
+
+def redacted_content(message):
+    """True when the message's content is one redactAddresses(...) call and nothing more."""
+    key = CONTENT_KEY.search(message)
+    if not key or not message.startswith(REDACT_CALL, key.end()):
+        return False
+    depth = 0
+    for index in range(key.end() + len(REDACT_CALL) - 1, len(message)):
+        if message[index] == "(":
+            depth += 1
+        elif message[index] == ")":
+            depth -= 1
+            if depth == 0:
+                rest = message[index + 1:].lstrip()
+                return rest == "" or rest.startswith(",")
+    return False
+
+
+def model_request_nodes(workflow, problems):
+    """The Code nodes that build a model request, by what they write or what they feed."""
+    found = {}
     for node in workflow.nodes:
-        if node.get("type") != CODE_TYPE:
-            continue
         code = (node.get("parameters") or {}).get("jsCode")
-        if not isinstance(code, str):
+        if node.get("type") == CODE_TYPE and isinstance(code, str) and USER_ROLE.search(code):
+            found[node.get("name")] = node
+    for node in workflow.nodes:
+        if node.get("type") != HTTP_TYPE:
             continue
-        messages = MODEL_USER_MESSAGE.findall(code)
-        if not messages:
+        if not any(MODEL_ENDPOINT.search(text)
+                   for _, text in strings_in(node.get("parameters") or {}, [])):
             continue
-        for content in messages:
-            if not content.startswith("redactAddresses("):
-                fail(problems, workflow, node.get("name"),
-                     "builds a model request whose user message is %s rather than "
-                     "redactAddresses(...), so an email address in free text reaches "
-                     "the model" % content)
-        if not re.search(r"const\s+redactAddresses\s*=", code):
+        queue, seen, builders = list(workflow.predecessors(node.get("name"))), set(), []
+        while queue:
+            name = queue.pop(0)
+            if name in seen:
+                continue
+            seen.add(name)
+            source = workflow.by_name.get(name) or {}
+            if source.get("type") == CODE_TYPE:
+                builders.append(source)
+            else:
+                queue.extend(workflow.predecessors(name))
+        if not builders:
             fail(problems, workflow, node.get("name"),
-                 "builds a model request but does not define redactAddresses")
+                 "calls a model, and no Code node upstream builds its request, so "
+                 "check 9 cannot see whether email addresses are removed")
+        for source in builders:
+            found[source.get("name")] = source
+    return list(found.values())
+
+
+def check_model_input(workflow, problems):
+    """Returns (workflow, node name, helper text) for every copy of the helper."""
+    helpers = []
+    for node in model_request_nodes(workflow, problems):
+        name = node.get("name")
+        code = (node.get("parameters") or {}).get("jsCode") or ""
+        roles = list(USER_ROLE.finditer(code))
+        if not roles:
+            fail(problems, workflow, name,
+                 "feeds a model, and check 9 finds no message with role user in it "
+                 "to check for redactAddresses")
+        for role in roles:
+            message = enclosing_object(code, role.start(), role.end())
+            if message is None or not redacted_content(message):
+                fail(problems, workflow, name,
+                     "builds a model request whose user message content is not a single "
+                     "redactAddresses(...) call, so an email address in free text "
+                     "reaches the model")
+        if HELPER_START in code and HELPER_END in code:
+            start = code.index(HELPER_START)
+            helpers.append((workflow, name,
+                            code[start:code.index(HELPER_END, start) + len(HELPER_END)]))
+        else:
+            fail(problems, workflow, name,
+                 "builds a model request but does not define the redactAddresses helper")
         source = "\n".join(line for line in code.splitlines()
                            if not line.lstrip().startswith("//"))
         for column in ADDRESS_COLUMNS:
-            if re.search(r"\.\s*%s\b|['\"`]%s['\"`]" % (column, column), source):
-                fail(problems, workflow, node.get("name"),
-                     "builds a model request and reads the address column %s"
-                     % column)
+            if re.search(r"\b%s\b" % column, source):
+                fail(problems, workflow, name,
+                     "builds a model request and names the address column %s" % column)
+        if WHOLE_ROW.search(source):
+            fail(problems, workflow, name,
+                 "builds a model request and reads the row whole, which reaches the "
+                 "address columns: %s" % WHOLE_ROW.search(source).group(0))
+    return helpers
+
+
+def check_helper_copies(helpers, problems):
+    if not helpers:
+        return
+    first_workflow, first_name, first = helpers[0]
+    for workflow, name, text in helpers[1:]:
+        if text != first:
+            fail(problems, workflow, name,
+                 "redactAddresses differs from the copy in %s (%s); keep the two "
+                 "identical" % (first_name, first_workflow.file))
 
 
 # --- driver ----------------------------------------------------------------
@@ -699,6 +807,7 @@ def main(argv):
 
     workflows = {}
     problems = []
+    helpers = []
     for path in files:
         try:
             with open(path) as handle:
@@ -718,9 +827,10 @@ def main(argv):
         check_form_option_matches(workflow, pages, problems)
         check_form_direct_reads(workflow, problems)
         check_env_reads(workflow, passed, documented, problems)
-        check_model_input(workflow, problems)
+        helpers.extend(check_model_input(workflow, problems))
 
     check_answer_labels(workflows, problems, complete)
+    check_helper_copies(helpers, problems)
     check_form_prefill_field(workflows, problems, complete)
 
     for problem in problems:

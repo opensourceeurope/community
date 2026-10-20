@@ -122,10 +122,16 @@ The rules below are the OSE-specific invariants on top of that skill:
   node selects from a fixed key list rather than iterating the row, so sending
   an address takes a deliberate edit rather than an oversight. Free text is
   covered separately: both nodes pass the whole user message through
-  `redactAddresses`, which replaces every email address, the spelled-out
-  `[at]`/`[dot]` form included, and `check-workflows.py` check 9 fails a
-  model request that skips it or reads an address column. Keep the helper
-  identical in both nodes. State the rule
+  `redactAddresses`. It removes addresses written with `@` or its encoded
+  forms, in any script, and the bracketed `(at)`, `[at]`, `{at}` and `<at>`
+  forms READMEs and imprint pages use. It misses `name at example dot org`
+  written as bare words and an address broken across a line.
+  `check-workflows.py` check 9 traces every model call back to the node that
+  builds it, fails a user message that is not one `redactAddresses(...)`
+  call, a node that names an address column or reads the row whole, and two
+  copies of the helper that differ.
+  `automation/test/model-input-redaction.mjs` checks what the helper removes,
+  so add a case there when you widen it. State the rule
   this way round and not as "no personal data reaches the model", which is a
   promise the pipeline cannot keep: form answers and READMEs are free text, and
   an applicant who signs a comment with their name and phone number has sent
