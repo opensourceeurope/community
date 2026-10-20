@@ -105,7 +105,7 @@ if (process.argv.includes('--self-test')) {
 }
 
 const BASE = process.env.AI_BASE_URL ?? 'https://api.scaleway.ai'
-const MODEL = process.env.AI_MODEL ?? 'mistral-small-3.2-24b-instruct-2506'
+const MODEL = process.env.AI_MODEL ?? 'mistral-medium-3.5-128b'
 const KEY = process.env.AI_API_KEY
 if (!KEY) { console.error('AI_API_KEY is not set'); process.exit(2) }
 
@@ -119,9 +119,11 @@ async function review(input) {
     body: JSON.stringify({
       model: MODEL,
       temperature: 0,
-      // Verified against the live endpoint (2026-09-01): Scaleway honours
-      // json_object for this model, so there is deliberately no parse-retry
-      // fallback here. If a provider swap breaks parsing, add one then.
+      // Scaleway honoured json_object for mistral-small-3.2 on the live endpoint
+      // (2026-09-01), so there is deliberately no parse-retry fallback here.
+      // Scaleway lists structured output for mistral-medium-3.5 too. A full run
+      // of this eval against it is what proves it, and if parsing breaks, add a
+      // fallback then.
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: system },
