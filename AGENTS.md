@@ -244,13 +244,14 @@ The OSE-specific invariants on top of that skill:
   The served HTML of this client-rendered form holds no questions, styling or
   custom HTML. n8n filters `customCss` and Custom HTML: a raw `<svg>` is
   stripped, hence the percent-encoded data URI wordmark, and only `http` and
-  `https` links keep their `href`, so a `mailto:` link does nothing. Write an
-  email address as text, in `<strong>` if needed. A `class` attribute is
-  stripped too, so style an element through the `.form-group.html` wrapper n8n
-  renders around it. Verify anything beyond plain text by opening the page. A
-  throwaway local container on the production image, with the form node imported
-  and published, renders it faithfully. Saving without an error only proves n8n
-  stored it.
+  `https` links keep their `href`, so a `mailto:` link does nothing.
+  `target="_blank"` is kept, so a link to another site opens in a new tab and
+  never takes the applicant off the form. Write an email address as text, in
+  `<strong>` if needed. A `class` attribute is stripped too, so style an element
+  through the `.form-group.html` wrapper n8n renders around it. Verify anything
+  beyond plain text by opening the page. A throwaway local container on the
+  production image, with the form node imported and published, renders it
+  faithfully. Saving without an error only proves n8n stored it.
 - **The form's field labels are part of the emailed link.** Prefill parameters
   are keyed on labels, so the invitation and reminder emails embed the page 1
   label `Your collective's Open Collective URL`, percent-encoded. A rename
