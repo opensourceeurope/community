@@ -145,9 +145,9 @@ hears from us one sweep later, not never.
 ## Checking the exports
 
 [`scripts/check-workflows.py`](scripts/check-workflows.py) reads the exports in
-`automation/n8n/` and enforces nine of the invariants in `AGENTS.md`. Each one
-exists because that defect reached main at least once, and there are only nine
-on purpose. A check that flags style rather than breakage gets switched off,
+`automation/n8n/` and enforces some of the invariants in `AGENTS.md`. Each one
+exists because that defect reached main at least once, and the list is kept
+short on purpose. A check that flags style rather than breakage gets switched off,
 and takes the real ones with it.
 
 1. **No disabled nodes.** An export taken while nodes were switched off for a
@@ -257,12 +257,11 @@ the repository either way, so no README was ever fetched and nothing failed
 anywhere to say so. Only a test that runs the code where n8n runs it sees that.
 
 It reads both node bodies out of `n8n/summary.json` rather than keeping a copy,
-so it tests what is committed and cannot drift from it. Nine of the twenty-two
-fixtures reach GitHub, GitLab and Codeberg over the network on purpose: a
-candidate URL that no longer matches a repository host's API is the other half
-of what this catches. The other thirteen must come back empty. Nine of those are
-refusals: `http`, a port, a userinfo prefix, an IP literal, `localhost`, a
-`.local` and an `.internal` name, an encoded slash and a `..` segment. Three name
+so it tests what is committed and cannot drift from it. Some fixtures reach
+GitHub, GitLab and Codeberg over the network on purpose: a candidate URL that no
+longer matches a repository host's API is the other half of what this catches.
+The rest must come back empty. Most of those are refusals: `http`, a port, a userinfo prefix, an IP literal, `localhost`, a
+`.local` and an `.internal` name, an encoded slash and a `..` segment. Others name
 no repository at all: an owner with no repository after it, an empty answer set,
 and answers that are not json. The last is a community whose link is a website
 rather than a repository, which is followed no further.

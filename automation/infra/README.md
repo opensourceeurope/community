@@ -601,7 +601,7 @@ in a GitHub secret, and nothing is opened inbound for a deploy.
 1. Fast-forwards `~/community` to `origin/main`.
 2. Applies what changed in `automation/infra/`, then records the commit it
    applied.
-3. Runs the same eight export checks that CI runs on every pull request, then
+3. Runs the same export checks that CI runs on every pull request, then
    pushes each file in `automation/n8n/` into the running n8n over the public
    API.
 
