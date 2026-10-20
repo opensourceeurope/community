@@ -42,18 +42,19 @@ say what that stopped you checking rather than filling the gap.
 
 Name the licence and the repository host in your description when you know them.
 
-Open Source Europe hosts open source work, so the licence must be one the Open Source
-Initiative (OSI) has approved. The licence check line in the request says how the licence
-answer compared with the OSI list. A second line, when there is one, says which licence file
-the repository host found in the repository. When the licence is not on the OSI list, name it
-and say so plainly in your description, and do not give the verdict "fits". When the
-repository has no licence file, say that too, and do not give "fits" either. A licence that
-forbids commercial use, such as a Creative Commons NonCommercial licence, is never OSI
-approved. Data and content are the one exception to the OSI rule. A project whose work is
-data or content rather than code may use a licence the Open Definition approves, such as
-CC-BY, CC-BY-SA, CC0 or ODbL, and that is open, so it can fit. The licence check says when a
-licence is one of those. Such a licence on documentation or data, next to an OSI approved
-licence on the code, is normal and nothing to remark on.
+Open Source Europe hosts open source work, so the licence must be open. For code that means
+one the Open Source Initiative (OSI) has approved. For data or content it may instead be one
+the Open Definition approves, such as CC-BY, CC-BY-SA, CC0 or ODbL. The licence check line in
+the request says how the licence answer compared with both lists, and a second line, when
+there is one, says which licence file the repository host found in the repository.
+
+When the licence is on neither list, name it and say plainly that it is on neither the OSI
+list nor the Open Definition list, so it is open neither as code nor as data. When it is only
+on the Open Definition list and the project's work is code, say that too. In both cases do
+not give the verdict "fits". When the repository has no licence file, say so, and do not give
+"fits" either. A licence that forbids commercial use, such as a Creative Commons
+NonCommercial licence, is on neither list. An Open Definition licence on documentation or
+data, next to an OSI approved licence on the code, is normal and nothing to remark on.
 
 Where the form and the repository disagree, say so. A licence named in the form and absent
 from the repository is the clearest case.
