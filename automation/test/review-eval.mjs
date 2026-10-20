@@ -150,12 +150,17 @@ function toneErrors(msg) {
   return errors
 }
 
+// The directory is shared with other tests, readme-fetch.json among them, so a file is a
+// review case only when it carries the two fields a case needs.
 const dir = join(root, 'test/fixtures')
-const files = (await readdir(dir)).filter((f) => f.endsWith('.json'))
+const fixtures = []
+for (const file of (await readdir(dir)).filter((f) => f.endsWith('.json')).sort()) {
+  const fixture = JSON.parse(await readFile(join(dir, file), 'utf8'))
+  if (fixture && !Array.isArray(fixture) && fixture.expect_verdict && fixture.input) fixtures.push(fixture)
+}
 let failed = 0
 
-for (const file of files.sort()) {
-  const fixture = JSON.parse(await readFile(join(dir, file), 'utf8'))
+for (const fixture of fixtures) {
   try {
     const verdict = await review(fixture.input)
     const errors = [...validate(verdict), ...toneErrors(verdict.applicant_message ?? '')]
@@ -172,5 +177,5 @@ for (const file of files.sort()) {
   }
 }
 
-console.log(`\n${files.length - failed}/${files.length} fixtures passed`)
+console.log(`\n${fixtures.length - failed}/${fixtures.length} fixtures passed`)
 process.exit(failed ? 1 : 0)
