@@ -198,8 +198,8 @@ admin's name and email. Those two are stored as the columns
 model.
 
 Page 6 shows every answer back for correction, the second admin included. Last
-comes one question of its own: `form_feedback`, where the applicant says how the form could be better.
-It is optional, and it is not part of the application. The Slack thread reply
+comes one question of its own: `form_feedback`, where the applicant says how
+the form could be better. It is optional, and it is not part of the application. The Slack thread reply
 carries it so that a person reads it. The summary prompt in apply 5 names the
 keys it sends to the model, and this one is kept out of that list.
 
