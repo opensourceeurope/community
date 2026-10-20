@@ -151,10 +151,8 @@ The rules below are the OSE-specific invariants on top of that skill:
   lands. The body is fetched as text so that nothing parses it, and only its
   first 8000 characters reach a model. n8n's HTTP helper has no response size
   option to set, so the ten second timeout and that truncation are the only
-  bounds on it. apply 5 also asks the same host, under the same rules, which
-  licence file it found. That answer is JSON and is parsed in full, bounded by
-  the timeout alone, but only one field is read and only a value shaped like
-  an SPDX identifier is kept. A Code node cannot resolve DNS, so a hostname
+  bounds on it. apply 5 reads the host's licence metadata the same way and
+  keeps only an SPDX-shaped id. A Code node cannot resolve DNS, so a hostname
   pointing at a private address still passes; what makes that tolerable is that
   nothing on the box listens on a private interface over HTTPS. Widen this and that reasoning
   has to be redone.
@@ -172,19 +170,11 @@ The rules below are the OSE-specific invariants on top of that skill:
   `Choose the repository URL` in apply 5 do. The line parses under plain `node`
   and `validate_workflow` says nothing, so the only way to see this is to run the
   node inside n8n. `automation/test/readme-fetch.py` does that in a container.
-- **A change to what a model reads is tested before it merges, and the tests
-  stay out of the pull request description.** apply 2 and apply 5 behave
-  through their prompts, so `validate_workflow` and the export checks say
-  nothing about what the model will write. Before merging a change to a
-  prompt, a render node, the licence check or `AI_MODEL`, run
-  `python3 automation/test/licence-check.py` and
-  `python3 automation/test/readme-fetch.py`, which need Docker and a network,
-  and `AI_API_KEY=... AI_MODEL=<model> node automation/test/review-eval.mjs`,
-  which needs the operator's own key. The eval covers apply 2's prompt only.
-  A change to the summary is checked by running made-up answers through the
-  committed nodes against the model and reading what comes back. A pull
-  request description says what changes and why. Which tests ran is not part
-  of it.
+- **Test a model-facing change before merge, and keep it out of the PR
+  description.** For a prompt, render node, licence check or `AI_MODEL`
+  change, run `licence-check.py`, `readme-fetch.py` and, with the operator's
+  key, `review-eval.mjs`. The eval covers apply 2 only, so check a summary
+  change by running sample answers through the committed nodes.
 - **Every applicant-facing email site checks `DRY_RUN`, and the check fails safe.** Each
   email node is fed by a render Code node that reads `DRY_RUN`: the pipeline suppresses
   applicant email unless the variable is explicitly and exactly `false`, after trimming
