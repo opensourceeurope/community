@@ -120,10 +120,16 @@ The rules below are the OSE-specific invariants on top of that skill:
   in. `contact_email`, `applicant_email` and the two `alternative_admin_*`
   columns are never included: every render
   node selects from a fixed key list rather than iterating the row, so sending
-  an address takes a deliberate edit rather than an oversight. State the rule
+  an address takes a deliberate edit rather than an oversight. Free text is
+  covered separately: both nodes pass the whole user message through
+  `redactAddresses`, which replaces every email address, the spelled-out
+  `[at]`/`[dot]` form included, and `check-workflows.py` check 9 fails a
+  model request that skips it or reads an address column. Keep the helper
+  identical in both nodes. State the rule
   this way round and not as "no personal data reaches the model", which is a
   promise the pipeline cannot keep: form answers and READMEs are free text, and
-  an applicant who signs a comment with their name and address has sent them.
+  an applicant who signs a comment with their name and phone number has sent
+  them.
 - **A URL an applicant supplied is a request they are asking this server to
   make.** Two places reach a host of someone else's choosing: apply 2 fetches
   repository evidence from the link on the collective's page or in its
@@ -390,14 +396,15 @@ The rules below are the OSE-specific invariants on top of that skill:
   does not do. The credit belongs somewhere a reader will actually see it, so
   name n8n in the public documentation and in the AI and tooling policy, and keep
   it accurate as the stack changes.
-- **Eight of these rules are enforced, the rest are on you.**
+- **Nine of these rules are enforced, the rest are on you.**
   `automation/scripts/check-workflows.py` runs on every pull request and checks
   the exports for disabled nodes, truncated expressions, an email send whose
   render step does not read `DRY_RUN`, an answer key missing from a label list,
   a data table referenced any way but by name, a workflow with no timezone, a
   form label or dropdown option that no longer matches what reads it, and a
   `$env` read that `docker-compose.yml` does not pass to n8n or
-  `automation/.env.example` does not document.
+  `automation/.env.example` does not document, and a model request that does
+  not redact email addresses or reads an address column.
   Run it locally before you push. Each check is there because that defect
   reached main at least once. It reads the exports, so it only sees what you
   exported: refresh them first or it is checking yesterday's workflow.

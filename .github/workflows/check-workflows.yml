@@ -24,3 +24,6 @@ jobs:
 
       - name: Check the workflow exports
         run: python3 automation/scripts/check-workflows.py
+
+      - name: Check that no email address reaches a model
+        run: node automation/test/model-input-redaction.mjs

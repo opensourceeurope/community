@@ -2,7 +2,7 @@
 """Check the n8n workflow exports for the invariants in AGENTS.md.
 
 Every check here exists because the defect it looks for reached main at least
-once. There are deliberately only eight. See --help for what each one covers.
+once. There are deliberately only nine. See --help for what each one covers.
 
 Standard library only: no dependencies, no network, no n8n API key.
 """
@@ -62,6 +62,15 @@ CHECKS = """\
    or misbehaves with no error. The deploy on the box refuses a compose file
    that names a variable .env lacks, so this check is what makes that guard
    cover every variable the workflows depend on.
+
+9. No email address reaches a model. Every Code node that builds a model
+   request, recognised by a message with role 'user', must pass that message's
+   content through redactAddresses, which replaces every address in the free
+   text an applicant, a README or a public page supplied. The same node must
+   not read an address column at all: contact_email, applicant_email or either
+   alternative_admin_* column, by property or by quoted key, outside a comment.
+   The form keeps those fields out of the answers, and this keeps a later edit
+   from putting them back.
 """
 
 DATA_TABLE = "ose_applications"
@@ -78,6 +87,12 @@ LABEL_NODES = [("form-ose.json", "Render submission thread reply", False),
 # model, and how the applicant found the form is not that, so these keys stay out of
 # every label list that feeds one.
 MODEL_FREE_KEYS = {"form_feedback"}
+
+# Row columns holding a person's address or name. No node that builds a model request
+# may read one.
+ADDRESS_COLUMNS = ("contact_email", "applicant_email",
+                   "alternative_admin_name", "alternative_admin_email")
+MODEL_USER_MESSAGE = re.compile(r"role:\s*'user'\s*,\s*content:\s*(?P<content>\S+)")
 
 FORM_FILE = "form-ose.json"
 FORM_TYPES = ("n8n-nodes-base.formTrigger", "n8n-nodes-base.form")
@@ -617,6 +632,35 @@ def check_env_reads(workflow, passed, documented, problems):
                      "document" % name)
 
 
+# --- check 9 ---------------------------------------------------------------
+def check_model_input(workflow, problems):
+    for node in workflow.nodes:
+        if node.get("type") != CODE_TYPE:
+            continue
+        code = (node.get("parameters") or {}).get("jsCode")
+        if not isinstance(code, str):
+            continue
+        messages = MODEL_USER_MESSAGE.findall(code)
+        if not messages:
+            continue
+        for content in messages:
+            if not content.startswith("redactAddresses("):
+                fail(problems, workflow, node.get("name"),
+                     "builds a model request whose user message is %s rather than "
+                     "redactAddresses(...), so an email address in free text reaches "
+                     "the model" % content)
+        if not re.search(r"const\s+redactAddresses\s*=", code):
+            fail(problems, workflow, node.get("name"),
+                 "builds a model request but does not define redactAddresses")
+        source = "\n".join(line for line in code.splitlines()
+                           if not line.lstrip().startswith("//"))
+        for column in ADDRESS_COLUMNS:
+            if re.search(r"\.\s*%s\b|['\"`]%s['\"`]" % (column, column), source):
+                fail(problems, workflow, node.get("name"),
+                     "builds a model request and reads the address column %s"
+                     % column)
+
+
 # --- driver ----------------------------------------------------------------
 
 def default_directory():
@@ -674,6 +718,7 @@ def main(argv):
         check_form_option_matches(workflow, pages, problems)
         check_form_direct_reads(workflow, problems)
         check_env_reads(workflow, passed, documented, problems)
+        check_model_input(workflow, problems)
 
     check_answer_labels(workflows, problems, complete)
     check_form_prefill_field(workflows, problems, complete)
@@ -684,7 +729,7 @@ def main(argv):
         print("\n%d problem(s) in %d workflow export(s)."
               % (len(problems), len(files)))
         return 1
-    print("%d workflow export(s) pass all eight checks." % len(files))
+    print("%d workflow export(s) pass all nine checks." % len(files))
     return 0
 
 
