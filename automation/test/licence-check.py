@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Runs apply 5's licence check inside a real n8n Code node sandbox, against the live OSI list.
 
-`Check the licence against the OSI list` fetches https://opensource.org/api/licenses and
+`Check the licence against the OSI and Open Definition lists` fetches https://opensource.org/api/licenses and
 matches the licence answer to it, and `Render summary request` turns the result into the line
 the model reads. Both node bodies are read out of automation/n8n/summary.json, so this tests
 what is committed. The container runs them the way production does, which is the only place
@@ -26,9 +26,9 @@ spec = importlib.util.spec_from_file_location("readme_fetch", os.path.join(HERE,
 harness = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(harness)
 
-CHECK = "Check the licence against the OSI list"
+CHECK = "Check the licence against the OSI and Open Definition lists"
 RENDER = "Render summary request"
-LINE = "Licence check against the Open Source Initiative list:"
+LINE = "Licence check against the OSI and Open Definition lists:"
 
 # (case, applicant kind, licence answer, expected licence_osi, text the model must be shown)
 CASES = [
@@ -37,11 +37,19 @@ CASES = [
     ("gpl shorthand", "project", "GPLv3", "approved", "(GPL-3.0)"),
     ("or-later suffix", "project", "AGPL-3.0-or-later", "approved", "(AGPL-3.0)"),
     ("european licence", "project", "EUPL 1.2", "approved", "(EUPL-1.2)"),
-    ("non-commercial", "project", "CC BY-NC 4.0", "unmatched", "matched no licence on it"),
-    ("another version", "project", "BSL 1.1", "unmatched", "matched no licence on it"),
-    ("an ordinary word", "project", "Fair use permitted", "unmatched", "matched no licence on it"),
+    ("non-commercial", "project", "CC BY-NC 4.0", "unmatched", "matched no licence on either list"),
+    ("open data licence", "project", "CC BY 4.0", "unmatched", "the Open Definition approves it"),
+    ("public domain data", "project", "CC0 1.0", "unmatched", "mentions CC0 1.0 (CC0-1.0)"),
+    ("open database licence", "project", "ODbL 1.0", "unmatched", "(ODbL-1.0). That is not an OSI licence"),
+    ("share-alike is not by", "project", "CC BY-SA 4.0", "unmatched", "(CC-BY-SA-4.0). That is not"),
+    ("data licence, no version", "project", "CC0", "unmatched", "mentions CC0 1.0 (CC0-1.0)"),
+    ("code licence, no version", "project", "GPL", "approved", "(GPL-3.0)"),
+    ("non-commercial qualifier", "project", "CC BY 4.0 NonCommercial", "unmatched", "matched no licence on either list"),
+    ("a language, not a licence", "project", "Written in Python, proprietary", "unmatched", "matched no licence on either list"),
+    ("another version", "project", "BSL 1.1", "unmatched", "matched no licence on either list"),
+    ("an ordinary word", "project", "Fair use permitted", "unmatched", "matched no licence on either list"),
     ("a negated mention", "project", "Not MIT, all rights reserved", "approved", "This records a mention only"),
-    ("proprietary", "project", "All rights reserved", "unmatched", "MIT: The MIT License"),
+    ("proprietary", "project", "All rights reserved", "unmatched", "CC-BY-4.0: Creative Commons Attribution 4.0"),
     ("no answer", "project", "", "not_checked", None),
     ("community is not asked", "community", "MIT", "not_checked", None),
 ]
@@ -54,7 +62,8 @@ REPO_CASES = [
     ("repo -only suffix", "found", "GPL-3.0-only", "generic", "approved", "which is on the OSI list"),
     ("repo gitlab lowercase", "found", "gpl-3.0", "gitlab", "approved", "GitLab reports it: gpl-3.0, which is on the OSI list"),
     ("repo plus suffix", "found", "GPL-2.0+", "generic", "approved", "which is on the OSI list"),
-    ("repo near miss", "found", "BSD-3-Clause-Clear", "github", "unmatched", "which is not on the OSI list"),
+    ("repo near miss", "found", "BSD-3-Clause-Clear", "github", "unmatched", "which is on neither the OSI list"),
+    ("repo open data", "found", "CC-BY-4.0", "github", "unmatched", "one the Open Definition approves"),
     ("repo dual licence", "found", "CC-BY-4.0, MIT", "generic", "approved", "which is on the OSI list"),
     ("repo has no licence", "none", "", "github", "not_checked", "GitHub found no licence file"),
     ("repo licence unknown", "unidentified", "", "gitlab", "not_checked", "could not identify"),

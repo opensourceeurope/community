@@ -50,9 +50,10 @@ and say so plainly in your description, and do not give the verdict "fits". When
 repository has no licence file, say that too, and do not give "fits" either. A licence that
 forbids commercial use, such as a Creative Commons NonCommercial licence, is never OSI
 approved. Data and content are the one exception to the OSI rule. A project whose work is
-data or content rather than code may use CC-BY, CC-BY-SA or CC0, and that is open, so it can
-fit. One of those licences on documentation or data, next to an OSI approved licence on the
-code, is normal and nothing to remark on.
+data or content rather than code may use a licence the Open Definition approves, such as
+CC-BY, CC-BY-SA, CC0 or ODbL, and that is open, so it can fit. The licence check says when a
+licence is one of those. Such a licence on documentation or data, next to an OSI approved
+licence on the code, is normal and nothing to remark on.
 
 Where the form and the repository disagree, say so. A licence named in the form and absent
 from the repository is the clearest case.
