@@ -21,7 +21,10 @@ description, the application message, and the linked repository and website.
 
 The summary that runs after the form sees more, because a thin Open
 Collective page is the problem it exists to solve. It sees the applicant's
-form answers and the project's README.
+form answers and the project's README. For a project it is also told whether
+the licence answer is on the Open Source Initiative's list of approved
+licences, which apply 5 fetches from opensource.org and matches in code rather
+than leaving the model to remember it.
 
 Neither read is given the fields where the form asks for a person: the
 contact email, and the name and email of a second admin. The pipeline stores
@@ -273,6 +276,21 @@ python3 automation/test/readme-fetch.py
 It needs docker and a network, and it never touches the live instance. It prints
 one line per case and exits non-zero if any case failed. CI does not run it: it
 would call three repository hosts on every pull request.
+
+[`test/licence-check.py`](test/licence-check.py) does the same for the licence
+check. It runs `Check the licence against the OSI list` and
+`Render summary request` in the same kind of container, against the live list
+at opensource.org, and checks both what each licence answer matched and the line
+the model is shown. A changed OSI API turns every answer into "the list could
+not be read", and this is where that shows.
+
+The list's own `approved` field is not used. It reads `false` for MIT and
+Apache-2.0, so the node treats being on the list as being approved, which is
+how the API behaves: a licence OSI never approved returns "License not found".
+
+```bash
+python3 automation/test/licence-check.py
+```
 
 ## Configuration
 

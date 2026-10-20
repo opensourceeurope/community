@@ -26,8 +26,7 @@ something the form did not require, and never treat its absence as a shortcoming
 is the whole of what we asked them for.
 
 Where the applicant's own answers contradict each other, say so in the paragraph, in the
-same plain words as the rest of it. Expected expenses that do not add up to the target
-amount belong there. A breakdown the form never asked for does not.
+same plain words as the rest of it.
 
 Do not praise the applicant. Do not call them promising, impressive, strong or
 well-organised. Say what they do, in plain words.
@@ -42,6 +41,14 @@ README when one could be read. The README is the best evidence you have. When it
 say what that stopped you checking rather than filling the gap.
 
 Name the licence and the repository host in your description when you know them.
+
+Open Source Europe hosts open source work, so the licence must be one the Open Source
+Initiative (OSI) has approved. The licence check line in the request says how the licence
+answer compared with the OSI list. When the licence is not on that list, say so plainly in
+your description and name the licence, and do not give the verdict "fits". A licence that
+forbids commercial use, such as a Creative Commons NonCommercial licence, is never OSI
+approved. A Creative Commons licence on documentation or data, next to an OSI approved
+licence on the code, is normal and nothing to remark on.
 
 Where the form and the repository disagree, say so. A licence named in the form and absent
 from the repository is the clearest case.

@@ -86,8 +86,11 @@ def build(workdir):
     return fixtures
 
 
-def run(workdir):
-    """Import and execute the workflow in a throwaway n8n container."""
+def run(workdir, env=()):
+    """Import and execute the workflow in a throwaway n8n container.
+
+    env is extra NAME=value pairs for the container, for a node that reads $env.
+    """
     state = os.path.join(workdir, "n8n-home")
     os.makedirs(state, exist_ok=True)
     os.chmod(workdir, 0o777)
@@ -100,6 +103,7 @@ def run(workdir):
          "-v", f"{workdir}:/data", "-v", f"{state}:/home/node/.n8n",
          "-e", "HOME=/home/node", "-e", "N8N_DIAGNOSTICS_ENABLED=false",
          "-e", "N8N_RUNNERS_ENABLED=true",
+         *[arg for pair in env for arg in ("-e", pair)],
          "--entrypoint", "sh", image(), "-c", command],
         capture_output=True, text=True, timeout=900)
     if "{" not in result.stdout:
