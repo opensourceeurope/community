@@ -5,7 +5,8 @@
     "repository_url": "",
     "answers": "{\"responses\":{\"repository_url\":\"https://github.com/n8n-io/n8n\",\"project_website\":\"https://n8n.io\"}}",
     "expect_host_kind": "github",
-    "expect_readme": true
+    "expect_readme": true,
+    "expect_repo_licence_status": "unidentified"
   },
   {
     "case": "github, from the OC social link",
@@ -29,7 +30,8 @@
     "repository_url": "",
     "answers": "{\"responses\":{\"repository_url\":\"https://gitlab.com/gitlab-org/gitlab-runner\"}}",
     "expect_host_kind": "gitlab",
-    "expect_readme": true
+    "expect_readme": true,
+    "expect_repo_licence_status": "found"
   },
   {
     "case": "codeberg, a forgejo instance",
@@ -37,7 +39,17 @@
     "repository_url": "",
     "answers": "{\"responses\":{\"repository_url\":\"https://codeberg.org/forgejo/forgejo\"}}",
     "expect_host_kind": "generic",
-    "expect_readme": true
+    "expect_readme": true,
+    "expect_repo_licence_status": "not_read"
+  },
+  {
+    "case": "gitea reports its licence",
+    "slug": "case-gitea",
+    "repository_url": "",
+    "answers": "{\"responses\":{\"repository_url\":\"https://gitea.com/gitea/tea\"}}",
+    "expect_host_kind": "generic",
+    "expect_readme": true,
+    "expect_repo_licence_status": "found"
   },
   {
     "case": "a trailing .git is stripped",
@@ -77,7 +89,8 @@
     "repository_url": "",
     "answers": "{\"responses\":{}}",
     "expect_host_kind": "none",
-    "expect_readme": false
+    "expect_readme": false,
+    "expect_repo_licence_status": "not_read"
   },
   {
     "case": "answers that are not json",

@@ -54,7 +54,8 @@ the collective's description, its links and a short message. The form collects
 the detail OSE needs on top of that:
 
 - what the project does, and where its work happens in the open
-- which licence it uses
+- which licence it uses, which must be OSI approved, or for data and content
+  approved by the Open Definition
 - whether it is already a legal entity
 - what it expects to raise and to spend
 
