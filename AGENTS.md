@@ -402,7 +402,7 @@ The rules below are the OSE-specific invariants on top of that skill:
   does not do. The credit belongs somewhere a reader will actually see it, so
   name n8n in the public documentation and in the AI and tooling policy, and keep
   it accurate as the stack changes.
-- **Nine of these rules are enforced, the rest are on you.**
+- **Some of these rules are enforced, the rest are on you.**
   `automation/scripts/check-workflows.py` runs on every pull request and checks
   the exports for disabled nodes, truncated expressions, an email send whose
   render step does not read `DRY_RUN`, an answer key missing from a label list,
@@ -502,6 +502,14 @@ The rules below are the OSE-specific invariants on top of that skill:
   Applying it orders and bills a new VPS, and destroying it terminates one.
   `tofu/backup-storage/` is applied, from the operator's laptop. State for both
   stays local and git ignores it.
+
+## Writing Docs
+
+- **Never write a count of things that change.** "Nine checks", "the eight
+  invariants" and "thirteen fixtures" go stale the next time one is added, and
+  nobody greps for the word. Name what the things do, or say "every check",
+  "some of the rules", "the rest". A number that identifies something, such as
+  "check 9" or "apply 5", is a name and is fine.
 
 ## Commit Conventions
 

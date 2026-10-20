@@ -388,7 +388,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Workflows. The same nine checks CI runs on every pull request. An export
+# Workflows. The same checks CI runs on every pull request. An export
 # that fails one is a defect that has reached main before, and it must not
 # reach the instance.
 # ---------------------------------------------------------------------------

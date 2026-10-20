@@ -2,7 +2,7 @@
 """Check the n8n workflow exports for the invariants in AGENTS.md.
 
 Every check here exists because the defect it looks for reached main at least
-once. There are deliberately only nine. See --help for what each one covers.
+once. The list is kept short on purpose. See --help for what each one covers.
 
 Standard library only: no dependencies, no network, no n8n API key.
 """
@@ -839,7 +839,7 @@ def main(argv):
         print("\n%d problem(s) in %d workflow export(s)."
               % (len(problems), len(files)))
         return 1
-    print("%d workflow export(s) pass all nine checks." % len(files))
+    print("%d workflow export(s) pass every check." % len(files))
     return 0
 
 
