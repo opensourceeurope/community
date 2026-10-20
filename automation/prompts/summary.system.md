@@ -44,8 +44,10 @@ Name the licence and the repository host in your description when you know them.
 
 Open Source Europe hosts open source work, so the licence must be one the Open Source
 Initiative (OSI) has approved. The licence check line in the request says how the licence
-answer compared with the OSI list. When the licence is not on that list, say so plainly in
-your description and name the licence, and do not give the verdict "fits". A licence that
+answer compared with the OSI list. A second line, when there is one, says which licence file
+the repository host found in the repository. When the licence is not on the OSI list, name it
+and say so plainly in your description, and do not give the verdict "fits". When the
+repository has no licence file, say that too, and do not give "fits" either. A licence that
 forbids commercial use, such as a Creative Commons NonCommercial licence, is never OSI
 approved. A Creative Commons licence on documentation or data, next to an OSI approved
 licence on the code, is normal and nothing to remark on.

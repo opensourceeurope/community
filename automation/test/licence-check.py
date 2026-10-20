@@ -46,6 +46,22 @@ CASES = [
     ("community is not asked", "community", "MIT", "not_checked", None),
 ]
 
+# What the repository host reported, as Fetch the README leaves it. These rows give no licence
+# answer, so only the repository line is under test.
+# (case, repo_licence_status, repo_licence, host_kind, expected repo_licence_osi, text shown)
+REPO_CASES = [
+    ("repo spdx id", "found", "MIT", "github", "approved", "GitHub reports it: MIT, which is on the OSI list"),
+    ("repo -only suffix", "found", "GPL-3.0-only", "generic", "approved", "which is on the OSI list"),
+    ("repo gitlab lowercase", "found", "gpl-3.0", "gitlab", "approved", "GitLab reports it: gpl-3.0, which is on the OSI list"),
+    ("repo plus suffix", "found", "GPL-2.0+", "generic", "approved", "which is on the OSI list"),
+    ("repo near miss", "found", "BSD-3-Clause-Clear", "github", "unmatched", "which is not on the OSI list"),
+    ("repo dual licence", "found", "CC-BY-4.0, MIT", "generic", "approved", "which is on the OSI list"),
+    ("repo has no licence", "none", "", "github", "not_checked", "GitHub found no licence file"),
+    ("repo licence unknown", "unidentified", "", "gitlab", "not_checked", "could not identify"),
+    ("repo not read", "not_read", "", "generic", "not_checked", None),
+]
+REPO_LINE = "Licence file in the repository"
+
 
 def build(workdir):
     rows = [{"json": {
@@ -57,6 +73,18 @@ def build(workdir):
         "repo_url": "",
         "readme": "",
     }} for i, (case, kind, licence, _, _) in enumerate(CASES)]
+    rows += [{"json": {
+        "slug": f"repo-{i}",
+        "collective_name": case,
+        "description": "",
+        "applicant_kind": "project",
+        "answers": json.dumps({"responses": {}}),
+        "repo_url": "https://example.org/owner/name",
+        "host_kind": host_kind,
+        "repo_licence_status": status,
+        "repo_licence": licence,
+        "readme": "",
+    }} for i, (case, status, licence, host_kind, _, _) in enumerate(REPO_CASES)]
 
     def code(node_id, name, js, x):
         return {"id": node_id, "name": name, "type": "n8n-nodes-base.code",
@@ -103,8 +131,16 @@ def report(execution):
             ok = ok and shown in message
         failures += 0 if ok else 1
         print(f"{case:<26} {status:<12} {'pass' if ok else 'FAIL   expected ' + expect}")
+    for i, (case, _, _, _, expect, shown) in enumerate(REPO_CASES):
+        item = got.get(f"repo-{i}", {})
+        status = item.get("repo_licence_osi", "MISSING")
+        message = (item.get("request") or {}).get("messages", [{}, {}])[1].get("content", "")
+        ok = status == expect and (shown in message if shown else REPO_LINE not in message)
+        failures += 0 if ok else 1
+        print(f"{case:<26} {status:<12} {'pass' if ok else 'FAIL   expected ' + expect}")
+    total = len(CASES) + len(REPO_CASES)
     print("-" * 52)
-    print(f"{len(CASES) - failures}/{len(CASES)} passed")
+    print(f"{total - failures}/{total} passed")
     return failures
 
 

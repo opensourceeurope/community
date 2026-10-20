@@ -151,9 +151,12 @@ The rules below are the OSE-specific invariants on top of that skill:
   lands. The body is fetched as text so that nothing parses it, and only its
   first 8000 characters reach a model. n8n's HTTP helper has no response size
   option to set, so the ten second timeout and that truncation are the only
-  bounds on it. A Code node cannot resolve DNS, so a hostname pointing at a
-  private address still passes; what makes that tolerable is that nothing on the
-  box listens on a private interface over HTTPS. Widen this and that reasoning
+  bounds on it. apply 5 also asks the same host, under the same rules, which
+  licence file it found. That answer is JSON and is parsed in full, bounded by
+  the timeout alone, but only one field is read and only a value shaped like
+  an SPDX identifier is kept. A Code node cannot resolve DNS, so a hostname
+  pointing at a private address still passes; what makes that tolerable is that
+  nothing on the box listens on a private interface over HTTPS. Widen this and that reasoning
   has to be redone.
 - **A Code node has no `URL`, no `fetch` and no `crypto`.** The sandbox gives you
   `Buffer`, `require`, `atob`, `TextEncoder` and the ECMAScript built-ins, and

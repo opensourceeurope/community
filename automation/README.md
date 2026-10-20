@@ -24,7 +24,13 @@ Collective page is the problem it exists to solve. It sees the applicant's
 form answers and the project's README. For a project it is also told whether
 the licence answer is on the Open Source Initiative's list of approved
 licences, which apply 5 fetches from opensource.org and matches in code rather
-than leaving the model to remember it.
+than leaving the model to remember it. It is told which licence file GitHub,
+GitLab or a Gitea host found in the repository, and whether that one is on the
+list. Forgejo, and so Codeberg, does not report a licence, so there the line is
+left out. GitHub allows an address without a token sixty API calls an hour, and
+the intake review and the summary share the box's one address. A busy hour
+runs out, and the README and licence then read as not found rather than
+failing.
 
 Neither read is given the fields where the form asks for a person: the
 contact email, and the name and email of a second admin. The pipeline stores
@@ -281,7 +287,8 @@ would call three repository hosts on every pull request.
 check. It runs `Check the licence against the OSI list` and
 `Render summary request` in the same kind of container, against the live list
 at opensource.org, and checks both what each licence answer matched and the line
-the model is shown. A changed OSI API turns every answer into "the list could
+the model is shown, for the form answer and for the licence the repository host
+reported. A changed OSI API turns every answer into "the list could
 not be read", and this is where that shows.
 
 The list's own `approved` field is not used. It reads `false` for MIT and

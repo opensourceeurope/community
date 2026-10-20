@@ -120,19 +120,22 @@ def report(execution, fixtures):
     got = {item["slug"]: item for item in items}
 
     failures = 0
-    print(f"{'case':<36} {'host_kind':<10} {'readme':<8} result")
-    print("-" * 72)
+    print(f"{'case':<36} {'host_kind':<10} {'readme':<8} {'licence':<13} result")
+    print("-" * 86)
     for fixture in fixtures:
         item = got.get(fixture["slug"], {})
         host_kind = item.get("host_kind", "MISSING")
         fetched = bool((item.get("readme") or "").strip())
-        ok = host_kind == fixture["expect_host_kind"] and fetched == fixture["expect_readme"]
+        licence = item.get("repo_licence_status", "MISSING")
+        want_licence = fixture.get("expect_repo_licence_status", licence)
+        ok = (host_kind == fixture["expect_host_kind"] and fetched == fixture["expect_readme"]
+              and licence == want_licence)
         failures += 0 if ok else 1
         note = "" if ok else (f"   expected host_kind={fixture['expect_host_kind']} "
-                              f"readme={fixture['expect_readme']}")
-        print(f"{fixture['case']:<36} {host_kind:<10} {str(fetched):<8} "
+                              f"readme={fixture['expect_readme']} licence={want_licence}")
+        print(f"{fixture['case']:<36} {host_kind:<10} {str(fetched):<8} {licence:<13} "
               f"{'pass' if ok else 'FAIL'}{note}")
-    print("-" * 72)
+    print("-" * 86)
     print(f"{len(fixtures) - failures}/{len(fixtures)} passed")
     return failures
 
