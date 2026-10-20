@@ -6,8 +6,8 @@ Thank you for your application to be fiscally hosted by {{ org_name }}, and for 
 time to share your project with us.
 
 After careful review, we have decided not to move forward with your application. Based on
-the information provided, we do not think the project is the right fit for OSE's hosting
-framework at this stage.
+the information provided, we do not think OSE is the right fiscal host for the
+project at this stage.
 
 We appreciate your interest and wish you all the best with the development of your
 initiative.
