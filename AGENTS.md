@@ -316,8 +316,12 @@ The rules below are the OSE-specific invariants on top of that skill:
   wordmark is a percent-encoded data URI. A link keeps its `href` only for
   `http` and `https`, so a `mailto:` link keeps its text, loses its target,
   and looks clickable while doing nothing. Write an email address as text, in
-  `<strong>` if it needs to stand out. So anything beyond plain text in a form
-  field is verified by opening the page, not by reading the export back.
+  `<strong>` if it needs to stand out. A `class` attribute is stripped too, so
+  style an HTML element through the `.form-group.html` wrapper n8n renders
+  around it. So anything beyond plain text in a form
+  field is verified by opening the page, not by reading the export back. A
+  throwaway local container on the production image, with the form node
+  imported and published, renders it faithfully.
   Saving without an error only proves n8n stored it.
 - **The form's field labels are part of the emailed link.** n8n keys prefill
   query parameters on a field's label, so the invitation and reminder emails
