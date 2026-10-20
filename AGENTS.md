@@ -120,10 +120,22 @@ The rules below are the OSE-specific invariants on top of that skill:
   in. `contact_email`, `applicant_email` and the two `alternative_admin_*`
   columns are never included: every render
   node selects from a fixed key list rather than iterating the row, so sending
-  an address takes a deliberate edit rather than an oversight. State the rule
+  an address takes a deliberate edit rather than an oversight. Free text is
+  covered separately: both nodes pass the whole user message through
+  `redactAddresses`. It removes addresses written with `@` or its encoded
+  forms, in any script, and the bracketed `(at)`, `[at]`, `{at}` and `<at>`
+  forms READMEs and imprint pages use. It misses `name at example dot org`
+  written as bare words and an address broken across a line.
+  `check-workflows.py` check 9 traces every model call back to the node that
+  builds it, fails a user message that is not one `redactAddresses(...)`
+  call, a node that names an address column or reads the row whole, and two
+  copies of the helper that differ.
+  `automation/test/model-input-redaction.mjs` checks what the helper removes,
+  so add a case there when you widen it. State the rule
   this way round and not as "no personal data reaches the model", which is a
   promise the pipeline cannot keep: form answers and READMEs are free text, and
-  an applicant who signs a comment with their name and address has sent them.
+  an applicant who signs a comment with their name and phone number has sent
+  them.
 - **A URL an applicant supplied is a request they are asking this server to
   make.** Two places reach a host of someone else's choosing: apply 2 fetches
   repository evidence from the link on the collective's page or in its
@@ -390,14 +402,15 @@ The rules below are the OSE-specific invariants on top of that skill:
   does not do. The credit belongs somewhere a reader will actually see it, so
   name n8n in the public documentation and in the AI and tooling policy, and keep
   it accurate as the stack changes.
-- **Eight of these rules are enforced, the rest are on you.**
+- **Nine of these rules are enforced, the rest are on you.**
   `automation/scripts/check-workflows.py` runs on every pull request and checks
   the exports for disabled nodes, truncated expressions, an email send whose
   render step does not read `DRY_RUN`, an answer key missing from a label list,
   a data table referenced any way but by name, a workflow with no timezone, a
   form label or dropdown option that no longer matches what reads it, and a
   `$env` read that `docker-compose.yml` does not pass to n8n or
-  `automation/.env.example` does not document.
+  `automation/.env.example` does not document, and a model request that does
+  not redact email addresses or reads an address column.
   Run it locally before you push. Each check is there because that defect
   reached main at least once. It reads the exports, so it only sees what you
   exported: refresh them first or it is checking yesterday's workflow.

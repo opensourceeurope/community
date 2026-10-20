@@ -23,15 +23,25 @@ The summary that runs after the form sees more, because a thin Open
 Collective page is the problem it exists to solve. It sees the applicant's
 form answers and the project's README.
 
-Neither read is given the applicant's name or email address. The pipeline
-stores both on the row, and no render step reads either column, so sending
-one takes a deliberate edit rather than an oversight.
+Neither read is given the fields where the form asks for a person: the
+contact email, and the name and email of a second admin. The pipeline stores
+those on the row, outside the answers, and no render step reads those
+columns, so sending one takes a deliberate edit rather than an oversight.
 
-That is a promise about the columns, not about every character an applicant
-types. The form has free text boxes, and a README is whatever its authors
-wrote, so an applicant who signs a comment with their name and address has
-sent them. Anyone assessing what this pipeline discloses should read that
-sentence as the real boundary.
+Free text is the other way in. The form has free text boxes, and a README or
+a public description is whatever its authors wrote. So both render steps
+replace email addresses in the message with `[email address removed]` before
+it goes to the model. That covers an address written with `@`, a fullwidth
+`＠`, `%40` or `&#64;`, with letters from any script, and the bracketed forms
+READMEs and imprint pages use, such as `name(at)example.de` and
+`name [at] example [dot] org`. A `git@host:` clone URL is left alone.
+
+Two forms still get through: `name at example dot org` written as bare words,
+which looks too much like ordinary prose to remove safely, and an address
+broken across a line. Nor does any of this cover other personal details. A
+name, a phone number or a street address written into a free text answer
+still reaches the model. Anyone assessing what this pipeline discloses should
+read that sentence as the real boundary.
 
 ## Running it
 
@@ -135,8 +145,8 @@ hears from us one sweep later, not never.
 ## Checking the exports
 
 [`scripts/check-workflows.py`](scripts/check-workflows.py) reads the exports in
-`automation/n8n/` and enforces eight of the invariants in `AGENTS.md`. Each one
-exists because that defect reached main at least once, and there are only eight
+`automation/n8n/` and enforces nine of the invariants in `AGENTS.md`. Each one
+exists because that defect reached main at least once, and there are only nine
 on purpose. A check that flags style rather than breakage gets switched off,
 and takes the real ones with it.
 
@@ -175,6 +185,13 @@ and takes the real ones with it.
    simply absent inside n8n, and the expression reads `undefined` with no
    error. A `$env` use the check cannot name, such as destructuring, fails too,
    so read each variable as `$env.NAME`.
+9. **No email address reaches a model.** Every HTTP node that calls a model
+   is traced back to the Code node that builds its request. There, each user
+   message must be exactly one `redactAddresses(...)` call, the helper must
+   match the copy in the other node, and the node must not name
+   `contact_email`, `applicant_email` or either `alternative_admin_*` column
+   or read the row whole. [`test/model-input-redaction.mjs`](test/model-input-redaction.mjs)
+   runs both nodes on text full of addresses and checks that none comes out.
 
 Run it from the repository root. It needs no arguments, no dependencies, no
 network and no API key, and it never touches the live instance.
