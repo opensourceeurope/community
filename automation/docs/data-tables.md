@@ -231,15 +231,18 @@ the workflow derives the slug from it to look up the row keyed on `slug`.
 ## Personal data
 
 `applicant_email`, `contact_email`, `alternative_admin_name` and
-`alternative_admin_email` are the only personal data in this table. None of
-them is ever sent to the model. `automation/prompts/review.user.md`
+`alternative_admin_email` are the only personal data columns in this table.
+None of them is ever sent to the model. `automation/prompts/review.user.md`
 sends only `org_name`, `collective_name`, `collective_slug`, `description`,
 `long_description`, `repository_url`, `website_url` and
-`application_message`. No name and no email address, for either the applicant
-or the collective's contact.
+`application_message`. Those are free text, so before the request is sent
+`redactAddresses` replaces every email address in them with
+`[email address removed]`. Names, phone numbers and postal addresses an
+applicant writes into them are not removed.
 
 The summary in apply 5 sends a second set: the form answers under the keys listed
 in "Shape of `answers`", the collective's public description, the repository URL
 and the fetched README. It selects them from a fixed list rather than iterating
-the row, which is what keeps the two address columns out of it. See
+the row, which is what keeps the four columns above out of it, and it passes the
+message through the same `redactAddresses` helper. See
 `automation/prompts/summary.system.md`.
