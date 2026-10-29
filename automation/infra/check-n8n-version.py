@@ -20,8 +20,15 @@ someone has to watch, so only a security fix makes it urgent.
 
 An advisory lists one range per release line, for example "< 2.44.1" and
 "< 2.43.5". A version is fixed when a patched version on its own minor line is
-at or below it, or when it is at or above the newest patched version. Otherwise
-it is affected when any range contains it.
+at or below it, when its minor line is newer than every patched line of its
+major, or when it is at or above the newest patched version. Otherwise it is
+affected when any range contains it.
+
+The newer-line rule is there because n8n lists only the lines it backported
+to. A fix in 2.43.3 is in 2.44.0 and every line after it, yet the same
+advisory's "< 3.0.1" for the 3.x line also contains 2.45.5, which once kept
+the alert firing after an upgrade and named the running version as the one to
+move to. A line between two patched lines is still read as affected.
 
 Stdlib only. GITHUB_TOKEN raises the API rate limit but is not required: a
 daily run makes a handful of unauthenticated calls. The test passes fixture
@@ -114,6 +121,9 @@ def affects(advisory, v):
         return False
     patched = [p for p in (parse(x.get("patched_versions")) for x in vulns) if p]
     if any(p[:2] == v[:2] and v >= p for p in patched):
+        return False
+    same_major = [p[:2] for p in patched if p[0] == v[0]]
+    if same_major and v[:2] > max(same_major):
         return False
     if patched and v >= max(patched):
         return False
