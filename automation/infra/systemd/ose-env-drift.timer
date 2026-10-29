@@ -1,0 +1,13 @@
+[Unit]
+Description=Hourly check that this box's .env holds the values git marks as required
+Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
+
+[Timer]
+# Between deploys, which run on the tens, so a merge that needs a new value is
+# reported within the hour after it lands.
+OnCalendar=*-*-* *:25:00 UTC
+Persistent=true
+RandomizedDelaySec=2m
+
+[Install]
+WantedBy=timers.target

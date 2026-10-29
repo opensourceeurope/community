@@ -83,6 +83,7 @@ for u in ose-deploy.service ose-deploy.timer ose-backup.service ose-backup.timer
 done
 [ "$(count 'compose up -d' /tmp/calls.log)" -eq 1 ] || fail "the stack was not brought up"
 [ "$(count 'enable --now ose-backup.timer' /tmp/calls.log)" -eq 1 ] || fail "the backup timer was not enabled"
+[ "$(count 'enable --now ose-env-drift.timer' /tmp/calls.log)" -eq 1 ] || fail "the .env drift timer was not enabled"
 [ "$(count 'enable --now ose-deploy.timer' /tmp/calls.log)" -eq 0 ] || fail "the deploy timer was enabled without an API key"
 [ "$(cat /home/debian/.local/state/ose-deploy/infra-applied)" = "$(git -C /home/debian/community rev-parse HEAD)" ] \
   || fail "the infra marker does not name the deployed commit"
