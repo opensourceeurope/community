@@ -346,8 +346,8 @@ The OSE-specific invariants on top of that skill:
   non-secret variable `# box: must match` in `.env.example` when the box must
   run its value, and `ose-env-drift.timer` alerts hourly until it does. A
   workflow reading a new `$env` variable needs it in the compose file and
-  `.env.example` too, or CI fails. Read it as `$env.NAME`, because CI fails a `$env` use it
-  cannot name, such as destructuring.
+  `.env.example` too, or CI fails. Read it as `$env.NAME`, because CI fails a
+  `$env` use it cannot name, such as destructuring.
 - **A new data table column is added by the deploy, from the docs.** Every run
   calls `create-data-table.py` from `automation/docs/data-tables.md` before the
   workflow sync, and stops if it cannot add one. Never add a column by hand
@@ -366,8 +366,9 @@ The OSE-specific invariants on top of that skill:
   `automation/test/deploy-infra.sh`, `alert-slack.sh`, `backup-upload.sh`,
   `check-workflows-env.sh`, `check-n8n-version.py` and `check-env-drift.py`
   stub every external command. `automation/test/bootstrap-smoke.sh` and
-  `caddy-routes.sh` need Docker. CI runs all of them and `tofu validate`. Each test fails loudly when a
-  helper dies under `set -e`, because a silent stop reads as a pass.
+  `caddy-routes.sh` need Docker. CI runs all of them and `tofu validate`. Each
+  test fails loudly when a helper dies under `set -e`, because a silent stop
+  reads as a pass.
 - **Back up off the box before a manual change to it.** A change the deploy does
   not make, such as moving an existing box onto the timer, starts with a fresh
   dump and a verified off-box copy, per `automation/infra/README.md`. Local

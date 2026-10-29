@@ -53,7 +53,9 @@ def compose_value(raw):
     raw = raw.strip()
     if raw[:1] == "'":
         end = raw.find("'", 1)
-        return raw[1:end] if end != -1 else raw[1:]
+        if end == -1:
+            raise ValueError(f"a value starts with ' and never closes it: {raw[:40]}")
+        return raw[1:end]
     if raw[:1] == '"':
         out, i = [], 1
         while i < len(raw) and raw[i] != '"':
@@ -61,6 +63,8 @@ def compose_value(raw):
                 i += 1
             out.append(raw[i])
             i += 1
+        if i >= len(raw):
+            raise ValueError("a value starts with \" and never closes it")
         return "".join(out)
     return re.split(r"\s+#", raw, maxsplit=1)[0].strip()
 
@@ -92,16 +96,28 @@ def marked(path):
                 if not m:
                     raise ValueError(f"{EXAMPLE} line {number}: '{MARKER}' must sit directly above the variable it marks")
                 out.append((m.group(1), compose_value(m.group(2))))
+            elif line.strip().startswith("# box:") and line.strip() != MARKER:
+                raise ValueError(f"{EXAMPLE} line {number}: write the marker exactly as '{MARKER}'")
             previous = line
     return out
+
+
+def docker(*args):
+    """Run docker and return its output. A failure raises with docker's own
+    message, never its output, which for inspect holds every secret n8n has."""
+    result = subprocess.run(["docker", *args], capture_output=True, text=True)
+    if result.returncode != 0:
+        reason = (result.stderr.strip().splitlines() or ["no message"])[-1][:200]
+        raise RuntimeError(f"docker {args[0]} failed: {reason}")
+    return result.stdout
 
 
 def n8n_env(infra_dir):
     """The running n8n container's environment, or None when there is none.
 
-    Only this checkout's compose project counts, by the working directory
-    compose labels its containers with, so a throwaway n8n started by a test
-    on the same box is never read instead."""
+    The container is found the way deploy.sh's running_image finds it, through
+    docker compose in the infra directory, so only this stack's n8n counts and
+    a throwaway one started by a test on the same box is never read instead."""
     path = os.environ.get("OSE_N8N_ENV_FILE")
     if path:
         with open(path) as handle:
@@ -109,15 +125,11 @@ def n8n_env(infra_dir):
         if pairs is None:
             return None
     else:
-        ids = subprocess.run(
-            ["docker", "ps", "-q", "--filter", "label=com.docker.compose.service=n8n",
-             "--filter", f"label=com.docker.compose.project.working_dir={infra_dir}"],
-            capture_output=True, text=True, check=True).stdout.split()
+        ids = docker("compose", "--project-directory", infra_dir,
+                     "--env-file", os.path.join(infra_dir, ".env"), "ps", "-q", "n8n").split()
         if not ids:
             return None
-        pairs = json.loads(subprocess.run(
-            ["docker", "inspect", "--format", "{{json .Config.Env}}", ids[0]],
-            capture_output=True, text=True, check=True).stdout)
+        pairs = json.loads(docker("inspect", "--format", "{{json .Config.Env}}", ids[0]))
     return dict(p.split("=", 1) for p in pairs if "=" in p)
 
 

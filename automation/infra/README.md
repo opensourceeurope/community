@@ -959,8 +959,12 @@ means the `docker compose up -d n8n` step above was skipped or printed
 `Running`. Shortening a marked timer for a test alerts too, until it is put
 back. `DRY_RUN`, `DRY_RUN_RECIPIENT`, `SMTP_FROM`, `SLACK_CHANNEL` and the
 secrets are not marked, because the box decides them. Never mark a secret: the
-alert prints the value, and the check refuses a name that looks like a
-credential.
+alert prints the value, so the check refuses a name that looks like a
+credential and a URL with a login in it. It also refuses a marked value
+containing `$`, which compose would expand, and a marker that is not written
+exactly or not directly above its variable. `STALE_CLAIM_MINUTES` left empty
+on the box counts as different from git, even though n8n reads empty as 30, so
+write the value out.
 
 To run the same check by hand on the box:
 
