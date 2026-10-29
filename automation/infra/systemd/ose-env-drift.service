@@ -1,0 +1,15 @@
+[Unit]
+Description=Check that this box's .env and the running n8n hold the values git marks as required
+Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
+After=docker.service
+# The check exits non-zero when a marked value in automation/.env.example is
+# not what the box runs, which fails this unit and posts the report to the
+# alerts channel, once.
+OnFailure=ose-alert@%n.service
+
+[Service]
+Type=oneshot
+User=debian
+ExecStart=/usr/bin/python3 /home/debian/community/automation/infra/check-env-drift.py /home/debian/community
+# Posts that the values match again, and only after they did not.
+ExecStartPost=-/home/debian/community/automation/infra/alert-slack.sh --recovered %n
