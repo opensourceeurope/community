@@ -37,6 +37,12 @@ ADVISORIES = [
     advisory("GHSA-line", "high", [("< 2.44.1", ">= 2.44.1"), ("< 2.43.5", ">= 2.43.5")]),
     # Fixed only on a line newer than 2.37.
     advisory("GHSA-old", "medium", [("< 2.38.2", ">= 2.38.2")]),
+    # Backported to two 2.x lines and fixed on 3.x. Its "< 3.0.1" also holds
+    # every later 2.x release, which already has the fix.
+    advisory("GHSA-major", "high", [("< 2.41.6", ">= 2.41.6"), ("< 2.42.3", ">= 2.42.3"),
+                                      ("< 3.0.1", ">= 3.0.1")]),
+    # Patched on 2.39 and 2.41 but not 2.40, which stays affected.
+    advisory("GHSA-gap", "medium", [("< 2.39.4", ">= 2.39.4"), ("< 2.41.1", ">= 2.41.1")]),
     # No fix at all: a risky feature. It must never fail the check.
     advisory("GHSA-nofix", "high", [("> 0.0.1", "")]),
     # Another package entirely.
@@ -51,7 +57,11 @@ CASES = [
     ("the patched version on its own line is clear", "2.43.5", 0, "Stable is 2.43.8", "GHSA-line"),
     ("one patch short on its line is affected", "2.43.4", 1, "GHSA-line", "GHSA-nofix"),
     ("an old line names the stable release to move to", "2.37.3", 1, "to 2.43.8", "GHSA-other"),
-    ("high comes before medium", "2.37.3", 1, "affected by 22 published advisories (1 high, 21 medium)", ""),
+    ("high comes before medium", "2.37.3", 1, "affected by 24 published advisories (2 high, 22 medium)", ""),
+    ("a line newer than every patched one is clear", "2.43.8", 0, "no published advisory", "GHSA-major"),
+    ("a patched line still needs its own patch", "2.42.2", 1, "GHSA-major", ""),
+    ("a line between two patched ones is affected", "2.40.9", 1, "GHSA-gap", ""),
+    ("the next major is judged on its own line", "3.0.0", 1, "GHSA-major", ""),
 ]
 
 

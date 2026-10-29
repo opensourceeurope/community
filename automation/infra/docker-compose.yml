@@ -26,7 +26,7 @@ services:
     # unattended. Bump this deliberately; see automation/infra/README.md.
     # ose-n8n-advisories.timer alerts Slack daily while a published security
     # advisory with a fix affects this tag.
-    image: docker.n8n.io/n8nio/n8n:2.43.8
+    image: docker.n8n.io/n8nio/n8n:2.45.5
     restart: unless-stopped
     depends_on:
       postgres:
