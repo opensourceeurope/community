@@ -100,9 +100,9 @@ the workflow list reads in pipeline order. The export files use short names.
 |---|---|---|---|
 | `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | A `collective.apply` event carries no application, so new applications are read from the API. An approve or reject event names the collective, so only that application is checked, with one API call that confirms the decision before anything is recorded. The webhook has no authentication, which is why the payload alone is never trusted. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
 | `apply 1b — catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
-| `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`. |
+| `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`, and posts it in the application's Slack thread, followed by the collective's admins with their public profile links. |
 | `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
-| `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form, six pages. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. It also tells the applicant what is automated, where a Mistral model on Scaleway reads the application and what it writes, and that a person makes every decision, with links to this code and the AI policy. Page 3 asks whether the project is already a legal entity, which decides whether page 4 opens by asking what kind and where. Page 5 also asks, optionally, for a second admin's name and email. Page 6 shows the whole application back for correction and ends with an optional question about the form itself. Answers persist after every page, and a submission puts them in the application's Slack thread. |
+| `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. It also tells the applicant what is automated, where a Mistral model on Scaleway reads the application and what it writes, and that a person makes every decision, with links to this code and the AI policy. Page 3 asks whether the project is already a legal entity, which decides whether page 4 opens by asking what kind and where. After page 4, a page built from the collective's admin list asks whether every admin is at least 18 and where each one lives. Page 5 also asks, optionally, for a second admin's name and email. Page 6 shows the whole application back for correction and ends with an optional question about the form itself. Answers persist after every page, and a submission puts them in the application's Slack thread. |
 | `apply 5 — application summary` | `summary.json` | A direct call from apply 4, and `SUMMARY_CRON` as the catch-up | Reads a submitted form and the project's README, then posts a verdict, a confidence and a one paragraph description into the thread. It is advisory, like the review, and it recommends no decision. It asks no questions of its own, because which answers to follow up is the reviewer's call. |
 | `ops — alert Slack when any apply workflow fails` | `ops-alert-on-failure.json` | An unhandled error in any of the six, through their `Error Workflow` setting | Posts the workflow that failed, the node that threw and the error text to `SLACK_CHANNEL`, with links to the execution and the editor. Outside the pipeline, so it holds no application state. |
 
@@ -254,6 +254,51 @@ because that needs credentials and live Open Collective data.
 
 [`.github/workflows/check-n8n-import.yml`](../.github/workflows/check-n8n-import.yml)
 runs the same command on every pull request and on pushes to main.
+
+## Previewing form pages
+
+[`scripts/form-preview.py`](scripts/form-preview.py) screenshots pages of the
+application form as an applicant sees them. The form is rendered in the browser
+and n8n filters its custom HTML and CSS, so neither the export nor a fetch of
+the live form shows what an applicant gets. The script starts the n8n image
+production runs in a throwaway container, imports one preview workflow per page,
+and takes each screenshot from a headless browser in a second container.
+
+A page that reads other nodes by name, such as `Form page 6`, gets a stub node
+of that name returning sample data from
+[`test/fixtures/form-preview.json`](test/fixtures/form-preview.json). That data
+is invented, and stays invented because this repository is public.
+
+```bash
+python3 automation/scripts/form-preview.py --page "Form page 5" --out /tmp/form-preview
+python3 automation/scripts/form-preview.py --export /path/to/edited.json --all
+```
+
+Each run also writes an `index.html` into `--out` that shows every PNG there.
+`--serve 8765` serves it on `127.0.0.1:8765` after the run, and `--serve-only`
+serves an existing folder without a new run.
+
+It needs docker and a network, and it never touches the live instance. The
+start page, `Form page 1`, cannot be previewed this way.
+
+## Testing the admin nodes
+
+[`test/admin-details.py`](test/admin-details.py) runs the nodes that carry a
+collective's admins through the pipeline, inside the n8n image production runs:
+`Extract new applications` in intake, `Render admin details thread reply` in
+apply 2, `Collect admin countries` and `Render submission thread reply` in the
+form, and `Render summary request` in apply 5. It reads every node out of the
+exports. The form's admin page builds its labels from the row, so a typo in one
+is invisible to `check-workflows.py`, and this test is what catches it. It also
+checks that admin names and countries never reach the summary model's request,
+and that Slack escapes what admins wrote on their profiles.
+
+```bash
+python3 automation/test/admin-details.py
+```
+
+It needs docker and no network beyond pulling the image. CI runs it after the
+import check.
 
 ## Testing the README fetch
 

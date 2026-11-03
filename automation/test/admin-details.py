@@ -97,6 +97,8 @@ def run_cases(cases):
              "-v", f"{workdir}:/data", "-v", f"{state}:/home/node/.n8n",
              "-e", "HOME=/home/node", "-e", "N8N_DIAGNOSTICS_ENABLED=false",
              "-e", "N8N_RUNNERS_ENABLED=true",
+             # Render summary request reads the model name, as it does in production.
+             "-e", "N8N_BLOCK_ENV_ACCESS_IN_NODE=false", "-e", "AI_MODEL=test-model",
              "--entrypoint", "sh", image(), "-c", command],
             capture_output=True, text=True, timeout=1800)
     chunks = result.stdout.split(MARKER)[1:]
@@ -107,7 +109,7 @@ def run_cases(cases):
         if "{" not in chunk:
             executions.append({"error": chunk.strip()[-500:] or "no output"})
             continue
-        executions.append(json.loads(chunk[chunk.index("{"):]))
+        executions.append(json.JSONDecoder().raw_decode(chunk[chunk.index("{"):])[0])
     return executions
 
 
@@ -309,7 +311,29 @@ SUBMITTED_ROW = {
 }
 
 
+def check_summary_request(execution):
+    items = output(execution, "Render summary request")
+    assert len(items) == 1, items
+    # The row rides along beside the request, and only request is sent to the model.
+    request = json.dumps(items[0]["request"])
+    assert "All admins said to be 18 or older" in request, request[:800]
+    for leaked in ("Anna Example", "anna-example", "Poland", "Germany"):
+        assert leaked not in request, f"{leaked} reached the model request"
+
+
+SUMMARY_ROW = {
+    "slug": "sample", "collective_name": "Sample", "description": "A sample library.",
+    "applicant_kind": "project", "repo_url": "", "readme": "",
+    "answers": json.dumps({"page": 6, "responses": {"activities": "Parses files.",
+                                                     "admins_adult": "Yes"}}),
+    "oc_admins": json.dumps([{"slug": "anna-example", "name": "Anna Example"}]),
+    "admin_countries": "Anna Example (@anna-example): Poland\nOther admins: Bo, Germany",
+}
+
+
 CASES = [
+    {"case": "summary-request", "export": "summary.json", "nodes": ["Render summary request"],
+     "feeds": {"Feed": [SUMMARY_ROW]}, "check": check_summary_request},
     {"case": "submission-reply", "export": "form-ose.json",
      "nodes": ["Render submission thread reply"],
      "feeds": {"Record submission": [SUBMITTED_ROW]}, "check": check_submission_reply},
