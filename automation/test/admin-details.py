@@ -168,9 +168,60 @@ def check_intake_no_admins(execution):
     assert len(items) == 1 and items[0]["oc_admins"] == "", items
 
 
+# --- apply 2 ----------------------------------------------------------------------------
+
+def row(slug, oc_admins, anchored=True):
+    """A row as Store verdict returns it, reduced to what the admin reply reads."""
+    return {"slug": slug, "oc_admins": oc_admins,
+            "slack_channel_id": "C0SAMPLE" if anchored else "",
+            "slack_thread_ts": "1730000000.000100" if anchored else ""}
+
+
+def slack_case(name, rows, check):
+    return {"case": name, "export": "review.json",
+            "nodes": ["Render admin details thread reply"],
+            "feeds": {"Store verdict": rows}, "check": check}
+
+
+SLACK_ADMINS = json.dumps([
+    {"slug": "anna-example", "name": "Anna Example", "description": "Maintainer of a <b>parser</b>.",
+     "company": "Example Labs",
+     "socialLinks": [{"type": "GITHUB", "url": "https://github.com/example"},
+                     {"type": "WEBSITE", "url": "javascript:alert(1)"}]},
+    {"slug": "loud-admin", "name": "<!channel> Loud", "description": None, "company": None,
+     "socialLinks": []},
+])
+
+
+def check_slack_admins(execution):
+    items = output(execution, "Render admin details thread reply")
+    assert len(items) == 1, items
+    item = items[0]
+    assert item["channel"] == "C0SAMPLE" and item["thread_ts"] == "1730000000.000100", item
+    text = item["text"]
+    assert "*Admins of the collective*" in text, text
+    assert "<https://opencollective.com/anna-example|@anna-example>" in text, text
+    assert "Example Labs" in text, text
+    assert "Maintainer of a &lt;b&gt;parser&lt;/b&gt;." in text, text
+    assert "<https://github.com/example|GITHUB>" in text, text
+    assert "|WEBSITE>" not in text and "<javascript:" not in text, text
+    assert "javascript:alert(1)" in text, text
+    assert "&lt;!channel&gt; Loud" in text and "<!channel>" not in text, text
+
+
+def check_slack_nothing(execution):
+    items = output(execution, "Render admin details thread reply")
+    assert items == [], items
+
+
 CASES = [
     intake_case("intake-admins", [ANNA, ORG], check_intake_admins),
     intake_case("intake-no-admins", [], check_intake_no_admins),
+    slack_case("slack-admins", [row("sample-collective", SLACK_ADMINS)], check_slack_admins),
+    slack_case("slack-no-admins", [row("a", ""), row("b", "[]"), row("c", "not json"),
+                                   row("d", None), row("e", "{}")], check_slack_nothing),
+    slack_case("slack-no-anchor", [row("sample-collective", SLACK_ADMINS, anchored=False)],
+               check_slack_nothing),
 ]
 
 

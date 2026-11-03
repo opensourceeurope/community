@@ -388,6 +388,59 @@
         "mode": "runOnceForAllItems",
         "jsCode": "// Fetches the evidence that Choose the repository URL worked out how to get, and never more\n// than that. A miss at any step is normal and never fatal: the review then runs on the\n// public page alone, and Build review request says outright that nothing was read, which is\n// the whole point of this node existing. The previous behaviour was to pass a bare URL to\n// the model, which then described a licence nobody had checked.\n//\n// Three rules hold here, and all three are rules rather than accidents.\n//\n// One hop or nothing. maxRedirects: 0 and disableFollowRedirect say the same thing and both\n// are set, so the rule holds whichever one the helper reads. The applicant named this URL,\n// and every host check in Choose the repository URL was applied to that URL alone: follow a\n// redirect and the applicant's server, not this workflow, picks where the request finally\n// lands. A 3xx is therefore a miss exactly as a 404 is, and the next candidate is tried.\n//\n// A README is data and never code. encoding: 'text' keeps every response a string, which\n// also stops the HTTP client running its default JSON parse over whatever came back.\n// Nothing downstream parses, evaluates or interprets a README either: it is truncated,\n// fenced as applicant text and handed to a model as a string.\n//\n// The JSON endpoints are parsed, because an SPDX identifier is the fact this node exists to\n// establish, but the parse is explicit, guarded, and reads only the named scalar fields\n// below, each coerced to a string and capped. The parsed object is never spread into the\n// output and never reaches an expression.\nconst TIMEOUT_MS = 10000;\nconst MAX_README_CHARS = 8000;\nconst MAX_FIELD_CHARS = 200;\nconst MAX_REPOS_SHOWN = 5;\n// GitHub says NOASSERTION when it found a LICENSE file it could not identify. That is not a\n// licence name and must not be shown to the model as one.\nconst UNKNOWN_LICENCE = /^(noassertion|none|other|unknown)$/i;\n// full_name and numeric ids come back from the forge rather than from the applicant, but\n// they are still interpolated into a URL, so they are checked before they are.\nconst SAFE_REPO_PATH = /^[A-Za-z0-9._-]+\\/[A-Za-z0-9._-]+$/;\nconst SAFE_ID = /^[0-9]{1,12}$/;\n\nconst helpers = this.helpers;\n\nasync function fetchText(url, accept) {\n  try {\n    const response = await helpers.httpRequest({\n      method: 'GET',\n      url,\n      timeout: TIMEOUT_MS,\n      maxRedirects: 0,\n      disableFollowRedirect: true,\n      returnFullResponse: true,\n      encoding: 'text',\n      headers: {\n        // GitHub returns the raw file for the raw media type rather than JSON metadata.\n        Accept: accept,\n        'User-Agent': 'ose-application-pipeline',\n      },\n      json: false,\n    });\n    if (response.statusCode !== 200) return '';\n    // encoding: 'text' already guarantees a string; the check is belt and braces.\n    return typeof response.body === 'string' ? response.body : String(response.body);\n  } catch (error) {\n    // A 404 on the first candidate is the normal path for a Gitea repo whose default branch\n    // is master, and a refused redirect arrives here the same way, so a miss is returned\n    // rather than thrown and the caller tries the next candidate.\n    return '';\n  }\n}\n\nasync function fetchJson(url) {\n  const body = await fetchText(url, 'application/vnd.github+json, application/json, */*');\n  if (!body.trim()) return null;\n  try {\n    return JSON.parse(body);\n  } catch (error) {\n    return null;\n  }\n}\n\nfunction field(value) {\n  if (value === null || value === undefined) return '';\n  return String(value).slice(0, MAX_FIELD_CHARS).replace(/\\s+/g, ' ').trim();\n}\n\nfunction spdx(value) {\n  const id = field(value);\n  if (!id || UNKNOWN_LICENCE.test(id)) return '';\n  return id;\n}\n\n// GitHub puts an SPDX identifier on license.spdx_id. GitLab has no spdx_id, usually a null\n// nickname, and a lowercased key, so its name is preferred over the key to keep a reviewer\n// from reading \"licence: mit\".\nfunction licenceOf(source) {\n  const licence = (source && source.license) || {};\n  return spdx(licence.spdx_id) || spdx(licence.nickname) || spdx(licence.name) || spdx(licence.key);\n}\n\nconst out = [];\nfor (const item of $input.all()) {\n  const row = item.json;\n  let readme = '';\n  let readme_of = '';\n  let licence_spdx = '';\n  let owner_repos = [];\n  let owner_repo_total = 0;\n\n  if (row.target_kind === 'repo') {\n    for (const url of row.readme_candidates || []) {\n      const body = await fetchText(url, 'application/vnd.github.raw, text/plain, */*');\n      if (body.trim()) {\n        readme = body.slice(0, MAX_README_CHARS);\n        break;\n      }\n    }\n    for (const url of row.licence_candidates || []) {\n      const parsed = await fetchJson(url);\n      if (!parsed) continue;\n      // GitHub's licence endpoint puts it at license.spdx_id. GitLab's project endpoint with\n      // license=true puts it at license.nickname, falling back to license.key.\n      licence_spdx = licenceOf(parsed);\n      if (licence_spdx) break;\n    }\n  }\n\n  if (row.target_kind === 'owner') {\n    let listing = null;\n    for (const url of row.owner_candidates || []) {\n      const parsed = await fetchJson(url);\n      if (Array.isArray(parsed) && parsed.length) {\n        listing = parsed;\n        break;\n      }\n    }\n    if (listing) {\n      owner_repo_total = listing.length;\n      const ranked = listing\n        .filter((repo) => repo && !repo.fork)\n        .map((repo) => {\n          return {\n            name: field(repo.name),\n            // full_name on GitHub, path_with_namespace on GitLab. Kept only to build the\n            // README request below, and checked against SAFE_REPO_PATH before it is used.\n            path: field(repo.full_name || repo.path_with_namespace),\n            id: field(repo.id),\n            description: field(repo.description),\n            licence: licenceOf(repo),\n            stars: Number(repo.stargazers_count || repo.star_count || 0) || 0,\n          };\n        })\n        .filter((repo) => repo.name)\n        .sort((a, b) => b.stars - a.stars);\n\n      owner_repos = ranked.slice(0, MAX_REPOS_SHOWN);\n\n      // The most starred repository stands in for the organisation: one more request, and it\n      // gives the model something concrete to describe instead of a list of names.\n      const top = owner_repos[0];\n      if (top) {\n        let url = '';\n        if (row.forge === 'github' && SAFE_REPO_PATH.test(top.path)) {\n          url = `https://api.github.com/repos/${top.path}/readme`;\n        } else if (row.forge === 'gitlab' && SAFE_ID.test(top.id)) {\n          url = `https://gitlab.com/api/v4/projects/${top.id}/repository/files/README.md/raw?ref=HEAD`;\n        }\n        if (url) {\n          const body = await fetchText(url, 'application/vnd.github.raw, text/plain, */*');\n          if (body.trim()) {\n            readme = body.slice(0, MAX_README_CHARS);\n            readme_of = top.name;\n          }\n        }\n        // GitLab honours license=true on a single project but not on a group listing, so a\n        // group arrives here with every licence unknown. The repository already singled out\n        // is worth one more request to fix that; the rest of the list stays as the listing\n        // gave it.\n        if (!top.licence && row.forge === 'gitlab' && SAFE_ID.test(top.id)) {\n          const parsed = await fetchJson(`https://gitlab.com/api/v4/projects/${top.id}?license=true`);\n          if (parsed) top.licence = licenceOf(parsed);\n        }\n      }\n    }\n  }\n\n  out.push({ json: { ...row, readme, readme_of, licence_spdx, owner_repos, owner_repo_total } });\n}\nreturn out;\n"
       }
+    },
+    {
+      "id": "61ce8e6f-8c7a-42bb-b892-1b73cfb91d79",
+      "name": "Render admin details thread reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// The collective's admins, as Open Collective shows them publicly, so a reviewer can see\n// who would control the collective's money without searching Open Collective. Intake\n// stored the list on the row when the application arrived. It never holds an email.\n//\n// Every value here comes from a profile its owner wrote, so it is data, not markup: a\n// name of <!channel> would ping the whole channel. escapeSlack runs on every one of\n// them. A link is only made clickable when it is plainly http or https, otherwise it is\n// printed as escaped text so a javascript: or masked link cannot hide behind a label.\nconst escapeSlack = (value) => String(value)\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;');\nconst SAFE_URL = /^https?:\\/\\/[^\\s<>|]+$/;\nconst SAFE_SLUG = /^[a-z0-9-]+$/i;\n\n// A row from before intake kept the list, or a list that is not JSON, yields no reply.\nconst parseAdmins = (value) => {\n  let admins = null;\n  try {\n    admins = value ? JSON.parse(value) : null;\n  } catch (error) {\n    admins = null;\n  }\n  return Array.isArray(admins) ? admins.filter((a) => a && a.slug) : [];\n};\n\nconst describe = (admin) => {\n  const slug = String(admin.slug);\n  const profile = SAFE_SLUG.test(slug)\n    ? `<https://opencollective.com/${slug}|@${slug}>`\n    : `@${escapeSlack(slug)}`;\n  const company = admin.company ? `, ${escapeSlack(admin.company)}` : '';\n  const lines = [`• *${escapeSlack(admin.name || slug)}* (${profile})${company}`];\n  if (admin.description) lines.push(`    ${escapeSlack(admin.description)}`);\n  const links = (admin.socialLinks || [])\n    .filter((link) => link && link.url)\n    .map((link) => {\n      const type = escapeSlack(link.type || 'LINK');\n      const url = String(link.url);\n      return SAFE_URL.test(url) ? `<${url}|${type}>` : `${type}: ${escapeSlack(url)}`;\n    });\n  if (links.length) lines.push(`    ${links.join(' · ')}`);\n  return lines.join('\\n');\n};\n\nconst out = [];\nfor (const item of $('Store verdict').all()) {\n  const row = item.json;\n  if (!row.slack_thread_ts || !row.slack_channel_id) continue;\n  const admins = parseAdmins(row.oc_admins);\n  if (!admins.length) continue;\n  out.push({ json: {\n    slug: row.slug,\n    channel: row.slack_channel_id,\n    thread_ts: row.slack_thread_ts,\n    text: [':busts_in_silhouette: *Admins of the collective*', ...admins.map(describe)].join('\\n'),\n  } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "b35feffe-7be8-4273-9d5d-fc51f275106c",
+      "name": "Reply with admin details in thread",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        3080,
+        0
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "99a29423-6cda-4783-8a4c-694ef78d553c",
+      "disabled": false
     }
   ],
   "connections": {
@@ -533,6 +586,28 @@
         [
           {
             "node": "Build review request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "React with eyes on the parent": {
+      "main": [
+        [
+          {
+            "node": "Render admin details thread reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render admin details thread reply": {
+      "main": [
+        [
+          {
+            "node": "Reply with admin details in thread",
             "type": "main",
             "index": 0
           }
