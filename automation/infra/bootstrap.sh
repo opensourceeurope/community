@@ -228,7 +228,7 @@ next_steps() {
   1. Copy N8N_ENCRYPTION_KEY from $INFRA_DIR/.env into the password vault.
      Losing it makes every stored credential unrecoverable.
   2. Open https://$N8N_HOST and create the owner account.
-  3. Create an n8n API key with workflow:list, workflow:read, workflow:update,
+  3. Create an n8n API key with workflow:list, workflow:read, workflow:create, workflow:update,
      dataTable:read and dataTableColumn:create, into ~/.n8n-api-key, mode 600. Then: bootstrap.sh units
   4. Write the Slack bot token into ~/.slack-bot-token, mode 600, and set
      SLACK_CHANNEL in .env.
@@ -236,7 +236,7 @@ next_steps() {
   6. Create the n8n credentials: oc-host-admin, slack-bot, smtp-proton. Set
      AI_API_KEY, SMTP_FROM and DRY_RUN_RECIPIENT in .env. The deploy refuses
      to run while any required value is empty.
-  7. First workflow deploy: $INFRA_DIR/deploy.sh --allow-create
+  7. First workflow deploy: $INFRA_DIR/deploy.sh
   8. Register the Open Collective webhooks.
 EOF
 }
