@@ -200,8 +200,8 @@ and takes the real ones with it.
    is traced back to the Code node that builds its request. There, each user
    message must be exactly one `redactAddresses(...)` call, the helper must
    match the copy in the other node, and the node must not name
-   `contact_email`, `applicant_email` or either `alternative_admin_*` column
-   or read the row whole. [`test/model-input-redaction.mjs`](test/model-input-redaction.mjs)
+   `contact_email`, `applicant_email`, either `alternative_admin_*` column,
+   `oc_admins` or `admin_countries`, or read the row whole. [`test/model-input-redaction.mjs`](test/model-input-redaction.mjs)
    runs both nodes on text full of addresses and checks that none comes out.
 
 Run it from the repository root. It needs no arguments, no dependencies, no
