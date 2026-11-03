@@ -494,7 +494,8 @@ The script ends with the steps it cannot do for you. Do them in this order:
 7. Write the Slack bot token, as in [The token](#the-token), and run
    `bootstrap.sh units`. Then stop the deploy timer with
    `sudo systemctl stop ose-deploy.timer` until step 9 is merged.
-8. Create the workflows once with `deploy.sh --allow-create`, as in
+8. Create the workflows with `deploy.sh`. On an empty instance every export is
+   new, so each one is created, inactive, as in
    [An export the instance does not have](#an-export-the-instance-does-not-have).
 9. Point the workflows at each other. The exports carry no workflow id, so the
    new instance gave every workflow a new one, and the exports still name the
@@ -691,6 +692,7 @@ working, and a second run in a row changes nothing.
 |---|---|
 | Activates or deactivates a workflow | `active` is read-only in the public API, and the deploy key needs no activation scope |
 | Adds a second workflow under a name the instance already has | It matches by name and updates the workflow it matched |
+| Creates a second copy of a workflow renamed in git | It creates a new export only while every live workflow has an export, as in [An export the instance does not have](#an-export-the-instance-does-not-have) |
 | Reads or writes a credential | An export names a credential by id, and the script never calls the credential endpoints |
 | Deploys a branch or local edits | It stops unless the checkout is on `main` and clean |
 
@@ -702,9 +704,10 @@ file is injected into the n8n container, and nothing in the container reads
 this key.
 
 Create the key in the n8n UI under **Settings**, **n8n API**. Where the dialog
-offers scopes, give it `workflow:list`, `workflow:read`, `workflow:update`,
-`dataTable:read` and `dataTableColumn:create`, and nothing else. The last two
-let the deploy add the columns a merge brings, as
+offers scopes, give it `workflow:list`, `workflow:read`, `workflow:create`,
+`workflow:update`, `dataTable:read` and `dataTableColumn:create`, and nothing
+else. `workflow:create` lets the deploy add a workflow a merge brings, inactive.
+The last two let it add the columns a merge brings, as
 [What an infra change does](#what-an-infra-change-does) describes. A key
 without `workflow:activate` cannot start a workflow even if something asks it
 to, and a key without `dataTable:create` cannot create a second table.
@@ -829,21 +832,25 @@ remove it completely, delete `ose-deploy.service` and `ose-deploy.timer` from
 
 ### An export the instance does not have
 
-The run reports that file as failed, exits non-zero, and deploys the rest. A
-name with no match is either a new workflow or one that was renamed in the n8n
-UI, and the script cannot tell which. Guessing wrong leaves two copies of one
-pipeline stage on the instance.
+The deploy creates it, inactive, with an id of its own. Whether it runs is
+still the operator's call, made in the n8n UI.
 
-Deploy that file once by hand, then let the timer take over again:
+The one export that looks new and is not is a rename. Change a workflow's
+`name` in git and the export matches nothing on the instance, while the old
+workflow keeps running under the old name. Creating the export then would
+leave two copies of one stage, both on their schedules. A rename always leaves
+a live workflow that no export names, so while the instance has one the deploy
+creates nothing, reports the export as failed and names the workflows it could
+not match. So every workflow on the instance must have an export or be
+archived, and outside a rename that list is empty. Give the old workflow its new name in the n8n UI and the next
+run updates it in place, keeping its id, or archive a workflow nobody needs.
 
-```bash
-~/community/automation/infra/deploy.sh --allow-create
-```
-
-The new workflow arrives inactive, with an id of its own. An Execute Workflow
-node names its target by id, so open any hand-off into the new workflow in the
-n8n UI and point it at the id that now exists. Then add that id to the map in
-`automation/scripts/export-workflows.py`, or the next export skips the file.
+An Execute Workflow node names its target by id, and so does each workflow's
+`errorWorkflow` setting, so a new workflow that something calls needs that id
+in git: read it from the workflow's URL in the editor, put it in the caller's
+export, and add it to the map in
+[`automation/scripts/export-workflows.py`](../scripts/export-workflows.py), or
+the next export skips the file. A workflow nothing calls only needs the map.
 
 ## Alerts when the box fails
 
@@ -1903,6 +1910,7 @@ in this repository. Put the account credentials in the shared vault.
 | `deploy.sh` stops with `the n8n API at … did not answer after the restart` | n8n took longer than two minutes to boot, or failed to start | Read `docker compose logs --tail=50 n8n`. The infra is already applied, so the next run only syncs the workflows |
 | A backup prints `backup.log is not writable` | The old backup unit left a log owned by root | `sudo chown debian: ~/backups/backup.log`, or run `bootstrap.sh units`, which fixes it |
 | Backup log ends with `upload ... failed` | The upload key, the bucket name or its preferred project is wrong in `backup.env` | Check the settings in `~/.config/ose-backup/backup.env`. `AccessDenied` means the key's preferred project is not `ose-n8n-backups` |
+| `deploy.sh` reports `no workflow named … and it was not created` | The instance has a workflow no export names, usually one whose `name` changed in git | Give it the new name in the n8n UI, or archive it, as in [An export the instance does not have](#an-export-the-instance-does-not-have) |
 | The same workflow reports `updated` on every deploy run | It is being edited in the n8n UI, and each run puts the exported version back over the edit | Export the instance's version with `automation/scripts/export-workflows.py` and open a pull request for it |
 | Disk filling | Execution history unpruned | Check `EXECUTIONS_DATA_PRUNE=true` and `EXECUTIONS_DATA_MAX_AGE` |
 | A deploy or backup failed and no Slack alert arrived | `~/.slack-bot-token` is missing or readable by others, or the bot is not in `SLACK_CHANNEL` | Read `journalctl -u ose-alert@{UNIT}.service` |
