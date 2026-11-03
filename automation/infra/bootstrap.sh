@@ -208,6 +208,8 @@ units() {
   note "ose-backup.timer enabled"
   sudo systemctl enable --now ose-n8n-advisories.timer >/dev/null 2>&1
   note "ose-n8n-advisories.timer enabled"
+  sudo systemctl enable --now ose-env-drift.timer >/dev/null 2>&1
+  note "ose-env-drift.timer enabled"
   if [ -f "$HOME/.n8n-api-key" ]; then
     sudo systemctl enable --now ose-deploy.timer >/dev/null 2>&1
     note "ose-deploy.timer enabled"

@@ -41,6 +41,9 @@ jobs:
       - name: check-n8n-version.py alerts only on an advisory a release fixes
         run: python3 -B automation/test/check-n8n-version.py
 
+      - name: check-env-drift.py alerts when the box's .env is not what git marks
+        run: python3 -B automation/test/check-env-drift.py
+
       - name: create-data-table.py builds the table from the document
         run: python3 -B automation/test/create-data-table.py
 

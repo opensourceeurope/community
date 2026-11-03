@@ -940,6 +940,38 @@ will actually read. A value containing `#` needs double quotes, as in
 `SLACK_CHANNEL=\"#{CHANNEL}\"`, because an unquoted `#` can start a comment
 in a compose `.env`. Spaces and angle brackets need no quoting.
 
+#### Knowing when a value is due
+
+The deploy never edits `.env`, so a merged pull request that changes a value,
+such as `AI_MODEL`, switches nothing until someone sets it here. To keep that
+from going unnoticed, `automation/.env.example` marks the values the box must
+run exactly as written with a `# box: must match` line above them.
+`ose-env-drift.timer` runs [`check-env-drift.py`](check-env-drift.py) every
+hour. It compares each marked value with this `.env` and with the running n8n,
+which reads `.env` only when it is created. When one differs, the unit fails
+and `ose-alert@` posts which value and what git expects to the alerts channel,
+once. It posts recovered when they match again. A second value that drifts
+while the first alert is still open posts nothing new, so when you fix one,
+run the check by hand to see whether it lists another.
+
+A value set in `.env` but not yet in n8n gets its own line in the alert, which
+means the `docker compose up -d n8n` step above was skipped or printed
+`Running`. Shortening a marked timer for a test alerts too, until it is put
+back. `DRY_RUN`, `DRY_RUN_RECIPIENT`, `SMTP_FROM`, `SLACK_CHANNEL` and the
+secrets are not marked, because the box decides them. Never mark a secret: the
+alert prints the value, so the check refuses a name that looks like a
+credential and a URL with a login in it. It also refuses a marked value
+containing `$`, which compose would expand, and a marker that is not written
+exactly or not directly above its variable. `STALE_CLAIM_MINUTES` left empty
+on the box counts as different from git, even though n8n reads empty as 30, so
+write the value out.
+
+To run the same check by hand on the box:
+
+```bash
+python3 ~/community/automation/infra/check-env-drift.py ~/community
+```
+
 Set `DRY_RUN_RECIPIENT` to a real mailbox this way before activating any
 workflow. While applicant email is suppressed, which is any value of `DRY_RUN`
 other than `false`, every render step throws when it is empty.
