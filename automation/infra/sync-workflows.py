@@ -5,6 +5,14 @@ Each export goes to the workflow of the same name, updated in place. That
 workflow keeps its id, so every Execute Workflow node that calls it keeps
 working. Running the sync twice changes nothing the second time.
 
+An export whose name the instance does not have is created, inactive. The one
+case that looks the same and is not a new workflow is a rename: an export whose
+name changed in git matches nothing, and creating it would leave the old copy
+running beside the new one. A rename always leaves a live workflow that no
+export names, so while one exists no export is created and the run fails,
+naming it. So every workflow on the instance must have an export or be
+archived.
+
 It never activates or deactivates a workflow. It never adds a second workflow
 under a name the instance already has, and it never reads or writes a
 credential. The invariants of the exports themselves belong to
@@ -181,8 +189,6 @@ def main():
                         help="instance base URL, without /api/v1 (default: $N8N_API_URL)")
     parser.add_argument("--dry-run", action="store_true",
                         help="report what would change, and change nothing")
-    parser.add_argument("--allow-create", action="store_true",
-                        help="add an export the instance does not have yet, inactive")
     arguments = parser.parse_args()
 
     base = arguments.base_url.rstrip("/")
@@ -200,6 +206,11 @@ def main():
     for workflow in live_workflows:
         if not workflow.get("isArchived"):
             by_name[workflow["name"]].append(workflow)
+
+    # A live workflow no export names is what a rename in git leaves behind, so
+    # creating anything while one exists could start a second copy of a stage.
+    unexported = sorted(w["name"] for w in live_workflows
+                        if not w.get("isArchived") and w["name"] not in exports)
 
     verb = "would update" if arguments.dry_run else "updated"
     counts = collections.Counter()
@@ -221,9 +232,13 @@ def main():
             continue
 
         if not matches:
-            if not arguments.allow_create:
-                problems.append("%s: no workflow named %r on the instance. Re-run with "
-                                "--allow-create to add it, inactive" % (label, name))
+            if unexported:
+                problems.append("%s: no workflow named %r on the instance, and it was not "
+                                "created because the instance has workflows no export "
+                                "names: %s. If one is this workflow under its old name, "
+                                "give it the new name in the n8n UI and the next run "
+                                "updates it. Archive one nobody needs"
+                                % (label, name, ", ".join(repr(n) for n in unexported)))
                 counts["failed"] += 1
                 continue
             if arguments.dry_run:
@@ -233,7 +248,9 @@ def main():
             try:
                 created = call(base, key, "POST", "/api/v1/workflows", wanted)
             except ApiError as error:
-                problems.append("%s: %s" % (label, error))
+                hint = (". The API key needs the workflow:create scope"
+                        if str(error).startswith("HTTP 403") else "")
+                problems.append("%s: %s%s" % (label, error, hint))
                 counts["failed"] += 1
                 continue
             print("  created, inactive  %s  id %s" % (label, created["id"]))
@@ -274,9 +291,8 @@ def main():
 
     summary = ", ".join("%d %s" % (counts[k], k) for k in
                         ("changed", "created", "unchanged", "failed") if counts[k])
-    others = len([w for w in live_workflows if w["name"] not in exports])
     print("%s. %d other workflows on the instance left alone"
-          % (summary or "nothing to do", others))
+          % (summary or "nothing to do", len(unexported)))
 
     for warning in hand_off_warnings(exports, set(w["id"] for w in live_workflows)):
         print("warning: %s" % warning, file=sys.stderr)

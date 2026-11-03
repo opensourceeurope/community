@@ -12,7 +12,6 @@
 #   deploy.sh                 fast-forward, apply infra, then sync workflows
 #   deploy.sh --dry-run       report what origin/main would change, change nothing
 #   deploy.sh --no-pull       deploy the checkout as it stands, leave git alone
-#   deploy.sh --allow-create  also add an export the instance does not have yet
 set -euo pipefail
 
 REPO="${REPO:-$HOME/community}"
@@ -49,7 +48,6 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) dry_run=true; sync_args+=(--dry-run) ;;
     --no-pull) pull=false ;;
-    --allow-create) sync_args+=(--allow-create) ;;
     -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "unknown option $1" ;;
   esac

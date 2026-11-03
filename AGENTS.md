@@ -193,8 +193,8 @@ The OSE-specific invariants on top of that skill:
   from it, so document a column a workflow writes in the same change.
 - **Workflow ids belong to one instance.** Execute Workflow targets and
   `settings.errorWorkflow` name workflows by id, and `export-workflows.py` maps
-  ids to files. Replace them in git after the first
-  `deploy.sh --allow-create` on a new instance, per the first-install checklist
+  ids to files. Replace them in git after the first deploy creates the
+  workflows on a new instance, per the first-install checklist
   in `automation/infra/README.md`.
 - **An active workflow cannot reference an unpublished sub-workflow.** n8n
   publishes a workflow only on first activation, and saving an active workflow
@@ -379,8 +379,8 @@ The OSE-specific invariants on top of that skill:
   forces a full apply, which recreates Caddy.
 - **Run the infra tests before you push a change to a script.**
   `automation/test/deploy-infra.sh`, `alert-slack.sh`, `backup-upload.sh`,
-  `check-workflows-env.sh`, `check-n8n-version.py` and `check-env-drift.py`
-  stub every external command. `automation/test/bootstrap-smoke.sh` and
+  `check-workflows-env.sh`, `check-n8n-version.py`, `check-env-drift.py`
+  and `sync-workflows.py` stub every external command. `automation/test/bootstrap-smoke.sh` and
   `caddy-routes.sh` need Docker. CI runs all of them and `tofu validate`. Each
   test fails loudly when a helper dies under `set -e`, because a silent stop
   reads as a pass.
