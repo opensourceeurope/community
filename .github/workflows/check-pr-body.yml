@@ -13,6 +13,9 @@ permissions:
 
 jobs:
   check:
+    # Dependabot's body is its release notes, which no setting shortens. Keyed on
+    # the author, not the actor, so a person editing its pull request is checked.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
