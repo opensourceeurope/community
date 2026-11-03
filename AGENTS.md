@@ -103,7 +103,8 @@ The OSE-specific invariants on top of that skill:
 - **No address column is ever given to the model.** The intake review sees the
   public Open Collective page, the apply 5 summary also the form answers and
   README. Render nodes select a fixed key list, never the whole row, and leave
-  out `contact_email`, `applicant_email` and both `alternative_admin_*` columns.
+  out `contact_email`, `applicant_email`, both `alternative_admin_*` columns,
+  `oc_admins` and `admin_countries`.
   Both pass the whole user message through `redactAddresses`, which strips `@`
   addresses and their encoded forms in any script, and `(at)`, `[at]`, `{at}`
   and `<at>`, but not bare-word `name at example dot org` or a line-broken
@@ -217,11 +218,20 @@ The OSE-specific invariants on top of that skill:
   list has it. A field has no
   description property, so explanation goes in a following Custom HTML element
   with an empty `elementName`, which keeps it out of `answers`.
+- **The admin page builds its labels from the row.** `Form page admins` asks
+  where each admin in `oc_admins` lives, one field per admin, so its labels
+  differ per applicant and check 7 cannot see them. `adminLabel` is spelled
+  identically in `Form page admins`, `Form page 6` and `Collect admin
+  countries`, which reads the answers back under those labels, and
+  `automation/test/admin-details.py` fails when the three drift apart. The
+  answers name people, so they go into the `admin_countries` column, never into
+  `answers`.
 - **The last page is built from the row, and it is the only way back.** n8n
   forms have no back button, so `Form page 6` shows every answer prefilled
-  through `defaultValue` for correction. It alone sets `defineForm: json`, its
-  fields an expression over `Read the stored answers again`, covering both
-  page 2 variants and both legal shapes. Shown as text, not fields: the page 1
+  through `defaultValue` for correction. Like `Form page admins` it sets
+  `defineForm: json`, its fields an expression over `Read the stored answers
+  again`, covering both page 2 variants, both legal shapes and the admin
+  page. Shown as text, not fields: the page 1
   dropdown, the Open Collective URL and the legal entity answer, which earlier
   branches switched on, and the contact address `Mark form started` wrote.
   `Record submission` reads that page with `??`, not `||`, so a cleared
@@ -249,9 +259,9 @@ The OSE-specific invariants on top of that skill:
   never takes the applicant off the form. Write an email address as text, in
   `<strong>` if needed. A `class` attribute is stripped too, so style an element
   through the `.form-group.html` wrapper n8n renders around it. Verify anything
-  beyond plain text by opening the page. A throwaway local container on the
-  production image, with the form node imported and published, renders it
-  faithfully. Saving without an error only proves n8n stored it.
+  beyond plain text by opening the page. `automation/scripts/form-preview.py`
+  renders a page faithfully from a throwaway local container on the production
+  image. Saving without an error only proves n8n stored it.
 - **The form's field labels are part of the emailed link.** Prefill parameters
   are keyed on labels, so the invitation and reminder emails embed the page 1
   label `Your collective's Open Collective URL`, percent-encoded. A rename

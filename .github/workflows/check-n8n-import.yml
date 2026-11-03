@@ -26,3 +26,6 @@ jobs:
 
       - name: Boot n8n and import the exports
         run: automation/test/n8n-import-check.sh
+
+      - name: Run the admin nodes in n8n
+        run: python3 automation/test/admin-details.py

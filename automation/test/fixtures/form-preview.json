@@ -1,0 +1,28 @@
+{
+  "Form page 1": {
+    "Contact email": "applicant@example.org",
+    "Your collective's Open Collective URL": "https://opencollective.com/sample-project",
+    "What are you applying as?": "A single open source project"
+  },
+  "Derive slug": {
+    "slug": "sample-project"
+  },
+  "Read the stored answers again": {
+    "slug": "sample-project",
+    "answers": "{\"page\": 4, \"submitted_at\": \"2026-11-03T10:00:00.000+01:00\", \"responses\": {\"applicant_type\": \"A single open source project\", \"repository_url\": \"https://codeberg.org/example/sample-project\", \"project_website\": \"https://sample-project.example.org\", \"licence\": \"Apache-2.0\", \"open_development\": \"Issues and pull requests on Codeberg, a public Matrix room, and monthly calls with public notes.\", \"community_home\": \"\", \"community_open\": \"\", \"service_home\": \"\", \"service_software\": \"\", \"service_open\": \"\", \"legal_entity\": \"No\", \"legal_entity_detail\": \"\", \"operating_duration\": \"Three years\", \"fundraising_to_date\": \"\", \"fundraising_goal\": \"EUR 20,000 a year\", \"funding_sources\": \"Companies that depend on the library, and individual donors.\", \"expected_expenses\": \"Maintainer time, CI runners and travel to two conferences a year.\", \"payee_countries\": \"Germany, Poland\"}}",
+    "oc_admins": "[{\"slug\": \"sample-maintainer\", \"name\": \"Sam Maintainer\", \"description\": \"Maintainer of the sample project.\", \"company\": \"Example Labs\", \"socialLinks\": [{\"type\": \"GITHUB\", \"url\": \"https://github.com/example\"}]}, {\"slug\": \"alex-contributor\", \"name\": \"Alex Contributor\", \"description\": null, \"company\": null, \"socialLinks\": []}]"
+  },
+  "Form page 5": {
+    "What does the project do?": "A small library that parses sample files.",
+    "How does the project further open source in Europe?": "Most maintainers and users are in Europe.",
+    "Anything else we should know?": "",
+    "Name of a second admin (optional)": "",
+    "Email of a second admin (optional)": ""
+  },
+  "Form page admins": {
+    "Are all admins of the collective at least 18 years old?": "Yes",
+    "Where does Sam Maintainer (@sample-maintainer) live?": "Germany",
+    "Where does Alex Contributor (@alex-contributor) live?": "Poland",
+    "Any other admins we did not list, and where do they live?": ""
+  }
+}

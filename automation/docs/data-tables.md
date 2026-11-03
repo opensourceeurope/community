@@ -36,6 +36,7 @@ with one of the four types.
 | `website_url` | String | intake | First website social link on the collective, if any. An input to the AI review. |
 | `application_message` | String | intake | The message the applicant wrote when applying on OC. Posted into the application's Slack thread by intake, in as many replies as its length needs, and an input to the AI review. When the collective's page carries no repository link, apply 2 also takes a GitHub or GitLab repository link out of it to fetch a README and a licence. |
 | `applicant_email` | String | intake | The application's `customData` contact email when present, otherwise the first collective admin email visible to the host admin. The `collective.apply` webhook payload carries no application data, so intake reads all of this from the API. Personal data. |
+| `oc_admins` | String | intake | The collective's admins as Open Collective shows them publicly, a JSON array of `{slug, name, description, company, socialLinks: [{type, url}]}` taken when the application arrives. `company` is `null` for an organization. Empty when the collective lists no admins. apply 2 posts it in the Slack thread, and the form builds one country question per admin from it. Never holds an email address. Personal data. |
 | `stage` | String | every workflow, as the application progresses | One of the ten stage values below. |
 | `applied_at` | Date | intake | The application's `createdAt` on Open Collective. |
 | `ai_review_claimed_at` | Date | AI review | When apply 2 took this row to work on. A claim, not a result. See "The three claim columns" below. |
@@ -48,6 +49,7 @@ with one of the four types.
 | `contact_email` | String | form workflow | Given by the applicant on form page 1. Distinct from `applicant_email`. This is who the applicant says to contact, which may differ from the address the OC application came from. Personal data. |
 | `alternative_admin_name` | String | form workflow | Optional, asked on form page 5 and shown again on page 6: someone else who could also administer the collective. Empty when the applicant left it blank. Personal data. |
 | `alternative_admin_email` | String | form workflow | Optional, asked on form page 5 and shown again on page 6: that second admin's email address. Empty when the applicant left it blank. Personal data. |
+| `admin_countries` | String | form workflow | Where each admin lives, as the applicant answered on the admin page after page 4 and again on page 6. One line per admin, `Name (@slug): Country`, then `Other admins: ...` when the applicant named admins the list lacked. On a row whose `oc_admins` is empty it holds the applicant's free text answer instead. Posted in the Slack thread, never sent to the model. Personal data. |
 | `form_invite_claimed_at` | Date | follow-up | When apply 3 took this row to work on. A claim, not a result. See "The three claim columns" below. |
 | `form_invited_at` | Date | follow-up | When the invitation email was sent. The template varies by verdict, and every reviewed application is invited. On a rejection, this column and `form_submitted_at` choose the closing email: invited and never submitted gets the no-response rejection. |
 | `form_reminded_at` | Date | follow-up | When the `reminder` email was sent, after silence following the invite. Driven by `REMINDER_AFTER_MINUTES` and `SWEEP_CRON`. |
@@ -190,6 +192,17 @@ a page that does not carry the question at all, so on that branch
 `fundraising_to_date`, `fundraising_goal`, `funding_sources`,
 `expected_expenses` and `payee_countries`.
 
+The admin page follows page 4 on every path. It asks `admins_adult`, whether
+all admins of the collective are at least 18. A `No` is recorded and shown to
+reviewers, and the application goes on. It then asks where each admin lives,
+one required question per admin in `oc_admins`, labelled with that admin's name
+and slug, and an optional question about any admin the list missed. A row with
+no `oc_admins` gets one required free text question instead. Those answers are
+stored as the column `admin_countries` rather than in `answers`, because they
+carry names. The page builds its fields from the row, so its labels differ
+from one applicant to the next, and `Collect admin countries` reads them back
+under the same computed labels.
+
 Page 5 has `activities`, `mission_fit` and `notes`. It then suggests that
 the collective have more than one admin and asks, optionally, for a second
 admin's name and email. Those two are stored as the columns
@@ -197,7 +210,8 @@ admin's name and email. Those two are stored as the columns
 `answers`, so like `contact_email` they reach neither the Slack thread nor the
 model.
 
-Page 6 shows every answer back for correction, the second admin included. Last
+Page 6 shows every answer back for correction, the second admin and the admin
+page included. Last
 comes one question of its own: `form_feedback`, where the applicant says how
 the form could be better. It is optional, and it is not part of the
 application. The Slack thread reply carries it so that a person reads it. The
@@ -232,9 +246,10 @@ the workflow derives the slug from it to look up the row keyed on `slug`.
 
 ## Personal data
 
-`applicant_email`, `contact_email`, `alternative_admin_name` and
-`alternative_admin_email` are the only personal data columns in this table.
-None of them is ever sent to the model. `automation/prompts/review.user.md`
+`applicant_email`, `contact_email`, `alternative_admin_name`,
+`alternative_admin_email`, `oc_admins` and `admin_countries` are the personal
+data columns in this table. None of them is ever sent to the model, and `check-workflows.py` check 9
+fails a model request node that names one. `automation/prompts/review.user.md`
 sends only `org_name`, `collective_name`, `collective_slug`, `description`,
 `long_description`, `repository_url`, `website_url` and
 `application_message`. Those are free text, so before the request is sent
@@ -245,6 +260,6 @@ applicant writes into them are not removed.
 The summary in apply 5 sends a second set: the form answers under the keys listed
 in "Shape of `answers`", the collective's public description, the repository URL
 and the fetched README. It selects them from a fixed list rather than iterating
-the row, which is what keeps the four columns above out of it, and it passes the
+the row, which is what keeps the columns above out of it, and it passes the
 message through the same `redactAddresses` helper. See
 `automation/prompts/summary.system.md`.

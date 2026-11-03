@@ -64,7 +64,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ query: 'query($h:String){host(slug:$h){slug hostApplications(limit:50,status:PENDING,orderBy:{field:CREATED_AT,direction:DESC}){totalCount nodes{createdAt message customData account{slug name description longDescription socialLinks{type url} members(role:ADMIN,limit:10){nodes{account{... on Individual{email} } } } } } } } }', variables: { h: $json.host_slug } }) }}",
+        "jsonBody": "={{ JSON.stringify({ query: 'query($h:String){host(slug:$h){slug hostApplications(limit:50,status:PENDING,orderBy:{field:CREATED_AT,direction:DESC}){totalCount nodes{createdAt message customData account{slug name description longDescription socialLinks{type url} members(role:ADMIN,limit:10){nodes{account{slug name description socialLinks{type url} ... on Individual{email company} } } } } } } } }', variables: { h: $json.host_slug } }) }}",
         "options": {}
       },
       "credentials": {
@@ -84,7 +84,7 @@
         -160
       ],
       "parameters": {
-        "jsCode": "// Flattens the per-host GraphQL responses into one item per pending\n// application, shaped exactly like an ose_applications row.\nconst ORG_BY_HOST = { 'europe': 'OSE' };\nconst out = [];\nfor (const item of $input.all()) {\n  const host = item.json.data && item.json.data.host;\n  if (!host) {\n    throw new Error('intake: unexpected GraphQL response: ' + JSON.stringify(item.json.errors || item.json).slice(0, 500));\n  }\n  for (const node of host.hostApplications.nodes) {\n    const account = node.account || {};\n    if (!account.slug) continue;\n    const links = account.socialLinks || [];\n    const repoLink = links.find((l) => ['GITHUB', 'GITLAB', 'GIT_REPOSITORY'].includes(l.type));\n    const siteLink = links.find((l) => l.type === 'WEBSITE');\n    const adminEmails = ((account.members || {}).nodes || [])\n      .map((m) => (m.account || {}).email)\n      .filter(Boolean);\n    const custom = node.customData || {};\n    out.push({ json: {\n      slug: account.slug,\n      org: ORG_BY_HOST[host.slug] || host.slug,\n      host_slug: host.slug,\n      collective_name: account.name || account.slug,\n      collective_url: 'https://opencollective.com/' + account.slug,\n      description: account.description || '',\n      long_description: account.longDescription || '',\n      repository_url: (repoLink || {}).url || '',\n      website_url: (siteLink || {}).url || '',\n      application_message: node.message || '',\n      applicant_email: custom.email || custom.contactEmail || adminEmails[0] || '',\n      applied_at: node.createdAt,\n    }});\n  }\n}\nreturn out;"
+        "jsCode": "// Flattens the per-host GraphQL responses into one item per pending\n// application, shaped exactly like an ose_applications row.\nconst ORG_BY_HOST = { 'europe': 'OSE' };\nconst out = [];\nfor (const item of $input.all()) {\n  const host = item.json.data && item.json.data.host;\n  if (!host) {\n    throw new Error('intake: unexpected GraphQL response: ' + JSON.stringify(item.json.errors || item.json).slice(0, 500));\n  }\n  for (const node of host.hostApplications.nodes) {\n    const account = node.account || {};\n    if (!account.slug) continue;\n    const links = account.socialLinks || [];\n    const repoLink = links.find((l) => ['GITHUB', 'GITLAB', 'GIT_REPOSITORY'].includes(l.type));\n    const siteLink = links.find((l) => l.type === 'WEBSITE');\n    const admins = ((account.members || {}).nodes || []).map((m) => m.account || {});\n    const adminEmails = admins.map((a) => a.email).filter(Boolean);\n    // The public profile of each admin, for the Slack thread and the form's admin\n    // page. Never the email: that stays in applicant_email alone.\n    const publicAdmins = admins.filter((a) => a.slug).map((a) => ({\n      slug: a.slug,\n      name: a.name || a.slug,\n      description: a.description || null,\n      company: a.company || null,\n      socialLinks: (a.socialLinks || []).map((l) => ({ type: l.type, url: l.url })),\n    }));\n    const custom = node.customData || {};\n    out.push({ json: {\n      slug: account.slug,\n      org: ORG_BY_HOST[host.slug] || host.slug,\n      host_slug: host.slug,\n      collective_name: account.name || account.slug,\n      collective_url: 'https://opencollective.com/' + account.slug,\n      description: account.description || '',\n      long_description: account.longDescription || '',\n      repository_url: (repoLink || {}).url || '',\n      website_url: (siteLink || {}).url || '',\n      application_message: node.message || '',\n      applicant_email: custom.email || custom.contactEmail || adminEmails[0] || '',\n      applied_at: node.createdAt,\n      oc_admins: publicAdmins.length ? JSON.stringify(publicAdmins) : '',\n    }});\n  }\n}\nreturn out;"
       }
     },
     {
@@ -145,7 +145,8 @@
             "application_message": "={{ $json.application_message }}",
             "applicant_email": "={{ $json.applicant_email }}",
             "stage": "applied",
-            "applied_at": "={{ $json.applied_at }}"
+            "applied_at": "={{ $json.applied_at }}",
+            "oc_admins": "={{ $json.oc_admins }}"
           },
           "matchingColumns": [],
           "schema": []
