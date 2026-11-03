@@ -97,7 +97,8 @@ MODEL_FREE_KEYS = {"form_feedback"}
 # Row columns holding a person's address or name. No node that builds a model request
 # may read one.
 ADDRESS_COLUMNS = ("contact_email", "applicant_email",
-                   "alternative_admin_name", "alternative_admin_email", "oc_admins")
+                   "alternative_admin_name", "alternative_admin_email", "oc_admins",
+                   "admin_countries")
 HTTP_TYPE = "n8n-nodes-base.httpRequest"
 MODEL_ENDPOINT = re.compile(r"chat/completions|/v1/messages|/v1/responses")
 USER_ROLE = re.compile(r"""["']?role["']?\s*:\s*["'`]user["'`]""")

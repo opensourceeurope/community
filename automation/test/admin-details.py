@@ -214,7 +214,122 @@ def check_slack_nothing(execution):
     assert items == [], items
 
 
+# --- the form ---------------------------------------------------------------------------
+
+ADULT = "Are all admins of the collective at least 18 years old?"
+OTHER = "Any other admins we did not list, and where do they live?"
+FALLBACK = "In which country does each admin live?"
+# The one spelling of a country question's label. Form page admins builds it, Form page 6
+# builds it again to prefill, and Collect admin countries looks the answer up by it, so all
+# three must carry this exact line or an answer is silently lost.
+ADMIN_LABEL_JS = ("const adminName = (a) => String(a.name || '').replace(/[<>]/g, '').trim() "
+                  "|| String(a.slug); const adminLabel = (a) => 'Where does ' + adminName(a) "
+                  "+ ' (@' + String(a.slug) + ') live?';")
+
+
+def label(name, slug):
+    shown = name.replace("<", "").replace(">", "").strip() or slug
+    return f"Where does {shown} (@{slug}) live?"
+
+
+def check_label_spelling_shared():
+    """Every node that builds or reads a country label spells it the same way."""
+    for name, field in (("Form page admins", "jsonOutput"), ("Form page 6", "jsonOutput"),
+                        ("Collect admin countries", "jsCode")):
+        source = node("form-ose.json", name)["parameters"][field]
+        assert ADMIN_LABEL_JS in source, f"{name} does not build the admin label the shared way"
+
+
+def form_case(name, oc_admins, page_admins, page_six, check):
+    return {"case": name, "export": "form-ose.json", "nodes": ["Collect admin countries"],
+            "feeds": {"Read the stored answers again": [{"slug": "sample", "oc_admins": oc_admins}],
+                      "Form page admins": [page_admins], "Form page 6": [page_six]},
+            "check": check}
+
+
+FORM_ADMINS = json.dumps([
+    {"slug": "ann-example", "name": "Ann \"Q\" O'Neil", "socialLinks": []},
+    {"slug": "bo-example", "name": "<b>Bo</b>", "socialLinks": []},
+])
+ANN = label("Ann \"Q\" O'Neil", "ann-example")
+BO = label("<b>Bo</b>", "bo-example")
+
+
+def collected(execution):
+    items = output(execution, "Collect admin countries")
+    assert len(items) == 1, items
+    return items[0]
+
+
+def check_countries_listed(execution):
+    item = collected(execution)
+    assert item["admin_countries"] == (
+        "Ann \"Q\" O'Neil (@ann-example): Poland\n"
+        "bBo/b (@bo-example): Germany\n"
+        "Other admins: Cy, Spain"), item["admin_countries"]
+    assert item["admins_adult"] == "Yes", item
+    assert item["Contact email"] == "applicant@example.org", "page 6 answers were not passed on"
+
+
+def check_countries_page_six_wins(execution):
+    item = collected(execution)
+    assert item["admin_countries"] == ("Ann \"Q\" O'Neil (@ann-example): Czechia\n"
+                                       "bBo/b (@bo-example):"), item["admin_countries"]
+    assert item["admins_adult"] == "No", item
+
+
+def check_countries_fallback(execution):
+    item = collected(execution)
+    assert item["admin_countries"] == "Dee, Italy\nEd, France", item["admin_countries"]
+
+
+def check_countries_duplicates(execution):
+    item = collected(execution)
+    assert item["admin_countries"] == ("Sam (@sam-one): Austria\n"
+                                       "Sam (@sam-two): Belgium"), item["admin_countries"]
+
+
+def check_submission_reply(execution):
+    items = output(execution, "Render submission thread reply")
+    assert len(items) == 1, items
+    text = items[0]["text"]
+    assert "• *All admins 18 or older:* Yes" in text, text
+    assert "• *Where the admins live:*" in text, text
+    assert "◦ &lt;!channel&gt; Ann (@ann-example): Poland" in text and "<!channel>" not in text, text
+    assert "◦ Other admins: Cy, Spain" in text, text
+
+
+SUBMITTED_ROW = {
+    "slug": "sample", "org": "OSE", "collective_name": "Sample",
+    "collective_url": "https://opencollective.com/sample",
+    "slack_channel_id": "C0SAMPLE", "slack_thread_ts": "1730000000.000100",
+    "answers": json.dumps({"page": 6, "responses": {"activities": "Parses files.",
+                                                     "admins_adult": "Yes"}}),
+    "admin_countries": "<!channel> Ann (@ann-example): Poland\nOther admins: Cy, Spain",
+}
+
+
 CASES = [
+    {"case": "submission-reply", "export": "form-ose.json",
+     "nodes": ["Render submission thread reply"],
+     "feeds": {"Record submission": [SUBMITTED_ROW]}, "check": check_submission_reply},
+    form_case("countries-listed", FORM_ADMINS,
+              {ADULT: "Yes", ANN: "Poland", BO: "Germany", OTHER: "Cy, Spain"},
+              {"Contact email": "applicant@example.org", ADULT: "Yes", ANN: " Poland ",
+               BO: "Germany", OTHER: "Cy, Spain"},
+              check_countries_listed),
+    form_case("countries-page6-wins", FORM_ADMINS,
+              {ADULT: "Yes", ANN: "Poland", BO: "Germany"},
+              {ADULT: "No", ANN: "Czechia", BO: "", OTHER: ""},
+              check_countries_page_six_wins),
+    form_case("countries-fallback", "",
+              {ADULT: "Yes", FALLBACK: "Dee, Italy\nEd, France"},
+              {ADULT: "Yes"}, check_countries_fallback),
+    form_case("countries-duplicate-names",
+              json.dumps([{"slug": "sam-one", "name": "Sam"}, {"slug": "sam-two", "name": "Sam"}]),
+              {ADULT: "Yes", label("Sam", "sam-one"): "Austria", label("Sam", "sam-two"): "Belgium"},
+              {ADULT: "Yes", label("Sam", "sam-one"): "Austria", label("Sam", "sam-two"): "Belgium"},
+              check_countries_duplicates),
     intake_case("intake-admins", [ANNA, ORG], check_intake_admins),
     intake_case("intake-no-admins", [], check_intake_no_admins),
     slack_case("slack-admins", [row("sample-collective", SLACK_ADMINS)], check_slack_admins),
@@ -236,6 +351,7 @@ def check_intake_copies_match():
 
 def main():
     check_intake_copies_match()
+    check_label_spelling_shared()
     selected = [c for c in CASES if len(sys.argv) < 2 or c["case"] in sys.argv[1:]]
     executions = run_cases(selected)
     failures = 0
