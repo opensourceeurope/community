@@ -87,6 +87,8 @@ services:
       STALE_CLAIM_MINUTES: ${STALE_CLAIM_MINUTES}
       # Defaulted here so a box whose .env predates it keeps deploying.
       INVITE_AFTER_MINUTES: ${INVITE_AFTER_MINUTES:-5}
+      DIGEST_CRON: "${DIGEST_CRON:-0 9 * * 5}"
+      DIGEST_STALE_DAYS: ${DIGEST_STALE_DAYS:-7}
       AI_API_KEY: ${AI_API_KEY}
       AI_MODEL: ${AI_MODEL}
       AI_BASE_URL: ${AI_BASE_URL}

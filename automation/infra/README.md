@@ -1810,7 +1810,8 @@ sudo tail -n 30 /var/log/unattended-upgrades/unattended-upgrades.log
 ## Alerts when a workflow fails
 
 `ops — alert Slack when any apply workflow fails` posts to the reviewers'
-channel whenever one of the six `apply` workflows stops on an unhandled error.
+channel whenever a workflow that names it as its error workflow stops on an
+unhandled error: every `apply` workflow, and the weekly digest.
 Without it a failure is silent. The execution turns red in a list nobody
 watches, and the pipeline looks healthy from the outside while it does nothing.
 

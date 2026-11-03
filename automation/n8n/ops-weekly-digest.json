@@ -1,0 +1,194 @@
+{
+  "name": "ops — weekly digest of open applications in Slack",
+  "nodes": [
+    {
+      "id": "0b57e63b-48c9-464a-8fbd-cd65cb1051f4",
+      "name": "Every Friday morning",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "DIGEST_CRON, Fridays at 09:00 by default. The workflow pins Europe/Berlin, so the hour is Berlin time whatever the server clock says.",
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "={{ $env.DIGEST_CRON }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "15a5be1b-c404-48f7-8159-a6d07cf65130",
+      "name": "Look up the Slack workspace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "notes": "auth.test returns the workspace address, which a thread link needs and the row does not hold. On a failure the digest still posts, with names instead of links.",
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/auth.test",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "options": {}
+      }
+    },
+    {
+      "id": "51ae160b-7d1f-4121-8dab-bd9bf6055577",
+      "name": "Get open rows",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        0
+      ],
+      "notes": "Every row not yet approved, rejected or resigned. Always outputs, so a week with nothing open still reaches the render step and posts.",
+      "alwaysOutputData": true,
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "stage",
+              "condition": "neq",
+              "keyValue": "approved"
+            },
+            {
+              "keyName": "stage",
+              "condition": "neq",
+              "keyValue": "rejected"
+            },
+            {
+              "keyName": "stage",
+              "condition": "neq",
+              "keyValue": "resigned"
+            }
+          ]
+        },
+        "returnAll": true
+      }
+    },
+    {
+      "id": "7eaaaa4b-852b-4f14-b976-d6924f79b97d",
+      "name": "Render weekly digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// One message a week listing every application that is still open, so a reviewer can see\n// the whole queue at once and jump into a thread from it. It reads the table and posts,\n// and that is all: no row is changed, no model is called and no applicant is emailed.\n//\n// The collective's name is the applicant's own text, so it is data, not markup: a name\n// like <!channel> would otherwise be honoured by Slack in the reviewers' channel. Escape\n// the three characters Slack treats as control characters, & first so the other two are\n// not escaped twice. The fixed wording is left alone so it keeps its *bold* and emoji.\nconst escapeSlack = (value) => String(value)\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;');\n\nconst channel = $env.SLACK_CHANNEL || '';\nif (!channel) throw new Error('weekly digest: SLACK_CHANNEL is empty');\n// A typo here must not switch the warning off without a word, so anything that is not a\n// number of days falls back to the default.\nconst staleSetting = Number($env.DIGEST_STALE_DAYS || 7);\nconst staleDays = Number.isFinite(staleSetting) && staleSetting >= 0 ? staleSetting : 7;\n\n// auth.test names the workspace, which is the one part of a thread link the row does not\n// hold. A failed lookup costs the links and nothing else, so the digest still posts. The\n// address is checked with a regex because the sandbox has no URL global, and anything\n// other than a plain workspace address is not used to build a link.\nconst auth = $('Look up the Slack workspace').first().json;\nconst workspace = auth && auth.ok === true && typeof auth.url === 'string'\n  && /^https:\\/\\/[a-z0-9-]+\\.slack\\.com\\/$/.test(auth.url) ? auth.url : '';\n\nconst TERMINAL = new Set(['approved', 'rejected', 'resigned']);\n// Get open rows always outputs, so an empty table still reaches this node as one empty\n// item. Dropping rows without a slug removes it, and the terminal check repeats the\n// node's own filter so a change there cannot put a closed application in the digest.\nconst rows = $input.all().map((item) => item.json)\n  .filter((row) => row.slug && !TERMINAL.has(row.stage));\n\nconst daysSince = (value) => {\n  if (!value) return null;\n  const then = DateTime.fromJSDate(new Date(value));\n  if (!then.isValid) return null;\n  return Math.max(0, Math.floor($now.diff(then, 'days').days));\n};\nconst ago = (days) => days === 0 ? 'today' : days === 1 ? '1 day ago' : `${days} days ago`;\n\nconst link = (row) => {\n  const name = escapeSlack(row.collective_name || row.slug);\n  const ts = String(row.slack_thread_ts || '');\n  const channelId = String(row.slack_channel_id || '');\n  if (!workspace || !/^[CGD][A-Z0-9]+$/.test(channelId) || !/^\\d+\\.\\d+$/.test(ts)) return `*${name}*`;\n  return `<${workspace}archives/${channelId}/p${ts.replace('.', '')}|${name}>`;\n};\n\n// Each stage lands in the group of whoever has the next move. `waited` is how long the\n// row has been in that state, which orders the group oldest first and, for the rows that\n// are with OSE, decides the warning.\nconst describe = (row) => {\n  const invited = daysSince(row.form_invited_at);\n  const reminded = daysSince(row.form_reminded_at);\n  switch (row.stage) {\n    case 'form_submitted':\n    case 'awaiting_decision': {\n      const waited = daysSince(row.form_submitted_at);\n      return { group: 'ose', waited, text: waited === null ? 'form sent' : `form sent ${ago(waited)}` };\n    }\n    case 'escalated': {\n      const waited = daysSince(row.slack_notified_at);\n      return { group: 'ose', waited,\n        text: waited === null ? 'no form after the reminder, escalated'\n          : `no form after the reminder, escalated ${ago(waited)}` };\n    }\n    case 'form_invited':\n      return { group: 'applicant', waited: invited,\n        text: [invited === null ? 'invited' : `invited ${ago(invited)}`,\n          reminded === null ? null : `reminded ${ago(reminded)}, no form yet`].filter(Boolean).join(', ') };\n    case 'form_started':\n      return { group: 'applicant', waited: invited,\n        text: invited === null ? 'started the form, not sent' : `started the form, not sent, invited ${ago(invited)}` };\n    case 'applied': {\n      const waited = daysSince(row.applied_at);\n      return { group: 'pipeline', waited,\n        text: waited === null ? 'AI review pending' : `applied ${ago(waited)}, AI review pending` };\n    }\n    case 'reviewed':\n      // apply 3 found a decision on Open Collective before it could invite, so no\n      // invitation is coming and the decision sweep records the outcome next.\n      if (row.form_invite_skipped_at) {\n        return { group: 'pipeline', waited: daysSince(row.form_invite_skipped_at),\n          text: 'decided on Open Collective before the invitation, not yet recorded' };\n      }\n      return { group: 'pipeline', waited: daysSince(row.ai_reviewed_at), text: 'reviewed, invitation pending' };\n    default:\n      return { group: 'pipeline', waited: null, text: `stage ${escapeSlack(row.stage || 'unknown')}` };\n  }\n};\n\nconst GROUPS = [\n  ['ose', 'Waiting for an OSE decision'],\n  ['applicant', 'Waiting for the applicant'],\n  ['pipeline', 'In the pipeline'],\n];\n\n// A week with nothing open still posts, so a quiet Friday reads as an empty queue and not\n// as a digest that failed to run.\nif (rows.length === 0) {\n  const empty = { json: { channel, text: ':clipboard: *Open applications*: nothing open this week' } };\n  return empty;\n}\n\nconst described = rows.map((row) => ({ row, ...describe(row) }));\nconst sections = GROUPS.map(([key, title]) => {\n  const members = described.filter((entry) => entry.group === key)\n    .sort((a, b) => (b.waited ?? -1) - (a.waited ?? -1));\n  if (members.length === 0) return null;\n  const lines = members.map((entry) => {\n    const warn = key === 'ose' && entry.waited !== null && entry.waited > staleDays ? ' :warning:' : '';\n    return `• ${link(entry.row)} · ${entry.text}${warn}`;\n  });\n  const block = [`*${title}* (${members.length})`, ...lines];\n  return block.join('\\n');\n}).filter(Boolean);\n\nconst text = [`:clipboard: *Open applications* (${rows.length} open)`, ...sections].join('\\n\\n');\nconst digest = { json: { channel, text } };\nreturn digest;\n"
+      }
+    },
+    {
+      "id": "264660f9-21ab-4174-803a-c311e198b5b7",
+      "name": "Post weekly digest to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        896,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "webhookId": "0a52c1a7-66a5-4f4b-a34e-ce0551794464",
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "unfurl_links": false,
+          "unfurl_media": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Friday morning": {
+      "main": [
+        [
+          {
+            "node": "Look up the Slack workspace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look up the Slack workspace": {
+      "main": [
+        [
+          {
+            "node": "Get open rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get open rows": {
+      "main": [
+        [
+          {
+            "node": "Render weekly digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render weekly digest": {
+      "main": [
+        [
+          {
+            "node": "Post weekly digest to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Europe/Berlin",
+    "executionOrder": "v1",
+    "errorWorkflow": "qWHuHamNdmvfrSRt"
+  },
+  "pinData": {}
+}
