@@ -36,6 +36,7 @@ with one of the four types.
 | `website_url` | String | intake | First website social link on the collective, if any. An input to the AI review. |
 | `application_message` | String | intake | The message the applicant wrote when applying on OC. Posted into the application's Slack thread by intake, in as many replies as its length needs, and an input to the AI review. When the collective's page carries no repository link, apply 2 also takes a GitHub or GitLab repository link out of it to fetch a README and a licence. |
 | `applicant_email` | String | intake | The application's `customData` contact email when present, otherwise the first collective admin email visible to the host admin. The `collective.apply` webhook payload carries no application data, so intake reads all of this from the API. Personal data. |
+| `oc_admins` | String | intake | The collective's admins as Open Collective shows them publicly, a JSON array of `{slug, name, description, company, socialLinks: [{type, url}]}` taken when the application arrives. `company` is `null` for an organization. Empty when the collective lists no admins. apply 2 posts it in the Slack thread, and the form builds one country question per admin from it. Never holds an email address. Personal data. |
 | `stage` | String | every workflow, as the application progresses | One of the ten stage values below. |
 | `applied_at` | Date | intake | The application's `createdAt` on Open Collective. |
 | `ai_review_claimed_at` | Date | AI review | When apply 2 took this row to work on. A claim, not a result. See "The three claim columns" below. |
@@ -232,9 +233,10 @@ the workflow derives the slug from it to look up the row keyed on `slug`.
 
 ## Personal data
 
-`applicant_email`, `contact_email`, `alternative_admin_name` and
-`alternative_admin_email` are the only personal data columns in this table.
-None of them is ever sent to the model. `automation/prompts/review.user.md`
+`applicant_email`, `contact_email`, `alternative_admin_name`,
+`alternative_admin_email` and `oc_admins` are the personal data columns in this
+table. None of them is ever sent to the model, and `check-workflows.py` check 9
+fails a model request node that names one. `automation/prompts/review.user.md`
 sends only `org_name`, `collective_name`, `collective_slug`, `description`,
 `long_description`, `repository_url`, `website_url` and
 `application_message`. Those are free text, so before the request is sent
@@ -245,6 +247,6 @@ applicant writes into them are not removed.
 The summary in apply 5 sends a second set: the form answers under the keys listed
 in "Shape of `answers`", the collective's public description, the repository URL
 and the fetched README. It selects them from a fixed list rather than iterating
-the row, which is what keeps the four columns above out of it, and it passes the
+the row, which is what keeps the columns above out of it, and it passes the
 message through the same `redactAddresses` helper. See
 `automation/prompts/summary.system.md`.
