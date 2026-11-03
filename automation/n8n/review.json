@@ -134,6 +134,11 @@
               "keyName": "slug",
               "condition": "eq",
               "keyValue": "={{ $json.slug }}"
+            },
+            {
+              "keyName": "stage",
+              "condition": "eq",
+              "keyValue": "applied"
             }
           ]
         },
@@ -152,7 +157,8 @@
           "schema": []
         },
         "options": {}
-      }
+      },
+      "notes": "Guarded on the stage it read, so a decision recorded while the model was answering is never moved back to reviewed. A row decided in the meantime matches nothing, emits nothing, and gets neither the review reply nor the hand-off to apply 3."
     },
     {
       "id": "cefcabec-6ea9-4ef0-a93f-27b540aeaa46",
