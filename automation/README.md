@@ -71,8 +71,9 @@ place and leaving its active state alone. See
 
 `automation/n8n/` holds the export of every workflow. Six of them carry the
 application pipeline and coordinate through one Data table
-(`ose_applications`, keyed by collective slug). The seventh watches the other
-six and posts to Slack when one fails. The row is the record: a workflow
+(`ose_applications`, keyed by collective slug). The `ops` workflows sit
+outside the pipeline: one posts to Slack when a workflow fails, the other posts
+a weekly digest of the applications still open. The row is the record: a workflow
 reads state from it and writes state back, rather than handing work to
 another workflow and trusting it to arrive.
 A workflow does start the next one directly, four times over, but the call
@@ -104,7 +105,8 @@ the workflow list reads in pipeline order. The export files use short names.
 | `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row still pending on Open Collective, and posts in the thread instead when a decision got there first. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
 | `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. It also tells the applicant what is automated, where a Mistral model on Scaleway reads the application and what it writes, and that a person makes every decision, with links to this code and the AI policy. Page 3 asks whether the project is already a legal entity, which decides whether page 4 opens by asking what kind and where. After page 4, a page built from the collective's admin list asks whether every admin is at least 18 and where each one lives. Page 5 also asks, optionally, for a second admin's name and email. Page 6 shows the whole application back for correction and ends with an optional question about the form itself. Answers persist after every page, and a submission puts them in the application's Slack thread. |
 | `apply 5 — application summary` | `summary.json` | A direct call from apply 4, and `SUMMARY_CRON` as the catch-up | Reads a submitted form and the project's README, then posts a verdict, a confidence and a one paragraph description into the thread. It is advisory, like the review, and it recommends no decision. It asks no questions of its own, because which answers to follow up is the reviewer's call. |
-| `ops — alert Slack when any apply workflow fails` | `ops-alert-on-failure.json` | An unhandled error in any of the six, through their `Error Workflow` setting | Posts the workflow that failed, the node that threw and the error text to `SLACK_CHANNEL`, with links to the execution and the editor. Outside the pipeline, so it holds no application state. |
+| `ops — alert Slack when any apply workflow fails` | `ops-alert-on-failure.json` | An unhandled error in any other workflow, through its `Error Workflow` setting | Posts the workflow that failed, the node that threw and the error text to `SLACK_CHANNEL`, with links to the execution and the editor. Outside the pipeline, so it holds no application state. |
+| `ops — weekly digest of open applications in Slack` | `ops-weekly-digest.json` | `DIGEST_CRON`, Fridays at 09:00 | Posts one message to `SLACK_CHANNEL` listing every application not yet approved, rejected or resigned, grouped by who has the next move: OSE, the applicant, or the pipeline itself. Each line says how long the application has waited and links to its thread, and one that has waited on OSE longer than `DIGEST_STALE_DAYS` is marked. It reads the table and changes nothing. |
 
 One application flows through the workflows in this order:
 

@@ -502,7 +502,8 @@ The script ends with the steps it cannot do for you. Do them in this order:
    old ids in three places. Nothing reports an error for them, apart from a
    warning for the first:
    - each Execute Workflow node's target, which is the workflow it hands off to
-   - each `apply` workflow's `errorWorkflow` setting, which names
+   - each `apply` workflow's and the weekly digest's `errorWorkflow` setting,
+     which names
      `ops — alert Slack when any apply workflow fails`
    - the id map at the top of [`automation/scripts/export-workflows.py`](../scripts/export-workflows.py)
 
@@ -515,7 +516,8 @@ The script ends with the steps it cannot do for you. Do them in this order:
     whose callee has never been active: apply 5 and apply 3 first, then
     apply 2 and apply 4, then apply 1a and apply 1b. Activate
     `ops — alert Slack when any apply workflow fails` as well, or no failure
-    reaches Slack.
+    reaches Slack, and `ops — weekly digest of open applications in Slack` if
+    reviewers want the Friday overview.
 11. [Register the Open Collective webhook](#registering-the-open-collective-webhook).
 12. Set up [the copy off the box](#the-copy-off-the-box) and
     [the external uptime monitor](#the-external-uptime-monitor).
@@ -1817,7 +1819,8 @@ sudo tail -n 30 /var/log/unattended-upgrades/unattended-upgrades.log
 ## Alerts when a workflow fails
 
 `ops — alert Slack when any apply workflow fails` posts to the reviewers'
-channel whenever one of the six `apply` workflows stops on an unhandled error.
+channel whenever a workflow that names it as its error workflow stops on an
+unhandled error: every `apply` workflow, and the weekly digest.
 Without it a failure is silent. The execution turns red in a list nobody
 watches, and the pipeline looks healthy from the outside while it does nothing.
 
