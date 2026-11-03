@@ -101,7 +101,7 @@ the workflow list reads in pipeline order. The export files use short names.
 | `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | A `collective.apply` event carries no application, so new applications are read from the API. An approve or reject event names the collective, so only that application is checked, with one API call that confirms the decision before anything is recorded. The webhook has no authentication, which is why the payload alone is never trusted. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
 | `apply 1b — catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
 | `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`. |
-| `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
+| `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row still pending on Open Collective, and posts in the thread instead when a decision got there first. The verdict picks the email. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
 | `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form, six pages. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. It also tells the applicant what is automated, where a Mistral model on Scaleway reads the application and what it writes, and that a person makes every decision, with links to this code and the AI policy. Page 3 asks whether the project is already a legal entity, which decides whether page 4 opens by asking what kind and where. Page 5 also asks, optionally, for a second admin's name and email. Page 6 shows the whole application back for correction and ends with an optional question about the form itself. Answers persist after every page, and a submission puts them in the application's Slack thread. |
 | `apply 5 — application summary` | `summary.json` | A direct call from apply 4, and `SUMMARY_CRON` as the catch-up | Reads a submitted form and the project's README, then posts a verdict, a confidence and a one paragraph description into the thread. It is advisory, like the review, and it recommends no decision. It asks no questions of its own, because which answers to follow up is the reviewer's call. |
 | `ops — alert Slack when any apply workflow fails` | `ops-alert-on-failure.json` | An unhandled error in any of the six, through their `Error Workflow` setting | Posts the workflow that failed, the node that threw and the error text to `SLACK_CHANNEL`, with links to the execution and the editor. Outside the pipeline, so it holds no application state. |
@@ -123,14 +123,15 @@ flowchart TD
     HUMAN --> A5["apply 1a or 1b, decision branch<br>records the outcome"]
     GONE --> A5
     A5 -->|"approved, rejected"| END(["Applicant receives<br>the closing email"])
-    A5 -->|"resigned"| MARK(["Thread is marked,<br>no email is sent"])
+    A5 -->|"resigned, or decided<br>before the invitation"| MARK(["Thread is marked,<br>no email is sent"])
 ```
 
 An application moves through in one pass. Whichever intake creates the row
 starts the AI review as soon as the row has its Slack thread anchor, the
-review starts the follow-up as soon as it has written the verdict, and the
-invitation is sent in that same run. An application no longer waits a morning
-per stage.
+review starts the follow-up as soon as it has written the verdict. The
+invitation is the one stage that waits on purpose: apply 3 holds it until the
+application is `INVITE_AFTER_MINUTES` old, 5 when unset, so a decision made
+straight after applying lands first, and a later sweep sends it.
 
 The schedules are what make that safe rather than fragile. Every stage keeps
 the cron it always had and still selects the rows its own stage owns, so a
@@ -448,7 +449,8 @@ applicant reads:
 
 | Decision | Row | Template |
 |---|---|---|
-| approved | any | `decision-approved.md` |
+| approved or rejected | `form_invited_at` empty | none |
+| approved | `form_invited_at` set | `decision-approved.md` |
 | rejected | `form_invited_at` set, `form_submitted_at` empty | `decision-rejected-no-response.md` |
 | rejected | anything else | `decision-rejected.md` |
 
@@ -456,9 +458,13 @@ The no-response email is for an applicant who was invited to the form and never
 sent it back. The pipeline never rejects anything itself. A person rejects on
 Open Collective, usually after the escalation in Slack, and the email then
 tells the applicant that we closed the application for lack of a response. A
-rejection before any invitation, spam for example, gets the not-a-fit email,
-because nobody had asked the applicant anything yet. The Slack reply in the
-application's thread says which of the two went out.
+decision before any invitation sends no email at all. The pipeline never wrote
+to that applicant, and Open Collective tells the collective about the decision
+itself. The usual case is a collective moving from another host, agreed with
+OSE in advance and approved within a minute of applying. apply 3 checks Open
+Collective once more right before it invites, so such an applicant is not asked
+to fill in the form either. The Slack reply in the application's thread says
+which email went out, or that none did.
 
 The rule reads only the row. An applicant who answered by replying to an email
 instead of using the form still looks silent to it, so a reviewer who rejects

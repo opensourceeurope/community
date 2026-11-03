@@ -268,7 +268,12 @@ The OSE-specific invariants on top of that skill:
   that deleted collective as `resigned`. An error about one row must never stop
   the others, so such an exception is matched exactly and covers that row alone.
 - **An outcome the applicant did not ask for tells them nothing.** `approved`
-  and `rejected` email the applicant, who is owed the answer. `resigned` is not
+  and `rejected` email the applicant, who is owed the answer, but only once the
+  pipeline has invited them to the form. A decision that lands before the
+  invitation, such as a move from another host approved on the spot, sends
+  neither the invitation nor a closing email: apply 3 checks Open Collective
+  just before inviting, and the decision branch routes a never-invited row to a
+  record with no email node. `resigned` is not
   a decision, so its branch ends at the data table and Slack thread with no
   email node, and a misread host costs only a row edit. Keep any future outcome
   of this kind on a branch that cannot reach a send.

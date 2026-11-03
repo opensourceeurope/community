@@ -56,7 +56,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1552,
+        2224,
         -208
       ],
       "parameters": {
@@ -294,7 +294,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
+        1792,
         -208
       ],
       "parameters": {
@@ -309,7 +309,7 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1328,
+        2000,
         -208
       ],
       "parameters": {
@@ -384,7 +384,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1776,
+        2448,
         -208
       ],
       "parameters": {
@@ -398,7 +398,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        2000,
+        2672,
         -208
       ],
       "parameters": {
@@ -605,7 +605,7 @@
           "conditions": [
             {
               "id": "672c44bb-87ef-4a54-b94c-5f20f38b9a4f",
-              "leftValue": "={{ !$json.form_invite_claimed_at || DateTime.fromJSDate(new Date($json.form_invite_claimed_at)) < $now.minus({ minutes: Number($env.STALE_CLAIM_MINUTES || 30) }) }}",
+              "leftValue": "={{ !$json.form_invite_skipped_at && (!$json.applied_at || DateTime.fromJSDate(new Date($json.applied_at)) < $now.minus({ minutes: Number($env.INVITE_AFTER_MINUTES || 5) })) && (!$json.form_invite_claimed_at || DateTime.fromJSDate(new Date($json.form_invite_claimed_at)) < $now.minus({ minutes: Number($env.STALE_CLAIM_MINUTES || 30) })) }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -617,7 +617,7 @@
         },
         "options": {}
       },
-      "notes": "A row another run is already working is skipped. A claim older than STALE_CLAIM_MINUTES (30 when unset) is treated as abandoned, so a run that died cannot strand an application forever."
+      "notes": "A row another run is already working is skipped. A claim older than STALE_CLAIM_MINUTES (30 when unset) is treated as abandoned, so a run that died cannot strand an application forever. A row whose invitation was skipped because Open Collective had already decided is never claimed again. A row younger than INVITE_AFTER_MINUTES (5 when unset) waits for a later sweep, so a decision made straight after applying, such as a pre-agreed move from another host, lands before the invitation would."
     },
     {
       "id": "5b587c68-7aba-4080-97b6-732f0680e34a",
@@ -662,6 +662,181 @@
         "options": {}
       },
       "notes": "A compare-and-swap, not a hopeful write. The second condition is the value this run just read, null included, so only one of several runs can match. A conditional update that matches nothing returns an empty result and emits no items, which silently skips the row. Everything expensive, the email above all, sits downstream of this node."
+    },
+    {
+      "id": "7e55f418-86ff-45ec-a5bd-805804bcf050",
+      "name": "Fetch application status before inviting",
+      "notes": "The same public account fields the decision sweep in apply 1a and 1b reads. A decision can land on Open Collective before the invitation goes out, for example a move from another host agreed in advance and approved within a minute, and an applicant who has already been decided on must not be asked to fill in the form.",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        896,
+        -208
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.opencollective.com/graphql/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "ose-automation/1.0 (n8n; issue #13)"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: 'query($s:String){account(slug:$s){slug ... on AccountWithHost{isApproved approvedAt host{slug} } } }', variables: { s: $json.slug } }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kRobLK9PAZHBzHZb",
+          "name": "oc-host-admin"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pairs each status response with the row this run just claimed (the HTTP node emits one\n// response per input row, in order) and says whether the application is still pending.\n//\n// Only a pending application gets the invitation. A decision can land on Open\n// Collective before this sweep reaches the row: a collective moving from another host\n// after agreeing it with OSE is approved within a minute of applying, and asking it to\n// fill in the form afterwards is wrong. The readings are the ones Extract decision uses\n// in apply 1a and 1b:\n//\n//   host.slug === host_slug, isApproved false -> pending: invite\n//   host.slug === host_slug, isApproved true  -> approved: skip\n//   host === null                             -> rejected or withdrawn: skip\n//   host.slug is a different host             -> hosted elsewhere: skip\n//   no collective with that slug any more     -> gone: skip\n//\n// This node only decides whether to invite. Recording the decision stays with the\n// decision sweep in apply 1a and 1b, so it happens in one place. An errors array throws,\n// as every Open Collective read here does. A response that is none of the shapes above\n// drops that row alone, neither invited nor marked skipped: its claim goes stale and a\n// later sweep asks again, and the other rows in the batch are still invited.\nconst rows = $('Claim the row for the invitation').all();\nconst out = [];\n$input.all().forEach((item, i) => {\n  const row = rows[i].json;\n  const body = item.json || {};\n  const errors = Array.isArray(body.errors) ? body.errors : [];\n  const gone = !(body.data && body.data.account)\n    && typeof row.slug === 'string' && row.slug !== '' && row.slug === row.slug.trim()\n    && errors.length > 0\n    && errors.every((e) => e && e.message === `No collective found with slug ${row.slug}`);\n  if (errors.length && !gone) {\n    throw new Error(`invitation: Open Collective refused the status query for ${row.slug}: ${JSON.stringify(body.errors)}`);\n  }\n  const account = body.data && body.data.account;\n  if (!account && !gone) return; // no account and no error: ask again on a later sweep\n  if (account && !('host' in account)) return; // not a host-bearing account type: leave it\n  const host = account && account.host ? account.host.slug : null;\n  let ocState;\n  if (gone) ocState = 'gone';\n  else if (host === row.host_slug) ocState = account.isApproved === true ? 'approved' : 'pending';\n  else if (host === null) ocState = 'rejected';\n  else ocState = 'elsewhere';\n  out.push({ json: {\n    ...row,\n    oc_state: ocState,\n    oc_other_host: ocState === 'elsewhere' ? host : '',\n    oc_approved_at: ocState === 'approved' ? (account.approvedAt || '') : '',\n  }, pairedItem: { item: i } });\n});\nreturn out;"
+      },
+      "id": "34b50a49-2374-4291-ab7b-fe6f6a5d7aa9",
+      "name": "Read the decision before inviting",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -208
+      ]
+    },
+    {
+      "id": "36536e09-80df-4747-9135-032e1175dd93",
+      "name": "Still pending on Open Collective?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        -208
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "2d910d73-f380-4c25-a7d5-e505abd42551",
+              "leftValue": "={{ $json.oc_state === 'pending' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e2a9c9db-7606-47b3-98ca-3a62a22931bb",
+      "name": "Mark the invitation skipped",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1568,
+        -416
+      ],
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "keyValue": "={{ $json.slug }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "form_invite_skipped_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "notes": "Stage stays as it is: the decision sweep in apply 1a and 1b records the decision, and because the row was never invited it sends no closing email either. This column only stops apply 3 from claiming the row again."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Rows whose parent message never got posted are skipped rather than posted loose in the\n// channel: a reply with no thread_ts lands in the channel with no context.\n//\n// The only interpolated values are the other host's slug, which comes from the Open\n// Collective API, and a duration this node computes. The slug is escaped: & first, then\n// < and >, so Slack reads it as text and not as a control sequence.\n//\n// Mark the invitation skipped returns the updated row and not the reading, so the reading\n// is looked up by slug from Read the decision before inviting.\nconst escapeSlack = (value) => String(value)\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;');\n\nconst reading = new Map($('Read the decision before inviting').all()\n  .map((item) => [item.json.slug, item.json]));\n\n// Open Collective can tell us when the application arrived and when it was approved, but\n// not where the collective was hosted before. So the timing is stated as fact and the\n// reason only as a likelihood, and only when the approval was fast enough for a\n// pre-arranged move to be the likely story.\nconst minutesBetween = (from, to) => {\n  const ms = new Date(to).getTime() - new Date(from).getTime();\n  return Number.isFinite(ms) && ms >= 0 ? Math.floor(ms / 60000) : null;\n};\nconst timing = (minutes) => {\n  if (minutes === null) return '';\n  if (minutes < 1) return 'within a minute of its arrival, ';\n  if (minutes < 120) return `${minutes} minute${minutes === 1 ? '' : 's'} after it arrived, `;\n  const hours = Math.round(minutes / 60);\n  if (hours < 48) return `${hours} hours after it arrived, `;\n  return `${Math.round(hours / 24)} days after it arrived, `;\n};\n\nconst approved = (state) => {\n  const minutes = minutesBetween(state.applied_at, state.oc_approved_at);\n  let text = `:fast_forward: Form invitation not sent. Open Collective approved the application ${timing(minutes)}before the invitation went out, so there was nothing left to ask.`;\n  if (minutes !== null && minutes < 60) {\n    text += ' Probably a move from another host agreed with OSE in advance. The applicant\\'s own message in this thread usually says so.';\n  }\n  return text;\n};\n\nconst TEXTS = {\n  approved,\n  rejected: () => ':fast_forward: Form invitation not sent. The application is no longer open on Open Collective, so it was rejected or withdrawn before the invitation went out.',\n  elsewhere: (state) => `:fast_forward: Form invitation not sent. The collective is now hosted by *${escapeSlack(state.oc_other_host)}*, not by us.`,\n  gone: () => ':fast_forward: Form invitation not sent. The collective no longer exists on Open Collective.',\n};\n\nconst out = [];\n$input.all().forEach((item) => {\n  const row = item.json;\n  if (!row.slack_thread_ts || !row.slack_channel_id) return;\n  const state = reading.get(row.slug);\n  const text = state && TEXTS[state.oc_state] ? TEXTS[state.oc_state](state) : null;\n  if (!text) return;\n  out.push({ json: {\n    slug: row.slug,\n    channel: row.slack_channel_id,\n    thread_ts: row.slack_thread_ts,\n    text,\n  } });\n});\nreturn out;"
+      },
+      "id": "2b446039-4a0e-42c6-9464-1792f424f966",
+      "name": "Render skipped invitation thread reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -416
+      ]
+    },
+    {
+      "id": "448b0fb6-ce84-44b1-86fe-b98d7035b838",
+      "name": "Reply that the invitation was skipped",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        2016,
+        -416
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "b7f73d9e-1e40-4937-9a8a-e6316c334ff2",
+      "disabled": false
     }
   ],
   "connections": {
@@ -871,7 +1046,7 @@
       "main": [
         [
           {
-            "node": "Render form invitation",
+            "node": "Fetch application status before inviting",
             "type": "main",
             "index": 0
           }
@@ -883,6 +1058,68 @@
         [
           {
             "node": "Get reviewed rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch application status before inviting": {
+      "main": [
+        [
+          {
+            "node": "Read the decision before inviting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the decision before inviting": {
+      "main": [
+        [
+          {
+            "node": "Still pending on Open Collective?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still pending on Open Collective?": {
+      "main": [
+        [
+          {
+            "node": "Render form invitation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark the invitation skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark the invitation skipped": {
+      "main": [
+        [
+          {
+            "node": "Render skipped invitation thread reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render skipped invitation thread reply": {
+      "main": [
+        [
+          {
+            "node": "Reply that the invitation was skipped",
             "type": "main",
             "index": 0
           }
