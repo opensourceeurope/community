@@ -22,13 +22,17 @@ python3 automation/scripts/slack-preview.py --node "Render AI review thread repl
 python3 automation/scripts/slack-preview.py --all --out /path/to/out
 ```
 
-With no `--node` it renders every message whose node differs from `origin/main`,
-before and after. `--node` takes the render node or the Slack node it feeds. It
-writes `index.html` into `--out`, using the scratchpad, and exits 1 if a node threw.
+Put `--out` in your scratchpad. With no `--node`, it renders every message whose
+node this branch changed, before and after. Before is `origin/main` where the
+branch left it, so changes merged since then are not shown as yours. If it prints
+`no Slack message differs`, nothing changed and it writes no page. `--node` takes
+the render node or the Slack node it feeds. The run writes `index.html` into
+`--out` and exits 1 if a node threw or posted nothing for its sample.
 
 ## Show it
 
-1. Read the messages in `index.html` yourself and fix anything wrong first.
+1. Read the messages in `index.html` yourself and fix anything wrong first. The
+   page does not highlight what changed, so compare before and after line by line.
 2. Run `open /path/to/out/index.html` so the user sees it in their browser.
 3. Tell them which messages changed and what to look at, one line each, and that
    **Open in Block Kit Builder** shows a message as Slack renders it. Builder needs

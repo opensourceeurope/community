@@ -74,10 +74,16 @@ def render_nodes(export):
         for branch in outputs.get("main", []):
             for edge in branch or []:
                 target = by_name.get(edge["node"])
-                if (target and "slack" in target["type"].lower()
-                        and target["parameters"].get("operation", "post") == "post"
-                        and by_name.get(source, {}).get("type") == "n8n-nodes-base.code"):
-                    found[source] = by_name[source]
+                if not (target and "slack" in target["type"].lower()
+                        and target["parameters"].get("operation", "post") == "post"):
+                    continue
+                # A post fed by anything else would drop out of the preview and out of
+                # CI without a word, so it stops the run instead.
+                if by_name.get(source, {}).get("type") != "n8n-nodes-base.code":
+                    raise SystemExit(f"{export.get('name')}: {target['name']!r} is fed by "
+                                     f"{source!r}, which is not a Code node, so it cannot "
+                                     "be previewed")
+                found[source] = by_name[source]
     return found
 
 
@@ -90,7 +96,7 @@ def env_flags():
     """The documented non-secret defaults, so a node reading $env sees what production does."""
     flags = ["-e", "SLACK_CHANNEL=C0SAMPLE"]
     for line in open(ENV_EXAMPLE):
-        match = re.match(r"^([A-Z_]+)=(\S+)", line)
+        match = re.match(r"^([A-Z_]+)=(.*\S)", line)
         if match and match.group(1) not in ("SLACK_CHANNEL", "AI_API_KEY"):
             flags += ["-e", f"{match.group(1)}={match.group(2)}"]
     return flags
@@ -233,10 +239,12 @@ def column(title, job):
         return f'<div><h3>{title}</h3><p class="error">{html.escape(job["error"])}</p></div>'
     if not job["texts"]:
         return f'<div><h3>{title}</h3><p class="note">The node posted nothing for this sample.</p></div>'
+    # Builder refuses a payload with no blocks, so an empty message gets no link.
     messages = "".join(
         f'<div class="msg"><pre>{html.escape(text)}</pre>'
-        f'<a href="{html.escape(builder_url(text))}" target="_blank" rel="noopener">'
-        f'Open in Block Kit Builder</a> · {len(text)} characters</div>'
+        + (f'<a href="{html.escape(builder_url(text))}" target="_blank" rel="noopener">'
+           f'Open in Block Kit Builder</a> · {len(text)} characters</div>'
+           if text.strip() else '<span class="error">Empty message</span></div>')
         for text in job["texts"])
     return f"<div><h3>{title}</h3>{messages}</div>"
 
@@ -265,86 +273,110 @@ def main():
     args = parser.parse_args()
 
     fixture = json.load(open(args.fixture))
-    # An empty --base compares the checkout with itself, for CI, where origin/main may not
-    # have been fetched and every node is rendered once with --all.
+    # Before is the commit this branch grew from, not the tip of --base, so a change that
+    # landed on main since does not show up here as if this branch had made it. An empty
+    # --base compares the checkout with itself, for CI, where origin/main may not have been
+    # fetched and every node is rendered once with --all.
     here = exports_at(None)
-    base = exports_at(args.base) if args.base else here
+    if args.base:
+        fork = subprocess.run(["git", "-C", ROOT, "merge-base", "HEAD", args.base],
+                              capture_output=True, text=True, check=True).stdout.strip()
+        base, base_title = exports_at(fork), f"before ({args.base} at {fork[:7]})"
+    else:
+        base, base_title = here, "before"
 
-    # A node with one name in two exports is rendered once when the code is the same, as
-    # the two intake workflows share theirs.
+    # Keyed by export and node, because the two intake workflows each carry a node of the
+    # same name, and a change to one copy alone must still be previewed.
     def collect(exports):
-        nodes = {}
-        for file, export in exports.items():
-            for name, node in render_nodes(export).items():
-                nodes.setdefault(name, {"node": node, "files": []})["files"].append(file)
-        return nodes
+        return {(file, name): node for file, export in exports.items()
+                for name, node in render_nodes(export).items()}
     after, before = collect(here), collect(base)
 
-    def differs(name):
-        """Whether the node's parameters differ between the two sides. Moving it does not."""
-        def parameters(side):
-            return (side.get(name) or {}).get("node", {}).get("parameters")
-        return parameters(after) != parameters(before)
+    def parameters(side, key):
+        """Moving a node changes its position, not its parameters, and is not a change."""
+        return (side.get(key) or {}).get("parameters")
 
     slack_parent = {}
     for export in here.values():
         for name in render_nodes(export):
-            for source, outputs in export["connections"].items():
-                if source == name:
-                    for branch in outputs.get("main", []):
-                        for edge in branch or []:
-                            slack_parent[edge["node"]] = name
+            for branch in export["connections"].get(name, {}).get("main", []):
+                for edge in branch or []:
+                    slack_parent[edge["node"]] = name
 
+    keys = sorted(set(after) | set(before), key=lambda key: (key[1], key[0]))
     if args.node:
-        names = []
-        for name in args.node:
-            name = slack_parent.get(name, name)
-            if name not in after and name not in before:
-                raise SystemExit(f"no node named {name!r} feeds a Slack post")
-            names.append(name)
+        wanted = {slack_parent.get(name, name) for name in args.node}
+        unknown = wanted - {name for _, name in keys}
+        if unknown:
+            raise SystemExit(f"no node named {sorted(unknown)[0]!r} feeds a Slack post")
+        keys = [key for key in keys if key[1] in wanted]
     elif args.all:
-        names = sorted(after)
+        keys = [key for key in keys if key in after]
     else:
-        names = sorted(name for name in set(after) | set(before) if differs(name))
-        if not names:
-            print(f"no Slack message differs from {args.base}; name one with --node, or pass --all")
-            return
+        keys = [key for key in keys if parameters(after, key) != parameters(before, key)]
+        if not keys:
+            print(f"no Slack message differs from {base_title[8:-1]}; "
+                  "name one with --node, or pass --all")
+            sys.exit(0)
+
+    # Copies of one node that are identical on both sides are rendered once, as the two
+    # intake workflows share theirs.
+    groups = {}
+    for file, name in keys:
+        signature = json.dumps([parameters(before, (file, name)), parameters(after, (file, name))],
+                               sort_keys=True)
+        groups.setdefault((name, signature), []).append(file)
 
     jobs, previews = [], []
-    for name in names:
-        if name not in fixture:
+    for (name, _), files in sorted(groups.items()):
+        key = (files[0], name)
+        entry = fixture.get(name)
+        if entry is None and key in after:
             raise SystemExit(f"{args.fixture} has no sample input for {name!r}. Add an entry: "
                              "its feeds, in order, the last one being the node's input.")
-        feeds = fixture[name]["feeds"]
+        changed = parameters(after, key) != parameters(before, key)
         sides = []
-        changed = differs(name)
-        for title, side in ((f"before ({args.base})", before), ("after (this checkout)", after)):
+        for title, side in ((base_title, before), ("after (this checkout)", after)):
             if not changed and side is before:
                 continue
-            entry = side.get(name)
-            if entry is None:
+            node = side.get(key)
+            if node is None:
                 sides.append((title, None))
                 continue
-            missing = referenced_nodes(entry["node"]["parameters"].get("jsCode", "")) - set(feeds)
-            if missing:
-                raise SystemExit(f"{name!r} reads $('{sorted(missing)[0]}'), "
-                                 f"which {args.fixture} has no feed for")
-            job = {"node": entry["node"], "feeds": feeds}
+            title = title if changed else "unchanged"
+            feeds = (entry or {}).get("feeds", {})
+            missing = sorted(referenced_nodes(node["parameters"].get("jsCode", "")) - set(feeds))
+            if entry is None or missing:
+                problem = (f"{args.fixture} has no sample input for {name!r}" if entry is None
+                           else f"{name!r} reads $('{missing[0]}'), which {args.fixture} "
+                                "has no feed for")
+                # Today's fixture describes today's nodes. The old side of a renamed feed
+                # cannot be rendered with it, which is worth saying but not worth stopping.
+                if side is after:
+                    raise SystemExit(problem)
+                sides.append((title, {"error": problem, "texts": [], "after": False}))
+                continue
+            job = {"node": node, "feeds": feeds, "after": side is after}
             jobs.append(job)
-            sides.append((title if changed else "unchanged", job))
-        previews.append((name, (after.get(name) or before[name])["files"], sides))
+            sides.append((title, job))
+        previews.append((name, files, sides))
 
-    run_all(jobs)
+    if jobs:
+        run_all(jobs)
+    # Every fixture entry is written to produce at least one message, so a node that posts
+    # nothing for it has a guard that drops every row, which is a failure worth seeing.
+    for job in jobs:
+        if job["after"] and not job["error"] and not job["texts"]:
+            job["error"] = "the node posted nothing for its sample input"
     failed = [job for job in jobs if job["error"]]
     for name, files, sides in previews:
         for title, job in sides:
             if job is None:
                 continue
             state = f"error: {job['error']}" if job["error"] else f"{len(job['texts'])} message(s)"
-            print(f"{name} [{title}]: {state}")
+            print(f"{name} ({', '.join(files)}) [{title}]: {state}")
     print(page(previews, args.out))
     sys.exit(1 if failed else 0)
-
 
 if __name__ == "__main__":
     main()
