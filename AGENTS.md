@@ -163,8 +163,9 @@ The OSE-specific invariants on top of that skill:
   1b posts the parent, anchored by `slack_channel_id` and `slack_thread_ts` on
   the row. A stage without a reply is invisible to reviewers. A row without an
   anchor is skipped, never posted loose in the channel. Preview a new or changed
-  message with `automation/scripts/slack-preview.py` before calling it done. A new
-  one needs an entry in `automation/test/fixtures/slack-preview.json`, or CI fails.
+  message, Slack or email, with `automation/scripts/message-preview.py` before
+  calling it done. A new one needs an entry in
+  `automation/test/fixtures/message-preview.json`, or CI fails.
 - **Continuing on a Slack error protects the stage, not whatever follows.**
   `onError: continueRegularOutput` keeps one bad row from aborting a run, NOT
   permission to proceed as if the post succeeded. A failed post continues with
@@ -301,7 +302,8 @@ The OSE-specific invariants on top of that skill:
   Delete any row a rehearsal touched rather than repairing it. The sweep
   recreates it, and clearing timestamps alone leaves the address behind.
 - **Email copy lives in `automation/emails/*.md`** and is embedded verbatim in
-  the sending workflow's render step. Change both in the same PR, and refresh
+  the sending workflow's render step. Change both in the same PR, which
+  `check-workflows.py` check 10 enforces in both directions, and refresh
   every changed workflow's export into `automation/n8n/` with
   `automation/scripts/export-workflows.py`, which keeps node and key order for
   a clean diff.
@@ -331,9 +333,9 @@ The OSE-specific invariants on top of that skill:
   `DRY_RUN`, an answer key missing from a label list, a data table not
   referenced by name, a workflow with no timezone, a stale form label or
   dropdown option, a `$env` read missing from `docker-compose.yml` or
-  `automation/.env.example`, and a model request that skips redaction or reads
-  an address column. Refresh the exports, which is all it reads, and run it
-  locally before you push.
+  `automation/.env.example`, a model request that skips redaction or reads an
+  address column, and email copy that differs from `automation/emails`. Refresh
+  the exports, which is all it reads, and run it locally before you push.
 - **There is no staging. Editing an active workflow publishes it.** The one n8n
   instance is production, so a save is live before its pull request exists. The
   PR is the record, not the gate. Never leave a workflow saved in a state that
@@ -381,7 +383,7 @@ The OSE-specific invariants on top of that skill:
   forces a full apply, which recreates Caddy.
 - **Run the infra tests before you push a change to a script.**
   `automation/test/deploy-infra.sh`, `alert-slack.sh`, `backup-upload.sh`,
-  `check-workflows-env.sh`, `check-n8n-version.py`, `check-env-drift.py`
+  `check-workflows-env.sh`, `check-workflows-email.sh`, `check-n8n-version.py`, `check-env-drift.py`
   and `sync-workflows.py` stub every external command. `automation/test/bootstrap-smoke.sh` and
   `caddy-routes.sh` need Docker. CI runs all of them and `tofu validate`. Each
   test fails loudly when a helper dies under `set -e`, because a silent stop
