@@ -67,6 +67,25 @@ exports in `automation/n8n/` into the running n8n, updating each workflow in
 place and leaving its active state alone. See
 [Deploying on merge](infra/README.md#deploying-on-merge).
 
+### What you need on your machine
+
+Changing the pipeline, whether by hand or by asking an agent through the
+`change-wording` skill, needs no n8n of your own and no access to the box.
+It needs:
+
+| Tool | What for |
+|---|---|
+| Git and a GitHub account that can open pull requests here, with the `gh` CLI signed in | every change is a pull request, and merging it is what deploys |
+| Python 3.9 or newer | the checks and the previews. They use the standard library only, so there is nothing to install |
+| Docker, running | the previews and the node tests start the n8n version production runs in a throwaway container. The first run pulls the image, and the form preview also pulls a browser image, which takes a few minutes |
+| A Slack account in the reviewers' workspace | opening a Slack message preview in Block Kit Builder |
+| The n8n API key, optional | confirming after a merge that the live instance runs what was merged, as [Providing the n8n API key to Claude Code](#providing-the-n8n-api-key-to-claude-code) describes |
+
+Changing a model prompt also needs Node.js, for
+[`test/model-input-redaction.mjs`](test/model-input-redaction.mjs) and
+[`test/review-eval.mjs`](test/review-eval.mjs). Running the box itself is a
+different job, described in [`infra/README.md`](infra/README.md).
+
 ## The workflows
 
 `automation/n8n/` holds the export of every workflow. Six of them carry the

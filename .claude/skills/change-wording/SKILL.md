@@ -10,6 +10,10 @@ job is to find every place the text lives, change them together, show them the
 result, and ship it through a pull request. They never open n8n, and neither do
 you: the live instance is changed only by merging to `main`.
 
+The previews need Docker running and Python 3.9 or newer. If either is missing,
+point them at "What you need on your machine" in `automation/README.md` before
+you start.
+
 Talk to them in their language and in plain words. Say "the rejection email", not
 "Render decision email". Show the message, not the diff.
 
