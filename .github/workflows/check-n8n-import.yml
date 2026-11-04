@@ -29,3 +29,9 @@ jobs:
 
       - name: Run the admin nodes in n8n
         run: python3 automation/test/admin-details.py
+
+      # Fails when a node that builds Slack text throws on its sample, or has no sample
+      # in automation/test/fixtures/slack-preview.json, so the preview keeps covering
+      # every message.
+      - name: Render every Slack message in n8n
+        run: python3 automation/scripts/slack-preview.py --all --base ''
