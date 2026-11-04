@@ -17,11 +17,12 @@ Talk to them in their language and in plain words. Say "the rejection email", no
 
 Restate the request as the message or messages it touches and the new wording, and
 get a yes before editing. If it is vague ("make it friendlier"), draft the new text
-and let them correct it.
+and let them correct it. If the new wording promises something, such as "reply and
+we will help" or "within two days", ask whether OSE will really do it.
 
 | They mean | It lives in | Notes |
 |---|---|---|
-| An email to applicants | `automation/emails/<name>.md` **and** the same text in the render node that sends it | The README "Email templates" tables say which file goes out when. Check 10 fails if the two differ. |
+| An email to applicants | `automation/emails/<name>.md` **and** the same text in the render node that sends it | The README "Email templates" tables map the invitations and closing emails to files. For the rest, search for a phrase. Check 10 fails if the two copies differ. |
 | A Slack message | The `Render ...` Code node feeding that Slack node | `message-preview.py --all` lists every message with its node name. |
 | Form wording | `automation/n8n/form-ose.json` | Page titles, descriptions and Custom HTML are wording. A field's label is not, see below. |
 
@@ -40,7 +41,7 @@ rather than this skill:
 
 1. Work in a worktree: `.claude/scripts/worktree.sh new <branch>`.
 2. Invoke the `n8n-skills:n8n` skill, as AGENTS.md requires before touching any
-   workflow.
+   workflow, even an export you will never upload by hand.
 3. Change the exports in `automation/n8n/` with a small Python script, never by
    hand and never on the live instance. Load the JSON, replace the old text in
    the named node, assert it occurred exactly once, and write it back with
@@ -49,6 +50,11 @@ rather than this skill:
    both intake workflows, such as `Render decision email`, changes in both.
 4. For an email, make the same change in its `automation/emails/*.md` file.
 5. Keep placeholders such as `{{ collective_name }}` exactly as they are.
+6. Email copy sits inside a JavaScript template literal, so never put a backtick
+   or `${` in it. Check 10 fails either one.
+7. Emails go out as plain text with the line breaks the template has. Wrap new
+   lines by hand at about the width of the lines around them, as the existing
+   copy does.
 
 ## 3. Show it, and repeat until they are happy
 
@@ -85,6 +91,10 @@ git status --short automation/n8n
 It reads the live workflows into the exports and changes nothing on the instance.
 It has no `--help`: running it always exports. An empty `git status` means the
 live instance runs exactly what was merged. Tell them it is live, or what differs.
+
+Without the API key you cannot check this. Say so rather than claim it is live. A
+failed deploy posts an alert to the reviewers' Slack channel, so no alert there
+within half an hour is a good sign, not proof.
 
 ## Common mistakes
 

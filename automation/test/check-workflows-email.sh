@@ -79,6 +79,16 @@ replace n8n/intake-sweep.json "Welcome on board!" "Welcome aboard!"
 expect "one intake workflow left behind" "oc-events-intake.json: Render decision email: the email whose subject line is"
 
 fresh
+replace n8n/oc-events-intake.json "\`Subject: {{ collective_name }} is approved" "'Subject: ' + \`{{ collective_name }} is approved"
+expect "a template split by concatenation, its file sent by the other workflow" \
+  "oc-events-intake.json: Render decision email: check 10 finds 2 email template(s) it can read but 3 'Subject: ' line(s)"
+
+fresh
+replace emails/reminder.md "$OLD" "when you get a \`chance\`"
+replace n8n/followup.json "$OLD" "when you get a \\\\\`chance\\\\\`"
+expect "a backtick in the copy" "contains a backtick, which check 10 cannot read"
+
+fresh
 rm "$WORK/automation/emails/form-received.md"
 expect "a file deleted" "Render confirmation email: the email whose subject line is"
 

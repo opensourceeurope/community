@@ -397,7 +397,7 @@ def main():
         for title, job in sides:
             if job is None:
                 continue
-            state = f"error: {job['error']}" if job["error"] else f"{len(job["messages"])} message(s)"
+            state = f"error: {job['error']}" if job["error"] else f"{len(job['messages'])} message(s)"
             print(f"{name} ({', '.join(files)}) [{title}]: {state}")
     print(page(previews, args.out))
     sys.exit(1 if failed else 0)
