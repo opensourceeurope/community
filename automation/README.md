@@ -284,6 +284,28 @@ serves an existing folder without a new run.
 It needs docker and a network, and it never touches the live instance. The
 start page, `Form page 1`, cannot be previewed this way.
 
+## Previewing Slack messages
+
+[`scripts/slack-preview.py`](scripts/slack-preview.py) shows the Slack messages
+the workflows post. Each one is built by a Code node, so the export holds the
+code and not the message. The script runs every node that feeds a Slack post in
+the n8n image production runs, with stand-in upstream nodes returning the
+invented rows in
+[`test/fixtures/slack-preview.json`](test/fixtures/slack-preview.json), and
+posts nothing.
+
+```bash
+python3 automation/scripts/slack-preview.py --out /tmp/slack-preview
+python3 automation/scripts/slack-preview.py --all --out /tmp/slack-preview
+```
+
+With no node named, it renders the messages whose node differs from
+`origin/main`, before and after. It writes an `index.html` with each message's
+raw text and a link that opens it in Slack's Block Kit Builder, which shows it
+the way Slack renders it to anyone signed in to Slack. CI renders every message
+with `--all`, so a new Slack message needs a fixture entry in the same pull
+request. It needs docker.
+
 ## Testing the admin nodes
 
 [`test/admin-details.py`](test/admin-details.py) runs the nodes that carry a
