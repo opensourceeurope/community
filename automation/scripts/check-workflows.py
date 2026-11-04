@@ -77,6 +77,14 @@ CHECKS = """\
    JSON.stringify(row), no Object.keys, values or entries of it, no for...in
    over it, and no row[key] with a computed key. The form keeps those fields
    out of the answers, and this keeps a later edit from putting them back.
+
+10. The email copy in git is what goes out. Every template literal starting
+   with "Subject: " in a Code node that feeds an emailSend must equal, after
+   trimming, one file in automation/emails, and every file there must be sent
+   by such a node. The copy is kept in two places so it can be read and
+   reviewed as text, and a change made to only one of them leaves the file
+   describing an email nobody receives. A node with a "Subject: " line the
+   check cannot read as such a template fails too, rather than being skipped.
 """
 
 DATA_TABLE = "ose_applications"
@@ -770,6 +778,60 @@ def check_helper_copies(helpers, problems):
                  "identical" % (first_name, first_workflow.file))
 
 
+# --- check 10 --------------------------------------------------------------
+
+# A template is a JS template literal. They hold {{ }} placeholders and never a
+# backtick or ${ }, so one regex finds each whole.
+EMAIL_TEMPLATE = re.compile(r"`(Subject: [^`]*)`")
+SUBJECT_LINE = re.compile(r"Subject: (?!'\.length)")
+
+
+def check_email_copy(workflows, problems, complete):
+    if not complete:
+        print("skipped check 10: it needs every export, to know no file is unsent")
+        return
+    copies = {}
+    for path in sorted(glob.glob(repo_file("emails", "*.md"))):
+        with open(path) as handle:
+            copies["automation/emails/" + os.path.basename(path)] = handle.read().strip()
+    sent = set()
+    for workflow in workflows.values():
+        renders = []
+        for node in workflow.nodes:
+            if node.get("type") == EMAIL_TYPE:
+                renders += [s for s in workflow.predecessors(node.get("name")) if s not in renders]
+        for name in renders:
+            code = ((workflow.by_name.get(name) or {}).get("parameters") or {}).get("jsCode", "")
+            templates = EMAIL_TEMPLATE.findall(code)
+            # A template this check cannot read would otherwise be skipped without a word,
+            # and the file it should match still counts as sent when another node sends it.
+            # 'Subject: '.length is how every render node cuts the subject line off, and
+            # is not a template.
+            subjects = len(SUBJECT_LINE.findall(code))
+            if subjects != len(templates):
+                fail(problems, workflow, name,
+                     "check 10 finds %d email template(s) it can read but %d 'Subject: ' "
+                     "line(s). Keep each email one template literal starting with "
+                     "`Subject: , with no backtick or ${ in the copy"
+                     % (len(templates), subjects))
+            for template in templates:
+                matches = [file for file, text in copies.items() if text == template.strip()]
+                sent.update(matches)
+                if template.endswith("\\"):
+                    fail(problems, workflow, name,
+                         "the email whose subject line is %r contains a backtick, which "
+                         "check 10 cannot read. Write the copy without one"
+                         % template.split("\n", 1)[0])
+                elif not matches:
+                    fail(problems, workflow, name,
+                         "the email whose subject line is %r matches no file in "
+                         "automation/emails word for word, so the copy and the file "
+                         "have drifted apart" % template.split("\n", 1)[0])
+    for file in sorted(set(copies) - sent):
+        problems.append("%s: no Code node feeding an email send carries this text word "
+                        "for word" % file)
+
+
 # --- driver ----------------------------------------------------------------
 
 def default_directory():
@@ -833,6 +895,7 @@ def main(argv):
     check_answer_labels(workflows, problems, complete)
     check_helper_copies(helpers, problems)
     check_form_prefill_field(workflows, problems, complete)
+    check_email_copy(workflows, problems, complete)
 
     for problem in problems:
         print(problem)

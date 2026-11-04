@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-"""Renders the Slack messages the workflows post, and links each one to Block Kit Builder.
+"""Renders the Slack messages and emails the workflows send, from the committed nodes.
 
-Every Slack post in the pipeline is fed by a Code node that builds its text, so reading
-the export shows the template and never the message a reviewer gets: the escaping, the
-emoji, the bold, the line breaks and the continuation of a long reply all happen when the
-node runs. This runs those nodes, as committed, in a throwaway container on the image
-production runs, with stand-in upstream nodes that return the sample rows in the fixture.
-Nothing is posted anywhere.
+Every Slack post and every email in the pipeline is fed by a Code node that builds it, so
+reading the export shows the template and never the message: the placeholders, the
+escaping, the emoji, the prefilled form link and the continuation of a long reply all
+happen when the node runs. This runs those nodes, as committed, in a throwaway container on
+the image production runs, with stand-in upstream nodes that return the sample rows in the
+fixture. Nothing is posted or sent anywhere.
 
 By default it renders only the nodes this branch changed, once as they were where it left
 origin/main and once as they are here, so a change can be read before and after.
 
-    python3 automation/scripts/slack-preview.py
-    python3 automation/scripts/slack-preview.py --node "Render AI review thread reply"
-    python3 automation/scripts/slack-preview.py --all --out /path/to/out
+    python3 automation/scripts/message-preview.py
+    python3 automation/scripts/message-preview.py --node "Render AI review thread reply"
+    python3 automation/scripts/message-preview.py --all --out /path/to/out
 
-Needs docker and git. Writes an index.html into --out with every message, its raw text,
-and a link that opens it in Slack's Block Kit Builder, then prints that path.
+Needs docker and git. Writes an index.html into --out with every message: an email's
+subject and body as the applicant gets them, a Slack message's raw text and a link that
+opens it in Slack's Block Kit Builder. Then prints that path.
 """
 import argparse
 import glob
@@ -31,14 +32,14 @@ import urllib.parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 EXPORTS = os.path.join(ROOT, "automation", "n8n")
-FIXTURE = os.path.join(ROOT, "automation", "test", "fixtures", "slack-preview.json")
+FIXTURE = os.path.join(ROOT, "automation", "test", "fixtures", "message-preview.json")
 COMPOSE = os.path.join(ROOT, "automation", "infra", "docker-compose.yml")
 ENV_EXAMPLE = os.path.join(ROOT, "automation", ".env.example")
 BUILDER = "https://app.slack.com/block-kit-builder/#"
 # A section block holds at most 3000 characters of text. The workflows post plain text,
 # which may run longer, so a message past this is shown as several sections in a row.
 SECTION_LIMIT = 3000
-MARKER = "=== slack-preview run ==="
+MARKER = "=== message-preview run ==="
 
 
 def image():
@@ -66,18 +67,25 @@ def exports_at(ref):
             for path in listing if path.endswith(".json")}
 
 
+def sends(node):
+    """Whether the node sends what its input says: a Slack post or an email. A reaction
+    posts no text."""
+    if node["type"] == "n8n-nodes-base.emailSend":
+        return True
+    return "slack" in node["type"].lower() and node["parameters"].get("operation", "post") == "post"
+
+
 def render_nodes(export):
-    """The Code nodes whose output a Slack node posts, by name. Reactions post no text."""
+    """The Code nodes whose output a Slack post or an email send takes, by name."""
     by_name = {node["name"]: node for node in export["nodes"]}
     found = {}
     for source, outputs in export.get("connections", {}).items():
         for branch in outputs.get("main", []):
             for edge in branch or []:
                 target = by_name.get(edge["node"])
-                if not (target and "slack" in target["type"].lower()
-                        and target["parameters"].get("operation", "post") == "post"):
+                if not (target and sends(target)):
                     continue
-                # A post fed by anything else would drop out of the preview and out of
+                # A send fed by anything else would drop out of the preview and out of
                 # CI without a word, so it stops the run instead.
                 if by_name.get(source, {}).get("type") != "n8n-nodes-base.code":
                     raise SystemExit(f"{export.get('name')}: {target['name']!r} is fed by "
@@ -93,11 +101,17 @@ def referenced_nodes(code):
 
 
 def env_flags():
-    """The documented non-secret defaults, so a node reading $env sees what production does."""
-    flags = ["-e", "SLACK_CHANNEL=C0SAMPLE"]
+    """The documented non-secret defaults, so a node reading $env sees what production does.
+
+    DRY_RUN is false here, and only here, so an email shows the subject line the applicant
+    would get rather than the dry run's redirect. Nothing in this container can send: it
+    runs the render node and no node after it.
+    """
+    flags = ["-e", "SLACK_CHANNEL=C0SAMPLE", "-e", "DRY_RUN=false"]
     for line in open(ENV_EXAMPLE):
         match = re.match(r"^([A-Z_]+)=(.*\S)", line)
-        if match and match.group(1) not in ("SLACK_CHANNEL", "AI_API_KEY"):
+        if match and match.group(1) not in ("SLACK_CHANNEL", "AI_API_KEY", "DRY_RUN",
+                                            "DRY_RUN_RECIPIENT"):
             flags += ["-e", f"{match.group(1)}={match.group(2)}"]
     return flags
 
@@ -123,7 +137,7 @@ def workflow(index, node, feeds):
     nodes.append(copy)
     chain.append(node["name"])
     return {
-        "id": f"slackpreview{index:04d}", "name": f"slack preview {index}",
+        "id": f"msgpreview{index:04d}", "name": f"message preview {index}",
         "settings": {"executionOrder": "v1"}, "nodes": nodes,
         "connections": {a: {"main": [[{"node": b, "type": "main", "index": 0}]]}
                         for a, b in zip(chain, chain[1:])},
@@ -131,8 +145,8 @@ def workflow(index, node, feeds):
 
 
 def run_all(jobs):
-    """Import every job's workflow, execute each in one container, return each one's texts."""
-    with tempfile.TemporaryDirectory(prefix="ose-slack-preview-") as workdir:
+    """Import every job's workflow, execute each in one container, return what each one rendered."""
+    with tempfile.TemporaryDirectory(prefix="ose-message-preview-") as workdir:
         flows = os.path.join(workdir, "workflows")
         state = os.path.join(workdir, "n8n-home")
         os.makedirs(flows)
@@ -159,7 +173,7 @@ def run_all(jobs):
     if len(chunks) != len(jobs):
         raise SystemExit("n8n did not run every node:\n" + (result.stderr or result.stdout)[-2000:])
     for job, chunk in zip(jobs, chunks):
-        job["texts"], job["error"] = [], None
+        job["messages"], job["error"] = [], None
         if "{" not in chunk:
             job["error"] = chunk.strip()[-500:] or "no output"
             continue
@@ -170,7 +184,7 @@ def run_all(jobs):
             continue
         runs = data.get("runData", {}).get(job["node"]["name"]) or []
         items = (runs[0]["data"]["main"][0] or []) if runs else []
-        job["texts"] = [item["json"].get("text", "") for item in items]
+        job["messages"] = [item["json"] for item in items]
 
 
 def sections(text):
@@ -204,7 +218,7 @@ def builder_url(text):
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slack preview</title>
+<title>Message preview</title>
 <style>
 :root {{ --bg: #fff; --fg: #1d1c1d; --muted: #616061; --line: #ddd; --card: #f8f8f8; --link: #1264a3; }}
 @media (prefers-color-scheme: dark) {{
@@ -224,9 +238,10 @@ pre {{ white-space: pre-wrap; word-break: break-word; margin: 0 0 8px; font: 13p
 a {{ color: var(--link); }}
 .error {{ color: #e01e5a; }}
 </style></head><body><main>
-<h1>Slack preview</h1>
-<p class="note">Raw text as the node posts it. Open a message in Block Kit Builder to see it as Slack renders it.
-A message over {limit} characters is split into several sections there, and posts as one message in Slack.</p>
+<h1>Message preview</h1>
+<p class="note">Emails show the subject and plain-text body the applicant gets, with sample addresses.
+Slack messages show the raw text the node posts. Open one in Block Kit Builder to see it as Slack renders it.
+A Slack message over {limit} characters is split into several sections there, and posts as one message in Slack.</p>
 {body}
 </main></body></html>
 """
@@ -237,16 +252,24 @@ def column(title, job):
         return f'<div><h3>{title}</h3><p class="note">Not on this side.</p></div>'
     if job["error"]:
         return f'<div><h3>{title}</h3><p class="error">{html.escape(job["error"])}</p></div>'
-    if not job["texts"]:
+    if not job["messages"]:
         return f'<div><h3>{title}</h3><p class="note">The node posted nothing for this sample.</p></div>'
+    return f'<div><h3>{title}</h3>{"".join(message(item) for item in job["messages"])}</div>'
+
+
+def message(item):
+    """One email or Slack message. An email's render node returns a subject and a body."""
+    if "subject" in item:
+        return (f'<div class="msg"><p class="note">Email to {html.escape(str(item.get("to", "")))}</p>'
+                f'<p><strong>{html.escape(str(item["subject"]))}</strong></p>'
+                f'<pre>{html.escape(str(item.get("body", "")))}</pre></div>')
+    text = str(item.get("text", ""))
     # Builder refuses a payload with no blocks, so an empty message gets no link.
-    messages = "".join(
-        f'<div class="msg"><pre>{html.escape(text)}</pre>'
-        + (f'<a href="{html.escape(builder_url(text))}" target="_blank" rel="noopener">'
-           f'Open in Block Kit Builder</a> · {len(text)} characters</div>'
-           if text.strip() else '<span class="error">Empty message</span></div>')
-        for text in job["texts"])
-    return f"<div><h3>{title}</h3>{messages}</div>"
+    if not text.strip():
+        return '<div class="msg"><span class="error">Empty message</span></div>'
+    return (f'<div class="msg"><pre>{html.escape(text)}</pre>'
+            f'<a href="{html.escape(builder_url(text))}" target="_blank" rel="noopener">'
+            f'Open in Block Kit Builder</a> · {len(text)} characters</div>')
 
 
 def page(previews, out):
@@ -263,13 +286,14 @@ def page(previews, out):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--node", action="append", default=[],
-                        help="render node, or the Slack node it feeds, repeatable")
-    parser.add_argument("--all", action="store_true", help="every node that feeds a Slack post")
+                        help="render node, or the Slack or email node it feeds, repeatable")
+    parser.add_argument("--all", action="store_true",
+                        help="every node that feeds a Slack post or an email")
     parser.add_argument("--base", default="origin/main",
                         help="git ref to compare against and to render as 'before', "
                              "or '' to compare nothing")
     parser.add_argument("--fixture", default=FIXTURE, help="sample input for each render node")
-    parser.add_argument("--out", default=os.path.join(tempfile.gettempdir(), "slack-preview"))
+    parser.add_argument("--out", default=os.path.join(tempfile.gettempdir(), "message-preview"))
     args = parser.parse_args()
 
     fixture = json.load(open(args.fixture))
@@ -296,26 +320,26 @@ def main():
         """Moving a node changes its position, not its parameters, and is not a change."""
         return (side.get(key) or {}).get("parameters")
 
-    slack_parent = {}
+    sender_parent = {}
     for export in here.values():
         for name in render_nodes(export):
             for branch in export["connections"].get(name, {}).get("main", []):
                 for edge in branch or []:
-                    slack_parent[edge["node"]] = name
+                    sender_parent[edge["node"]] = name
 
     keys = sorted(set(after) | set(before), key=lambda key: (key[1], key[0]))
     if args.node:
-        wanted = {slack_parent.get(name, name) for name in args.node}
+        wanted = {sender_parent.get(name, name) for name in args.node}
         unknown = wanted - {name for _, name in keys}
         if unknown:
-            raise SystemExit(f"no node named {sorted(unknown)[0]!r} feeds a Slack post")
+            raise SystemExit(f"no node named {sorted(unknown)[0]!r} feeds a Slack post or an email")
         keys = [key for key in keys if key[1] in wanted]
     elif args.all:
         keys = [key for key in keys if key in after]
     else:
         keys = [key for key in keys if parameters(after, key) != parameters(before, key)]
         if not keys:
-            print(f"no Slack message differs from {base_title[8:-1]}; "
+            print(f"no message differs from {base_title[8:-1]}; "
                   "name one with --node, or pass --all")
             sys.exit(0)
 
@@ -354,7 +378,7 @@ def main():
                 # cannot be rendered with it, which is worth saying but not worth stopping.
                 if side is after:
                     raise SystemExit(problem)
-                sides.append((title, {"error": problem, "texts": [], "after": False}))
+                sides.append((title, {"error": problem, "messages": [], "after": False}))
                 continue
             job = {"node": node, "feeds": feeds, "after": side is after}
             jobs.append(job)
@@ -366,14 +390,14 @@ def main():
     # Every fixture entry is written to produce at least one message, so a node that posts
     # nothing for it has a guard that drops every row, which is a failure worth seeing.
     for job in jobs:
-        if job["after"] and not job["error"] and not job["texts"]:
+        if job["after"] and not job["error"] and not job["messages"]:
             job["error"] = "the node posted nothing for its sample input"
     failed = [job for job in jobs if job["error"]]
     for name, files, sides in previews:
         for title, job in sides:
             if job is None:
                 continue
-            state = f"error: {job['error']}" if job["error"] else f"{len(job['texts'])} message(s)"
+            state = f"error: {job['error']}" if job["error"] else f"{len(job['messages'])} message(s)"
             print(f"{name} ({', '.join(files)}) [{title}]: {state}")
     print(page(previews, args.out))
     sys.exit(1 if failed else 0)

@@ -1,0 +1,472 @@
+{
+  "Render application parent message": {
+    "feeds": {
+      "Create application row": [
+        {
+          "slug": "sample-collective",
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "description": "A parser library for open data formats, maintained by volunteers across Europe."
+        },
+        {
+          "slug": "quiet-garden",
+          "org": "OSE",
+          "collective_name": "Quiet <!channel> Garden",
+          "collective_url": "https://opencollective.com/quiet-garden",
+          "description": ""
+        }
+      ]
+    }
+  },
+  "Render the application message reply": {
+    "feeds": {
+      "Extract new applications": [
+        {
+          "slug": "sample-collective",
+          "collective_name": "Sample Collective",
+          "application_message": "Hi,\n\nWe maintain a parser for open data formats and would like a fiscal host in Europe.\n\nRepository: https://example.org/sample/parser\nDocs: <https://evil.example|example.org/docs> & more"
+        },
+        {
+          "slug": "quiet-garden",
+          "collective_name": "Quiet Garden",
+          "application_message": ""
+        }
+      ],
+      "Skip applications whose Slack post failed": [
+        {
+          "slug": "sample-collective",
+          "channel": "C0SAMPLE",
+          "thread_ts": "1730000000.000100"
+        },
+        {
+          "slug": "quiet-garden",
+          "channel": "C0SAMPLE",
+          "thread_ts": "1730000000.000200"
+        }
+      ],
+      "Store Slack thread identifiers": [
+        {}
+      ]
+    }
+  },
+  "Render decision thread reply": {
+    "feeds": {
+      "Record decision": [
+        {
+          "slug": "approved-after-form",
+          "decision": "approved",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100",
+          "form_invited_at": "2026-11-01T10:00:00.000Z",
+          "form_submitted_at": "2026-11-02T10:00:00.000Z"
+        },
+        {
+          "slug": "rejected-after-form",
+          "decision": "rejected",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000200",
+          "form_invited_at": "2026-11-01T10:00:00.000Z",
+          "form_submitted_at": "2026-11-02T10:00:00.000Z"
+        },
+        {
+          "slug": "rejected-no-response",
+          "decision": "rejected",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000300",
+          "form_invited_at": "2026-10-01T10:00:00.000Z",
+          "form_submitted_at": null
+        },
+        {
+          "slug": "approved-before-invite",
+          "decision": "approved",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000400",
+          "form_invited_at": null,
+          "form_submitted_at": null
+        },
+        {
+          "slug": "rejected-before-invite",
+          "decision": "rejected",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000500",
+          "form_invited_at": null,
+          "form_submitted_at": null
+        }
+      ]
+    }
+  },
+  "Render resignation thread reply": {
+    "feeds": {
+      "Extract decision": [
+        {
+          "slug": "moved-elsewhere",
+          "other_host": "another-host"
+        },
+        {
+          "slug": "deleted-collective",
+          "collective_gone": true
+        }
+      ],
+      "Record the resignation": [
+        {
+          "slug": "moved-elsewhere",
+          "org": "OSE",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        },
+        {
+          "slug": "deleted-collective",
+          "org": "OSE",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000200"
+        }
+      ]
+    }
+  },
+  "Render AI review thread reply": {
+    "feeds": {
+      "Store verdict": [
+        {
+          "slug": "sample-collective",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100",
+          "ai_verdict": "fits",
+          "ai_confidence": 0.82,
+          "ai_reasoning": "The page describes an open source parser with a public repository under an OSI licence, and the collective is run in Europe.",
+          "ai_applicant_message": ""
+        },
+        {
+          "slug": "quiet-garden",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000200",
+          "ai_verdict": "unclear",
+          "ai_confidence": 0.41,
+          "ai_reasoning": "The page has no description and links to no code, so it is not possible to tell what the collective does.",
+          "ai_applicant_message": "Could you tell us more about the project and link its source code?"
+        }
+      ]
+    }
+  },
+  "Render admin details thread reply": {
+    "feeds": {
+      "Store verdict": [
+        {
+          "slug": "sample-collective",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100",
+          "applied_at": "2026-11-03T10:00:00.000Z",
+          "oc_admins": "[{\"slug\":\"anna-example\",\"name\":\"Anna Example\",\"description\":\"Maintainer of the parser.\",\"company\":\"Example Labs\",\"socialLinks\":[{\"type\":\"GITHUB\",\"url\":\"https://github.com/anna-example\"},{\"type\":\"WEBSITE\",\"url\":\"https://example.org\"}],\"createdAt\":\"2019-03-01T09:00:00.000Z\",\"adminOfOthers\":2},{\"slug\":\"new-admin\",\"name\":\"New Admin\",\"description\":null,\"company\":null,\"socialLinks\":[],\"createdAt\":\"2026-11-03T09:40:00.000Z\",\"adminOfOthers\":0}]"
+        }
+      ],
+      "React with eyes on the parent": [
+        {}
+      ]
+    }
+  },
+  "Render invitation thread reply": {
+    "feeds": {
+      "Render form invitation": [
+        {
+          "slug": "sample-collective",
+          "advisory_note_included": false
+        },
+        {
+          "slug": "quiet-garden",
+          "advisory_note_included": true
+        }
+      ],
+      "Mark form_invited": [
+        {
+          "slug": "sample-collective",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        },
+        {
+          "slug": "quiet-garden",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000200"
+        }
+      ]
+    }
+  },
+  "Render reminder thread reply": {
+    "feeds": {
+      "Mark reminded": [
+        {
+          "slug": "sample-collective",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        }
+      ]
+    }
+  },
+  "Render escalation thread reply": {
+    "feeds": {
+      "Escalation due": [
+        {
+          "slug": "sample-collective",
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        }
+      ]
+    }
+  },
+  "Render skipped invitation thread reply": {
+    "feeds": {
+      "Read the decision before inviting": [
+        {
+          "slug": "approved-on-the-spot",
+          "oc_state": "approved",
+          "applied_at": "2026-11-03T10:00:00.000Z",
+          "oc_approved_at": "2026-11-03T10:04:00.000Z"
+        },
+        {
+          "slug": "approved-later",
+          "oc_state": "approved",
+          "applied_at": "2026-11-01T10:00:00.000Z",
+          "oc_approved_at": "2026-11-03T10:00:00.000Z"
+        },
+        {
+          "slug": "rejected-early",
+          "oc_state": "rejected"
+        },
+        {
+          "slug": "hosted-elsewhere",
+          "oc_state": "elsewhere",
+          "oc_other_host": "another-host"
+        },
+        {
+          "slug": "deleted-collective",
+          "oc_state": "gone"
+        }
+      ],
+      "Mark the invitation skipped": [
+        {
+          "slug": "approved-on-the-spot",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        },
+        {
+          "slug": "approved-later",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000200"
+        },
+        {
+          "slug": "rejected-early",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000300"
+        },
+        {
+          "slug": "hosted-elsewhere",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000400"
+        },
+        {
+          "slug": "deleted-collective",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000500"
+        }
+      ]
+    }
+  },
+  "Render submission thread reply": {
+    "feeds": {
+      "Record submission": [
+        {
+          "slug": "sample-collective",
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100",
+          "admin_countries": "Anna Example: Germany\nNew Admin: Portugal",
+          "answers": "{\"responses\":{\"applicant_type\":\"An open source project\",\"repository_url\":\"https://example.org/sample/parser\",\"project_website\":\"https://example.org\",\"licence\":\"Apache-2.0\",\"open_development\":\"Issues and pull requests are public, and anyone can propose a change.\",\"legal_entity\":\"No\",\"operating_duration\":\"Since 2019\",\"fundraising_to_date\":\"Nothing yet\",\"fundraising_goal\":\"10,000 EUR a year\",\"funding_sources\":\"Individual donors and one company sponsor\",\"expected_expenses\":\"Hosting, a yearly maintainer meetup\",\"payee_countries\":\"Germany, Portugal\",\"activities\":\"We maintain a parser for open data formats.\",\"mission_fit\":\"Maintained by volunteers in Europe for public sector users.\",\"notes\":\"See <https://evil.example|our docs> & thanks\",\"admins_adult\":\"Yes\",\"form_feedback\":\"Clear and quick.\"}}"
+        }
+      ],
+      "Send confirmation email": [
+        {}
+      ]
+    }
+  },
+  "Render summary thread reply": {
+    "feeds": {
+      "Validate the summary": [
+        {
+          "slug": "sample-collective",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100",
+          "summary_verdict": "fits",
+          "summary_confidence": 0.86,
+          "readme_source": "https://example.org/sample/parser/README.md",
+          "summary_description": "Sample Collective maintains a parser for open data formats under Apache-2.0, developed in public since 2019. It expects about 10,000 EUR a year from individual donors and one sponsor, spent on hosting and a yearly meetup, paid out in Germany and Portugal."
+        }
+      ]
+    }
+  },
+  "Render failure alert": {
+    "feeds": {
+      "Workflow failed": [
+        {
+          "workflow": {
+            "name": "apply 2 — AI review"
+          },
+          "execution": {
+            "id": "1234",
+            "url": "https://automation.example.org/workflow/abc123/executions/1234",
+            "lastNodeExecuted": "Call the model",
+            "error": {
+              "message": "Request failed with status code 429"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "Render weekly digest": {
+    "feeds": {
+      "Look up the Slack workspace": [
+        {
+          "ok": true,
+          "url": "https://example-workspace.slack.com/"
+        }
+      ],
+      "Get open rows": [
+        {
+          "slug": "sample-collective",
+          "collective_name": "Sample Collective",
+          "stage": "form_submitted",
+          "form_submitted_at": "2026-10-20T10:00:00.000Z",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        },
+        {
+          "slug": "quiet-garden",
+          "collective_name": "Quiet Garden",
+          "stage": "form_invited",
+          "form_invited_at": "2026-10-28T10:00:00.000Z",
+          "form_reminded_at": null,
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000200"
+        },
+        {
+          "slug": "new-arrival",
+          "collective_name": "New Arrival",
+          "stage": "applied",
+          "applied_at": "2026-11-03T10:00:00.000Z",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000300"
+        }
+      ]
+    }
+  },
+  "Render form invitation": {
+    "feeds": {
+      "Still pending on Open Collective?": [
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "slug": "verdict-fits",
+          "ai_verdict": "fits",
+          "ai_applicant_message": ""
+        },
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "slug": "verdict-wrong-host",
+          "ai_verdict": "wrong_host",
+          "contact_email": "contact@example.org",
+          "ai_applicant_message": "The page describes a local community group, which another fiscal host may suit better."
+        },
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "slug": "verdict-not-open-source",
+          "ai_verdict": "not_open_source",
+          "ai_applicant_message": "The page does not mention any source code or licence.\nIt reads as a consultancy."
+        },
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "slug": "verdict-unclear",
+          "ai_verdict": "unclear",
+          "ai_applicant_message": "The page has a name and no description, so it is not clear what the collective does."
+        }
+      ]
+    }
+  },
+  "Render reminder": {
+    "feeds": {
+      "Reminder due": [
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "slug": "sample-collective"
+        }
+      ]
+    }
+  },
+  "Render confirmation email": {
+    "feeds": {
+      "Record submission": [
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "slug": "sample-collective",
+          "contact_email": "contact@example.org"
+        }
+      ]
+    }
+  },
+  "Render decision email": {
+    "feeds": {
+      "Invited before the decision?": [
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "slug": "decision-approved",
+          "decision": "approved",
+          "form_invited_at": "2026-11-01T10:00:00.000Z",
+          "form_submitted_at": "2026-11-02T10:00:00.000Z"
+        },
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "slug": "decision-rejected",
+          "decision": "rejected",
+          "form_invited_at": "2026-11-01T10:00:00.000Z",
+          "form_submitted_at": "2026-11-02T10:00:00.000Z"
+        },
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "slug": "decision-rejected-no-response",
+          "decision": "rejected",
+          "form_invited_at": "2026-10-01T10:00:00.000Z",
+          "form_submitted_at": null
+        }
+      ]
+    }
+  }
+}

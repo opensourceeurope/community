@@ -67,6 +67,25 @@ exports in `automation/n8n/` into the running n8n, updating each workflow in
 place and leaving its active state alone. See
 [Deploying on merge](infra/README.md#deploying-on-merge).
 
+### What you need on your machine
+
+Changing the pipeline, whether by hand or by asking an agent through the
+`change-wording` skill, needs no n8n of your own and no access to the box.
+It needs:
+
+| Tool | What for |
+|---|---|
+| Git and a GitHub account that can open pull requests here, with the `gh` CLI signed in | every change is a pull request, and merging it is what deploys |
+| Python 3.9 or newer | the checks and the previews. They use the standard library only, so there is nothing to install |
+| Docker, running | the previews and the node tests start the n8n version production runs in a throwaway container. The first run pulls the image, and the form preview also pulls a browser image, which takes a few minutes |
+| A Slack account in the reviewers' workspace | opening a Slack message preview in Block Kit Builder |
+| The n8n API key, optional | confirming after a merge that the live instance runs what was merged, as [Providing the n8n API key to Claude Code](#providing-the-n8n-api-key-to-claude-code) describes |
+
+Changing a model prompt also needs Node.js, for
+[`test/model-input-redaction.mjs`](test/model-input-redaction.mjs) and
+[`test/review-eval.mjs`](test/review-eval.mjs). Running the box itself is a
+different job, described in [`infra/README.md`](infra/README.md).
+
 ## The workflows
 
 `automation/n8n/` holds the export of every workflow. Six of them carry the
@@ -206,6 +225,11 @@ and takes the real ones with it.
    `contact_email`, `applicant_email`, either `alternative_admin_*` column,
    `oc_admins` or `admin_countries`, or read the row whole. [`test/model-input-redaction.mjs`](test/model-input-redaction.mjs)
    runs both nodes on text full of addresses and checks that none comes out.
+10. **The email copy in git is what goes out.** Every `Subject: ` template in a
+   Code node that feeds an email send must equal a file in `emails/`, and every
+   file there must be sent by such a node. Editing only one of the two fails, and
+   so does a template the check cannot read, such as one with a backtick in it or
+   a subject line joined on with `+`.
 
 Run it from the repository root. It needs no arguments, no dependencies, no
 network and no API key, and it never touches the live instance.
@@ -284,27 +308,29 @@ serves an existing folder without a new run.
 It needs docker and a network, and it never touches the live instance. The
 start page, `Form page 1`, cannot be previewed this way.
 
-## Previewing Slack messages
+## Previewing Slack messages and emails
 
-[`scripts/slack-preview.py`](scripts/slack-preview.py) shows the Slack messages
-the workflows post. Each one is built by a Code node, so the export holds the
-code and not the message. The script runs every node that feeds a Slack post in
-the n8n image production runs, with stand-in upstream nodes returning the
-invented rows in
-[`test/fixtures/slack-preview.json`](test/fixtures/slack-preview.json), and
-posts nothing.
+[`scripts/message-preview.py`](scripts/message-preview.py) shows the Slack
+messages and emails the workflows send. Each one is built by a Code node, so the
+export holds the code and not the message. The script runs every node that feeds
+a Slack post or an email send in the n8n image production runs, with stand-in
+upstream nodes returning the invented rows in
+[`test/fixtures/message-preview.json`](test/fixtures/message-preview.json), and
+sends nothing.
 
 ```bash
-python3 automation/scripts/slack-preview.py --out /tmp/slack-preview
-python3 automation/scripts/slack-preview.py --all --out /tmp/slack-preview
+python3 automation/scripts/message-preview.py --out /tmp/message-preview
+python3 automation/scripts/message-preview.py --all --out /tmp/message-preview
 ```
 
-With no node named, it renders the messages whose node the branch changed, before
-and after, with before taken from where the branch left `origin/main`. It writes an `index.html` with each message's
-raw text and a link that opens it in Slack's Block Kit Builder, which shows it
-the way Slack renders it to anyone signed in to Slack. CI renders every message
-with `--all`, so a new Slack message needs a fixture entry in the same pull
-request. It needs docker.
+With no node named, it renders the messages whose node the branch changed,
+before and after, with before taken from where the branch left `origin/main`. It
+writes an `index.html`. An email shows the subject and body the applicant gets,
+rendered as if `DRY_RUN` were `false`, which is safe because nothing after the
+render node runs. A Slack message shows its raw text and a link that opens it in
+Slack's Block Kit Builder, which renders it the way Slack does for anyone signed
+in to Slack. CI renders every message with `--all`, so a new one needs a fixture
+entry in the same pull request. It needs docker.
 
 ## Testing the admin nodes
 
@@ -505,10 +531,9 @@ is not one template per verdict:
 | `fits` | `step2-invite.md` | no |
 | `wrong_host` | `advised-wrong-host.md` | yes |
 | `not_open_source` | `advised-not-open-source.md` | yes |
-| `unclear` | `advised-not-open-source.md` | yes |
+| `unclear` | `advised-unclear.md` | yes |
 
-`unclear` shares the not-open-source template because the useful advice is the
-same, which is to show the evidence in the form. A `fits` verdict still
+A `fits` verdict still
 produces an `ai_applicant_message`, but nothing sends it: that template exists
 to get the applicant to the form without a machine's opinion in the way.
 
@@ -541,4 +566,6 @@ such an application should expect the no-response email to go out.
 
 These files are the source of truth. The workflow that sends each message
 embeds it verbatim, so an edit here also means updating that workflow and its
-export.
+export, and check 10 fails a pull request that changes only one of them.
+`scripts/message-preview.py` shows the email as the applicant gets it, with
+the placeholders filled.
