@@ -143,6 +143,10 @@ def intake_case(name, admins, check):
 
 ANNA = {"slug": "anna-example", "name": "Anna Example", "description": "Maintainer.",
         "company": "Example Labs", "email": "anna@example.org",
+        "createdAt": "2019-03-01T09:00:00.000Z",
+        "memberOf": {"totalCount": 3, "nodes": [{"account": {"slug": "sample-collective"}},
+                                                {"account": {"slug": "other-a"}},
+                                                {"account": {"slug": "other-b"}}]},
         "socialLinks": [{"type": "GITHUB", "url": "https://github.com/anna-example"},
                         {"type": "MASTODON", "url": "https://mastodon.example/@anna"}]}
 ORG = {"slug": "example-org", "name": "Example Org", "description": None,
@@ -158,9 +162,11 @@ def check_intake_admins(execution):
         {"slug": "anna-example", "name": "Anna Example", "description": "Maintainer.",
          "company": "Example Labs",
          "socialLinks": [{"type": "GITHUB", "url": "https://github.com/anna-example"},
-                         {"type": "MASTODON", "url": "https://mastodon.example/@anna"}]},
+                         {"type": "MASTODON", "url": "https://mastodon.example/@anna"}],
+         "createdAt": "2019-03-01T09:00:00.000Z", "adminOfOthers": 2},
         {"slug": "example-org", "name": "Example Org", "description": None, "company": None,
-         "socialLinks": [{"type": "WEBSITE", "url": "https://example.org"}]},
+         "socialLinks": [{"type": "WEBSITE", "url": "https://example.org"}],
+         "createdAt": None, "adminOfOthers": None},
     ], stored
     assert items[0]["applicant_email"] == "anna@example.org", items[0]["applicant_email"]
 
@@ -174,7 +180,7 @@ def check_intake_no_admins(execution):
 
 def row(slug, oc_admins, anchored=True):
     """A row as Store verdict returns it, reduced to what the admin reply reads."""
-    return {"slug": slug, "oc_admins": oc_admins,
+    return {"slug": slug, "oc_admins": oc_admins, "applied_at": "2026-11-03T10:00:00.000Z",
             "slack_channel_id": "C0SAMPLE" if anchored else "",
             "slack_thread_ts": "1730000000.000100" if anchored else ""}
 
@@ -189,9 +195,10 @@ SLACK_ADMINS = json.dumps([
     {"slug": "anna-example", "name": "Anna Example", "description": "Maintainer of a <b>parser</b>.",
      "company": "Example Labs",
      "socialLinks": [{"type": "GITHUB", "url": "https://github.com/example"},
-                     {"type": "WEBSITE", "url": "javascript:alert(1)"}]},
+                     {"type": "WEBSITE", "url": "javascript:alert(1)"}],
+     "createdAt": "2019-03-01T09:00:00.000Z", "adminOfOthers": 2},
     {"slug": "loud-admin", "name": "<!channel> Loud", "description": None, "company": None,
-     "socialLinks": []},
+     "socialLinks": [], "createdAt": "2026-11-03T09:57:30.000Z", "adminOfOthers": 0},
 ])
 
 
@@ -209,6 +216,9 @@ def check_slack_admins(execution):
     assert "|WEBSITE>" not in text and "<javascript:" not in text, text
     assert "javascript:alert(1)" in text, text
     assert "&lt;!channel&gt; Loud" in text and "<!channel>" not in text, text
+    assert "_On Open Collective since March 2019 · admin of 2 other collectives_" in text, text
+    assert ("_Profile created 2 minutes before the application · no description or links on"
+            " the profile · admin of no other collective_") in text, text
 
 
 def check_slack_nothing(execution):
