@@ -162,7 +162,9 @@ The OSE-specific invariants on top of that skill:
 - **Every stage change replies in the application's Slack thread.** apply 1a or
   1b posts the parent, anchored by `slack_channel_id` and `slack_thread_ts` on
   the row. A stage without a reply is invisible to reviewers. A row without an
-  anchor is skipped, never posted loose in the channel.
+  anchor is skipped, never posted loose in the channel. Preview a new or changed
+  message with `automation/scripts/slack-preview.py` before calling it done. A new
+  one needs an entry in `automation/test/fixtures/slack-preview.json`, or CI fails.
 - **Continuing on a Slack error protects the stage, not whatever follows.**
   `onError: continueRegularOutput` keeps one bad row from aborting a run, NOT
   permission to proceed as if the post succeeded. A failed post continues with

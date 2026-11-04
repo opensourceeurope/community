@@ -8,8 +8,8 @@ node runs. This runs those nodes, as committed, in a throwaway container on the 
 production runs, with stand-in upstream nodes that return the sample rows in the fixture.
 Nothing is posted anywhere.
 
-By default it renders only the nodes whose code differs from origin/main, once as they are
-there and once as they are here, so a change can be read before and after.
+By default it renders only the nodes this branch changed, once as they were where it left
+origin/main and once as they are here, so a change can be read before and after.
 
     python3 automation/scripts/slack-preview.py
     python3 automation/scripts/slack-preview.py --node "Render AI review thread reply"
