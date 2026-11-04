@@ -83,7 +83,8 @@ CHECKS = """\
    trimming, one file in automation/emails, and every file there must be sent
    by such a node. The copy is kept in two places so it can be read and
    reviewed as text, and a change made to only one of them leaves the file
-   describing an email nobody receives.
+   describing an email nobody receives. A node with a "Subject: " line the
+   check cannot read as such a template fails too, rather than being skipped.
 """
 
 DATA_TABLE = "ose_applications"

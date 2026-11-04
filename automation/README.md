@@ -208,7 +208,9 @@ and takes the real ones with it.
    runs both nodes on text full of addresses and checks that none comes out.
 10. **The email copy in git is what goes out.** Every `Subject: ` template in a
    Code node that feeds an email send must equal a file in `emails/`, and every
-   file there must be sent by such a node. Editing only one of the two fails.
+   file there must be sent by such a node. Editing only one of the two fails, and
+   so does a template the check cannot read, such as one with a backtick in it or
+   a subject line joined on with `+`.
 
 Run it from the repository root. It needs no arguments, no dependencies, no
 network and no API key, and it never touches the live instance.
