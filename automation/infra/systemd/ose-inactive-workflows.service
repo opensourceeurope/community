@@ -1,0 +1,16 @@
+[Unit]
+Description=Check that every workflow git ships is active in n8n
+Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
+After=docker.service network-online.target
+Wants=network-online.target
+# The deploy creates a new workflow inactive and a person activates it. The
+# check exits non-zero while an exported workflow is inactive, which fails
+# this unit and posts the list to the alerts channel, once.
+OnFailure=ose-alert@%n.service
+
+[Service]
+Type=oneshot
+User=debian
+ExecStart=/usr/bin/python3 /home/debian/community/automation/infra/check-inactive-workflows.py /home/debian/community
+# Posts that every workflow is active again, and only after one was not.
+ExecStartPost=-/home/debian/community/automation/infra/alert-slack.sh --recovered %n

@@ -1,0 +1,13 @@
+[Unit]
+Description=Hourly check that every workflow git ships is active in n8n
+Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
+
+[Timer]
+# Between deploys, which run on the tens, so a workflow a merge creates is
+# reported within the hour after it lands.
+OnCalendar=*-*-* *:45:00 UTC
+Persistent=true
+RandomizedDelaySec=2m
+
+[Install]
+WantedBy=timers.target

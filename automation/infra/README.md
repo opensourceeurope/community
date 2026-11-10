@@ -837,6 +837,21 @@ remove it completely, delete `ose-deploy.service` and `ose-deploy.timer` from
 The deploy creates it, inactive, with an id of its own. Whether it runs is
 still the operator's call, made in the n8n UI.
 
+So that the call is not forgotten, `ose-inactive-workflows.timer` runs
+[`check-inactive-workflows.py`](check-inactive-workflows.py) every hour. It
+lists each workflow that has an export and is inactive on the instance, with
+a link to it in the editor. While the list is not empty the unit fails, and
+`ose-alert@` posts it to the alerts channel, once. It posts recovered when
+every workflow is active again. A workflow whose only trigger is an Error
+Trigger is left out, because n8n calls it without activation. To keep a
+workflow switched off on purpose, archive it and delete its export.
+
+To run the same check by hand on the box:
+
+```bash
+python3 ~/community/automation/infra/check-inactive-workflows.py ~/community
+```
+
 The one export that looks new and is not is a rename. Change a workflow's
 `name` in git and the export matches nothing on the instance, while the old
 workflow keeps running under the old name. Creating the export then would

@@ -383,7 +383,7 @@ The OSE-specific invariants on top of that skill:
   forces a full apply, which recreates Caddy.
 - **Run the infra tests before you push a change to a script.**
   `automation/test/deploy-infra.sh`, `alert-slack.sh`, `backup-upload.sh`,
-  `check-workflows-env.sh`, `check-workflows-email.sh`, `check-n8n-version.py`, `check-env-drift.py`
+  `check-workflows-env.sh`, `check-workflows-email.sh`, `check-n8n-version.py`, `check-env-drift.py`, `check-inactive-workflows.py`
   and `sync-workflows.py` stub every external command. `automation/test/bootstrap-smoke.sh` and
   `caddy-routes.sh` need Docker. CI runs all of them and `tofu validate`. Each
   test fails loudly when a helper dies under `set -e`, because a silent stop
