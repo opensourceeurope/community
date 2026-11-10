@@ -329,7 +329,9 @@ writes an `index.html`. An email shows the subject and body the applicant gets,
 rendered as if `DRY_RUN` were `false`, which is safe because nothing after the
 render node runs. A Slack message shows its raw text and a link that opens it in
 Slack's Block Kit Builder, which renders it the way Slack does for anyone signed
-in to Slack. CI renders every message with `--all`, so a new one needs a fixture
+in to Slack. The same links, one per Slack message, go into
+`builder-links.txt` beside the page, so a preview of Slack messages alone opens
+straight in Builder with `xargs -n 1 open < /tmp/message-preview/builder-links.txt`. CI renders every message with `--all`, so a new one needs a fixture
 entry in the same pull request. It needs docker.
 
 ## Testing the admin nodes
