@@ -345,6 +345,8 @@ The OSE-specific invariants on top of that skill:
   `main` within ten minutes, so merge the export first or the edit vanishes.
 - **Never activate a workflow without asking.** New and changed workflows are
   deployed inactive. Activation is the user's explicit call, every time.
+  `ose-inactive-workflows.timer` posts to Slack while one waits, so tell the
+  user a new workflow has landed rather than assume they saw it.
 
 ## Infra on the VPS (`automation/infra/`)
 
