@@ -174,6 +174,8 @@ catch-up asks the Open Collective API for pending applications, and for the
 current status of every application still open in the data table, and
 processes anything the webhook missed. A lost event then means the applicant
 hears from us one sweep later, not never.
+Caddy's access log of `/webhook/*` shows whether a missed event ever reached
+the box. See "Day to day" in [`infra/README.md`](infra/README.md).
 
 ## Checking the exports
 
