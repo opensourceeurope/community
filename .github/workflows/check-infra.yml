@@ -47,6 +47,9 @@ jobs:
       - name: check-env-drift.py alerts when the box's .env is not what git marks
         run: python3 -B automation/test/check-env-drift.py
 
+      - name: check-inactive-workflows.py alerts while a workflow git ships is switched off
+        run: python3 -B automation/test/check-inactive-workflows.py
+
       - name: create-data-table.py builds the table from the document
         run: python3 -B automation/test/create-data-table.py
 

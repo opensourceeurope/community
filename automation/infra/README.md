@@ -837,6 +837,23 @@ remove it completely, delete `ose-deploy.service` and `ose-deploy.timer` from
 The deploy creates it, inactive, with an id of its own. Whether it runs is
 still the operator's call, made in the n8n UI.
 
+So that the call is not forgotten, `ose-inactive-workflows.timer` runs
+[`check-inactive-workflows.py`](check-inactive-workflows.py) every hour. It
+lists each workflow that has an export and is inactive on the instance, with
+a link to it in the editor. While the list is not empty the unit fails, and
+`ose-alert@` posts it to the alerts channel, once. It posts recovered when
+every workflow is active again, so a workflow that goes inactive while an
+alert is still open posts nothing new: run the check by hand after activating
+one. The error handler is checked like the rest, because n8n runs it only once
+it has been activated. To keep a workflow switched off on purpose, archive it
+and delete its export.
+
+To run the same check by hand on the box:
+
+```bash
+python3 ~/community/automation/infra/check-inactive-workflows.py ~/community
+```
+
 The one export that looks new and is not is a rename. Change a workflow's
 `name` in git and the export matches nothing on the instance, while the old
 workflow keeps running under the old name. Creating the export then would
@@ -1858,10 +1875,8 @@ failure: none at all means it is not running.
 The handler itself has no **Error Workflow**. If it pointed at itself, a Slack
 outage would make it fail while handling its own failure.
 
-The handler stays inactive and still works. n8n calls a workflow that starts
-with an Error Trigger directly, so it needs no activation of its own. What it
-does need is for the failing workflow to be active, because only an automatic
-run reaches it.
+The failing workflow must be active too, because only an automatic run
+reaches the handler.
 
 ### What it does not catch
 

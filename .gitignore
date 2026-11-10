@@ -16,3 +16,6 @@ automation/docs/verified.md
 *.tfstate
 *.tfstate.*
 *.tfplan
+
+# Python bytecode. deploy.sh refuses to deploy over an untracked file.
+__pycache__/
