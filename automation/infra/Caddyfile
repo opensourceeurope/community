@@ -75,6 +75,26 @@
 	encode zstd gzip
 	import clean_path_only
 
+	# An access log of the webhook paths alone, so a decision that never
+	# reached n8n shows whether Open Collective sent anything at all. n8n saves
+	# an execution for every call that reaches it, but a call that never
+	# arrived leaves no trace there. The file lives in the caddy_data volume,
+	# because the deploy recreates this container and its stdout with it. It
+	# holds the caller's address, user agent, headers and query string, never
+	# the body. Caddy redacts only Authorization and Cookie, so nothing that
+	# calls a webhook may send a secret in any other header. Every other path
+	# is left out, the editor and the API included.
+	log webhook {
+		output file /data/logs/webhook-access.log {
+			roll_size 5MiB
+			roll_keep 5
+			roll_keep_for 720h
+		}
+		format json
+	}
+	@not_webhook not path /webhook/*
+	log_skip @not_webhook
+
 	# The public API's machine-readable spec. Nothing here reads it, so it is
 	# not served to the internet.
 	handle /api/v1/openapi.yml {

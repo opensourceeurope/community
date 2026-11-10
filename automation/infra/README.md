@@ -577,10 +577,20 @@ cd ~/community/automation/infra
 docker compose ps                  # what is running
 docker compose logs -f n8n         # follow n8n
 docker compose logs --tail=50 caddy
+docker compose exec caddy tail -n 20 /data/logs/webhook-access.log
 docker compose restart n8n
 docker compose down                # stop everything; named volumes survive
 docker compose up -d               # back up
 ```
+
+Caddy keeps an access log of `/webhook/*` on the admin host, and of nothing
+else, in the `caddy_data` volume. When a decision on Open Collective never
+reached n8n, it tells the two cases apart: no line at that time means Open
+Collective sent nothing, a line means the request arrived and its status says
+what happened to it. Each line holds the caller's address, user agent,
+headers and query string, never the body. Caddy redacts only `Authorization`
+and `Cookie`, so a webhook caller must not put a secret in another header. The
+file rolls at 5 MiB and old files go after 30 days.
 
 After editing `.env`, `restart` is not enough. `docker compose restart` reuses
 the container with its old environment, and only a recreated container reads

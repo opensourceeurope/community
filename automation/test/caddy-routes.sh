@@ -41,7 +41,7 @@ echo "ok   the committed editor gate holds one bcrypt hash, cost $cost"
 RUN="ose-caddy-routes-$$"
 WORK=$(mktemp -d)
 cleanup() {
-  docker rm -f "$RUN-proxy" "$RUN-n8n" >/dev/null 2>&1 || true
+  docker rm -f -v "$RUN-proxy" "$RUN-n8n" >/dev/null 2>&1 || true
   docker network rm "$RUN" >/dev/null 2>&1 || true
   rm -rf "$WORK"
 }
@@ -155,6 +155,32 @@ expect admin GET /signin 200 "upstream GET /signin auth=" -- "${AUTH[@]}"
 expect admin GET /form/apply-ose 200 "upstream GET /form/apply-ose auth=" -- "${AUTH[@]}"
 expect admin GET /api/v1/workflows 200 "upstream GET /api/v1/workflows auth=Bearer x" -- -H "Authorization: Bearer x"
 expect admin GET /api/v1/openapi.yml 404
+
+echo "== the admin host logs webhook calls, and nothing else"
+expect admin POST /webhook/access-log-probe 200 "upstream POST /webhook/access-log-probe" -- "${AUTH[@]}"
+LOG=/data/logs/webhook-access.log
+docker exec "$RUN-proxy" cat "$LOG" > "$WORK/access.log" 2>/dev/null || true
+probe=$(grep -c '"uri":"/webhook/access-log-probe"' "$WORK/access.log" || true)
+webhook=$(grep -c '"uri":"/webhook/oc-events"' "$WORK/access.log" || true)
+if [ "$probe" -ge 1 ] && [ "$webhook" -ge 1 ]; then
+  echo "ok   webhook calls are in $LOG"
+else
+  fail "$LOG lacks the webhook calls this test made"
+fi
+other=$(grep -v -c '"uri":"/webhook/' "$WORK/access.log" || true)
+if [ "$other" -eq 0 ]; then
+  echo "ok   no other path is in $LOG"
+else
+  fail "$LOG holds $other line(s) for paths other than /webhook/*"
+  grep -v '"uri":"/webhook/' "$WORK/access.log" | head -n 3
+fi
+secret=$(printf 'ose:%s' "$PASSWORD" | base64)
+leaked=$(grep -c -F "$secret" "$WORK/access.log" || true)
+if [ "$leaked" -eq 0 ]; then
+  echo "ok   the gate password is not in $LOG"
+else
+  fail "$LOG holds the gate password a browser sent"
+fi
 
 if [ "$failures" -gt 0 ]; then
   echo "caddy-routes: $failures failure(s)"
