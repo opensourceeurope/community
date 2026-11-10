@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Runs automation/infra/check-inactive-workflows.py against a fake n8n
 workflow API on localhost: an exported workflow that is inactive fails the
-check and is named with its link, an active one, an archived one, a workflow
-with no export and an error handler do not, and an unreachable API or a
+check and is named with its link, the error handler included, an active one,
+an archived one and a workflow with no export do not, a long list keeps its
+instruction in the lines the alert shows, the check leaves no __pycache__
+behind, and an unreachable API or a
 missing key is reported as a check that could not run. The report is what
 ose-alert@ posts, so it has to stay within the 15 journal lines it shows.
 
@@ -19,6 +21,7 @@ import threading
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(os.path.dirname(HERE), "infra", "check-inactive-workflows.py")
+PYCACHE = os.path.join(os.path.dirname(HERE), "infra", "__pycache__")
 
 DIGEST = "ops — weekly digest of open applications in Slack"
 REVIEW = "apply 2 — AI review"
@@ -99,13 +102,26 @@ def main():
                          live("x1", "a workflow nobody exported", False),
                          live("old", REVIEW, False, archived=True)])
         check("an inactive exported workflow exits 1", code == 1, out)
-        check("the report names it, its export and its creation date",
-              "%s (ops-weekly-digest.json), created 2026-11-03" % DIGEST in out, out)
-        check("the report links it in the editor", "%s/workflow/d1" % url in out, out)
-        check("an inactive error handler is not reported", HANDLER not in out, out)
+        check("the report names it, its export, its creation date and its link",
+              "%s (ops-weekly-digest.json, created 2026-11-03) %s/workflow/d1" % (DIGEST, url) in out, out)
+        check("an inactive error handler is reported, since n8n only runs a published one",
+              "%s/workflow/h1" % url in out, out)
         check("a workflow with no export is not reported", "nobody exported" not in out, out)
         check("an archived copy is not reported", "/workflow/old" not in out, out)
-        check("the report fits the 15 lines the alert shows", len(out.strip().splitlines()) <= 15, out)
+        check("the report fits the 15 lines the alert shows", len(out.strip().splitlines()) <= 11, out)
+
+        # A first install creates every workflow inactive. The alert keeps the
+        # last lines, so the instruction must be the last thing printed.
+        many = [live("m%d" % i, DIGEST if i == 0 else "x%d" % i, False) for i in range(12)]
+        code, out = run(many)
+        check("a long list ends with what to do", code == 1 and out.strip().splitlines()[-1].startswith("The deploy creates"), out)
+
+        if os.path.isdir(PYCACHE):
+            shutil.rmtree(PYCACHE)
+        subprocess.run([sys.executable, SCRIPT, root], capture_output=True,
+                       env=dict(os.environ, N8N_API_URL=url, N8N_API_KEY="test-key"))
+        check("a run without -B leaves no __pycache__ for the deploy to refuse",
+              not os.path.isdir(PYCACHE), "found %s" % PYCACHE)
 
         code, out = run([live("d1", DIGEST, False)], {"N8N_API_KEY": "wrong-key"})
         check("a refused key exits 2", code == 2 and "could not run" in out and "HTTP 401" in out, out)

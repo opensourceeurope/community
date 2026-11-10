@@ -16,10 +16,14 @@ and ose-alert@ posts the report to the alerts channel, once, then posts
 recovered when every workflow is active again. So the report is written to be
 read in Slack, and it holds names and ids, never a credential.
 
-A workflow that starts only with an Error Trigger is left out. n8n calls it
-directly when another workflow fails, so it works without being active. An
-export with no workflow on the instance is left out too: creating it is the
-deploy's job, and the deploy reports when it cannot.
+The error handler counts like any other workflow: n8n runs one only once it
+has been activated and so published. An export with no workflow on the
+instance is left out: creating it is the deploy's job, and the deploy reports
+when it cannot.
+
+ose-alert@ shows the last 15 journal lines and systemd adds a few of its own,
+so each workflow takes one line and the instruction comes last, where a long
+list cuts the oldest lines first.
 
 Reads the instance URL from N8N_API_URL, or builds it from N8N_HOST in the
 box's .env, and the API key from N8N_API_KEY, or from the file named by
@@ -34,9 +38,11 @@ import sys
 
 EXPORTS = "automation/n8n"
 BOX_ENV = "automation/infra/.env"
-ERROR_TRIGGER = "n8n-nodes-base.errorTrigger"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# Loading the sibling module would otherwise write a __pycache__ into the box's
+# checkout, and deploy.sh refuses to deploy over an untracked file.
+sys.dont_write_bytecode = True
 _spec = importlib.util.spec_from_file_location("sync_workflows", os.path.join(HERE, "sync-workflows.py"))
 sync = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(sync)
@@ -67,12 +73,6 @@ def read_key():
     return key
 
 
-def runs_without_activation(export):
-    triggers = [n["type"] for n in export["nodes"]
-                if n["type"].endswith("Trigger") or n["type"] == "n8n-nodes-base.webhook"]
-    return bool(triggers) and all(t == ERROR_TRIGGER for t in triggers)
-
-
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..")
     try:
@@ -90,22 +90,19 @@ def main():
             continue
         if workflow["name"] not in exports:
             continue
-        path, export = exports[workflow["name"]]
-        if runs_without_activation(export):
-            continue
-        off.append((workflow, os.path.basename(path)))
+        off.append((workflow, os.path.basename(exports[workflow["name"]][0])))
 
     if not off:
         print("Every workflow in %s is active on %s." % (EXPORTS, base))
         return 0
 
-    print("These workflows are in git but switched off in n8n, so they never run. "
-          "The deploy creates a new workflow inactive and leaves turning it on to a person:")
+    print("In git but switched off in n8n, so never run:")
     for workflow, label in sorted(off, key=lambda item: item[0]["name"]):
-        since = (workflow.get("createdAt") or "")[:10]
-        print("  %s (%s), created %s" % (workflow["name"], label, since or "on an unknown date"))
-        print("    %s/workflow/%s" % (base, workflow["id"]))
-    print("Activate each one in the editor, or archive it and delete its export if it should not run.")
+        since = (workflow.get("createdAt") or "")[:10] or "unknown"
+        print("  %s (%s, created %s) %s/workflow/%s"
+              % (workflow["name"], label, since, base, workflow["id"]))
+    print("The deploy creates a new workflow inactive and leaves turning it on to a person. "
+          "Activate each one in the editor, or archive it and delete its export if it should not run.")
     return 1
 
 
