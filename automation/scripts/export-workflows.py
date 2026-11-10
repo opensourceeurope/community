@@ -19,6 +19,7 @@ MAP = {
     "liyDDeSeZGnngb6Z": "form-ose.json",
     "qPEF2ldH8pJXU03N": "summary.json",
     "qWHuHamNdmvfrSRt": "ops-alert-on-failure.json",
+    "VmIvEVoGXsD3zP85": "ops-weekly-digest.json",
 }
 OUTDIR = "automation/n8n"
 
