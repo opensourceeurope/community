@@ -27,16 +27,22 @@ node this branch changed, before and after. Before is `origin/main` where the
 branch left it, so changes merged since then are not shown as yours. If it prints
 `no message differs`, nothing changed and it writes no page. `--node` takes the
 render node or the Slack or email node it feeds. The run writes `index.html` into
-`--out` and exits 1 if a node threw or sent nothing for its sample.
+`--out`, and `builder-links.txt` with one Block Kit Builder link per Slack message, in
+the order it printed them. It exits 1 if a node threw or sent nothing for its sample.
 
 ## Show it
 
 1. Read the messages in `index.html` yourself and fix anything wrong first. The
    page does not highlight what changed, so compare before and after line by line.
-2. Run `open /path/to/out/index.html` so the user sees it in their browser.
-3. Tell them which messages changed and what to look at, one line each. For
-   Slack, say that **Open in Block Kit Builder** shows a message as Slack renders
-   it, which needs them signed in to Slack and nothing more.
+2. Show the user the messages the way that answers their question:
+   - **Slack messages only, nothing to compare**, such as "what does the digest look
+     like": open each Builder link directly, `xargs -n 1 open < /path/to/out/builder-links.txt`.
+     The page adds nothing there.
+   - **An email, or a before and after**: `open /path/to/out/index.html`. Builder cannot
+     show an email, and only the page puts both sides next to each other and keeps the
+     leading spaces Builder drops.
+3. Tell them which messages changed and what to look at, one line each. Builder
+   needs them signed in to Slack and nothing more.
 
 ## Changing the samples
 

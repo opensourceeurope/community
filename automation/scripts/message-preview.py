@@ -17,7 +17,9 @@ origin/main and once as they are here, so a change can be read before and after.
 
 Needs docker and git. Writes an index.html into --out with every message: an email's
 subject and body as the applicant gets them, a Slack message's raw text and a link that
-opens it in Slack's Block Kit Builder. Then prints that path.
+opens it in Slack's Block Kit Builder. Then prints that path. It also writes each Slack
+message's Builder link, one per line in the order printed, to builder-links.txt beside it,
+so a preview of Slack messages alone can open straight in Builder.
 """
 import argparse
 import glob
@@ -400,6 +402,13 @@ def main():
             state = f"error: {job['error']}" if job["error"] else f"{len(job['messages'])} message(s)"
             print(f"{name} ({', '.join(files)}) [{title}]: {state}")
     print(page(previews, args.out))
+    links = [builder_url(str(item.get("text", "")))
+             for _, _, sides in previews for _, job in sides if job
+             for item in job["messages"]
+             if "subject" not in item and str(item.get("text", "")).strip()]
+    with open(os.path.join(args.out, "builder-links.txt"), "w") as handle:
+        handle.write("".join(link + "\n" for link in links))
+    print(f"{len(links)} Block Kit Builder link(s): {os.path.join(args.out, 'builder-links.txt')}")
     sys.exit(1 if failed else 0)
 
 if __name__ == "__main__":
