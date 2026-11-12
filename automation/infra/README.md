@@ -1336,8 +1336,9 @@ Once an applicant submits the form, apply 4 posts **Approve…** and
 **Reject…** buttons in the application's thread. A click opens a dialog with
 the closing email prefilled for editing and a field for a private note, then a
 view showing both for confirmation. Confirm asks Open Collective to approve or
-reject, posts the note on the application for host admins only, and replies in
-the thread. apply 1a or 1b then records the decision and sends the email as for
+reject, saves the applicant's form answers on the application, where host
+admins and the collective's admins can read them, posts the note on the
+application for host admins only, and replies in the thread. apply 1a or 1b then records the decision and sends the email as for
 a decision made on Open Collective.
 
 Slack sends every click and dialog to `apply 6 — decision from Slack`, at

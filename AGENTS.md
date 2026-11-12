@@ -115,6 +115,14 @@ The OSE-specific invariants on top of that skill:
   `decision_email_body` only when `decision_email_for` equals the decision
   recorded. `DRY_RUN` holds that email back, never the decision or the note,
   so rehearse apply 6 on a test collective only.
+- **What apply 6 saves on Open Collective, the applicant can read.** The
+  decision call stores the applicant's own form answers, contact and admin
+  details in the application's `customData`, under `oseApplicationForm`.
+  Open Collective shows `customData` to the host's admins and to the
+  collective's own admins, and form page 1 tells applicants so. Only what the
+  applicant wrote goes there, by named key, never the AI review, the summary
+  or a reviewer's words. Those stay in the thread and in the `PRIVATE_NOTE`,
+  which only host admins see.
 - **No address column is ever given to the model.** The intake review sees the
   public Open Collective page, the apply 5 summary also the form answers and
   README. Render nodes select a fixed key list, never the whole row, and leave
