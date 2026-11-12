@@ -50,6 +50,9 @@ jobs:
       - name: check-inactive-workflows.py alerts while a workflow git ships is switched off
         run: python3 -B automation/test/check-inactive-workflows.py
 
+      - name: check-workflow-recovery.py posts once when a failed workflow works again
+        run: python3 -B automation/test/check-workflow-recovery.py
+
       - name: create-data-table.py builds the table from the document
         run: python3 -B automation/test/create-data-table.py
 

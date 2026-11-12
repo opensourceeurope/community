@@ -1,0 +1,12 @@
+[Unit]
+Description=Every ten minutes, post to Slack when a failed workflow works again
+Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
+
+[Timer]
+# Between deploys, which run on the tens and may restart n8n.
+OnCalendar=*-*-* *:05,15,25,35,45,55:00 UTC
+Persistent=true
+RandomizedDelaySec=1m
+
+[Install]
+WantedBy=timers.target

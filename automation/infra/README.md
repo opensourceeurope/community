@@ -717,10 +717,13 @@ this key.
 
 Create the key in the n8n UI under **Settings**, **n8n API**. Where the dialog
 offers scopes, give it `workflow:list`, `workflow:read`, `workflow:create`,
-`workflow:update`, `dataTable:read` and `dataTableColumn:create`, and nothing
-else. `workflow:create` lets the deploy add a workflow a merge brings, inactive.
-The last two let it add the columns a merge brings, as
-[What an infra change does](#what-an-infra-change-does) describes. A key
+`workflow:update`, `dataTable:read`, `dataTableColumn:create` and
+`execution:list`, and nothing else. `workflow:create` lets the deploy add a
+workflow a merge brings, inactive. `dataTable:read` and
+`dataTableColumn:create` let it add the columns a merge brings, as
+[What an infra change does](#what-an-infra-change-does) describes.
+`execution:list` lets the recovery check read whether a run failed, as
+[When it works again](#when-it-works-again) describes. A key
 without `workflow:activate` cannot start a workflow even if something asks it
 to, and a key without `dataTable:create` cannot create a second table.
 
@@ -1895,6 +1898,49 @@ outage would make it fail while handling its own failure.
 The failing workflow must be active too, because only an automatic run
 reaches the handler.
 
+### When it works again
+
+The handler fires on a failure and on nothing else, so it cannot say that the
+next run worked. `ose-workflow-recovery.timer` does, every ten minutes, from
+the box. It runs [`check-workflow-recovery.py`](check-workflow-recovery.py),
+which reads the recent executions of every exported workflow that names the
+handler, through the public API with the deploy's key. When a workflow that
+failed has a later run that succeeded, it posts to `SLACK_CHANNEL`:
+
+```
+:white_check_mark: apply 1b — catch-up: fetch applications and decisions the webhook missed recovered
+Succeeded 12 Nov 08:00 after 2 failed runs since 12 Nov 06:01
+Execution: https://automation.opensourceeurope.org/workflow/{WORKFLOW_ID}/executions/{EXECUTION_ID}
+```
+
+Slack shows both times in each reader's own timezone. One recovery closes every
+failure before it, so an outage that failed five hourly runs posts five alerts
+and one recovery. A workflow that fails, works and fails again between two
+checks posts no recovery, since the newer alert is the one that holds.
+
+A test run from the editor counts neither way, the same as for the handler. A
+retry from the executions list counts, since a retry that succeeds is a
+recovery. The
+first run on a new box records where each history ends and posts nothing, so
+installing it never replays old failures. What it remembers is
+`~/.local/state/ose-workflow-recovery/state.json`. Deleting the file costs at
+most the recovery message of a failure open at that moment.
+
+When n8n does not answer, answers too slowly or answers 5xx, as it can during
+an upgrade, the check skips the run and reads the same history next time. When it cannot read
+at all, such as with a key that lacks `execution:list`, cannot save its state
+file or cannot post, the unit fails and `ose-alert@` posts that once, as for the
+other timers. A recovery is recorded before it is posted, so a state file that
+cannot be written stops the check rather than repeating a message. To run it by
+hand on the box:
+
+```bash
+python3 ~/community/automation/infra/check-workflow-recovery.py ~/community
+```
+
+It reads the latest 100 executions of each workflow per check. A workflow that
+ran more often than that between two checks has its older runs skipped.
+
 ### What it does not catch
 
 The handler fires on an unhandled error. It stays quiet when a node returns a
@@ -1953,6 +1999,7 @@ in this repository. Put the account credentials in the shared vault.
 | Every `ovhcloud` command returns 403 | The consumer key in `~/.ovh.conf` was revoked or expired | `ovhcloud login` |
 | Stray `.*.swp` in `automation/infra/`, or an editor process nobody remembers | A dropped `ssh -t` session left an editor open on `.env`. The swap file holds a copy of the secrets, and a stale editor that saves later overwrites a rotated key with the old one | `pgrep -a 'vim|nano'`, kill the orphan (editors do not save on a plain kill), delete the swap file, then check `.env` by length |
 | Applicant emails rejected or spam-filed | Mail sent from this box, while the domain's SPF allows Proton only | Send through the relay in [The SMTP credential](#the-smtp-credential) |
+| A workflow failed, then worked, and no recovery arrived | `ose-workflow-recovery.timer` is not running, or the deploy key lacks `execution:list` | Read `systemctl status ose-workflow-recovery.timer` and `journalctl -u ose-workflow-recovery.service` |
 | A workflow failed and no Slack alert arrived | The workflow has no **Error Workflow** set, or a node handled the error and let the run finish green | Read back `settings.errorWorkflow`. For a handled error, make the node throw instead |
 | Workflow fails with `access to env vars denied` | The running container predates `N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"` in `docker-compose.yml`, so n8n blocks the `$env` expressions the workflows are built on | `git pull` in `~/community`, then `docker compose up -d n8n` and expect `Recreated` |
 
