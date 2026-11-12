@@ -1089,8 +1089,9 @@ authenticates fine and then every fetch fails with an authorization error.
 3. Select the scopes **host**, **applications**, **email** and **account**,
    and leave every other scope unselected. A token permits only the scopes
    selected on it. These cover what the workflows need: `host` is the scope
-   for fiscal-host data and for approving or rejecting from Slack, `applications` for the host's list of applications
-   that intake and apply 6 read, `email` for the applicant admin addresses that intake
+   for fiscal-host data and for approving or rejecting from Slack,
+   `applications` for the host's list of applications that intake and
+   apply 6 read, `email` for the applicant admin addresses that intake
    stores as the contact address, and `account` lets apply 3 see whether each
    admin of an applying collective has a legal name on their profile. Without
    `account` the invitation leaves out the legal name request and the Slack
