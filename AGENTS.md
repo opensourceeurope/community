@@ -280,6 +280,9 @@ The OSE-specific invariants on top of that skill:
   `No collective found with slug <slug>` for the row's own slug, which closes
   that deleted collective as `resigned`. An error about one row must never stop
   the others, so such an exception is matched exactly and covers that row alone.
+  The one read exempt from throwing is apply 3's admin legal name check, which
+  only decides a reminder: it reports an error in the Slack thread and sends
+  the invitation without the paragraph, so a reminder never holds one back.
 - **An outcome the applicant did not ask for tells them nothing.** `approved`
   and `rejected` email the applicant, who is owed the answer, but only once the
   pipeline has invited them to the form. A decision that lands before the

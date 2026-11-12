@@ -1115,7 +1115,7 @@ the credential name in the **Name** field makes every API call anonymous.
 4. Change **Allowed HTTP Request Domains** from **All** to
    `api.opencollective.com`, so n8n refuses to attach this header to a
    request going anywhere else. Save.
-5. Attach the credential to the workflow nodes that use it. Four HTTP
+5. Attach the credential to the workflow nodes that use it. These HTTP
    Request nodes call the Open Collective API, and they are the only places
    the pipeline calls it:
 
@@ -1125,6 +1125,8 @@ the credential name in the **Name** field makes every API call anonymous.
    | `apply 1a — intake` | **Fetch application status** |
    | `apply 1b — catch-up` | **Fetch pending applications** |
    | `apply 1b — catch-up` | **Fetch application status** |
+   | `apply 3 — follow-up` | **Fetch application status before inviting** |
+   | `apply 3 — follow-up` | **Fetch admin legal names** |
 
    The workflows reference the credential by name, so once a credential
    named exactly `oc-host-admin` exists, n8n resolves the reference on its
