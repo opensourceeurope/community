@@ -97,9 +97,24 @@ missing or not connected, and recommend installing or enabling it and setting
 
 The OSE-specific invariants on top of that skill:
 
-- **The AI review is advisory only.** No workflow may approve, reject or close
-  an application. A person does that on Open Collective, per the
+- **The AI review is advisory only.** No workflow decides on an application. A
+  person approves or rejects, on Open Collective or by pressing Confirm in
+  apply 6's Slack dialog, which calls Open Collective for them, per the
   [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
+  apply 6 is the only caller of `processHostApplication`, and only on a
+  signed Confirm from a Slack user in `SLACK_DECIDERS`. Nothing may call it on
+  a schedule, a model's output or any other trigger.
+- **apply 6 trusts nothing it has not checked, in this order.** The Slack
+  signature over the raw body with the `slack-signing-secret` credential, made
+  less than five minutes ago, comes before any other node. The clicker is
+  checked against `SLACK_DECIDERS` on the click, the dialog and Confirm, empty
+  meaning nobody. The button carries only the slug and the dialog shows only
+  the row. Confirm claims the row and re-checks the application is pending on
+  Open Collective before deciding. It asks Open Collective with no `message`,
+  so OSE's only email is the one apply 1a or 1b sends, and that email uses
+  `decision_email_body` only when `decision_email_for` equals the decision
+  recorded. `DRY_RUN` holds that email back, never the decision or the note,
+  so rehearse apply 6 on a test collective only.
 - **No address column is ever given to the model.** The intake review sees the
   public Open Collective page, the apply 5 summary also the form answers and
   README. Render nodes select a fixed key list, never the whole row, and leave
@@ -185,12 +200,15 @@ The OSE-specific invariants on top of that skill:
   forward only. Writes are idempotent: insert only for a new slug, and guard
   terminal updates on the current stage.
 - **A stage claims its row before it does the work.** Before the first expensive
-  step (the model call in apply 2 and apply 5, the email in apply 3), it stamps
+  step (the model call in apply 2 and apply 5, the email in apply 3, the Open
+  Collective decision in apply 6), it stamps
   its claim column with an update filtered on the value it just read, null
   included. A non-empty result means this run won the row. An empty one means it
-  is skipped in silence. Otherwise sweeps on one cron work rows twice. A claim
-  older than `STALE_CLAIM_MINUTES` is claimable again. The claim columns are in
-  `automation/docs/data-tables.md`.
+  is skipped, in silence for a sweep and with a thread reply in apply 6, whose
+  person is waiting. Otherwise sweeps on one cron work rows twice. A claim
+  older than `STALE_CLAIM_MINUTES` is claimable again. Only apply 6 ever clears
+  its claim, when Open Collective refused the decision. The claim columns are
+  in `automation/docs/data-tables.md`.
 - **The column table in `automation/docs/data-tables.md` builds the data
   table.** `automation/scripts/create-data-table.py` creates `ose_applications`
   from it, so document a column a workflow writes in the same change.

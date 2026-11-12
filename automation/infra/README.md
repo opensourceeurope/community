@@ -33,6 +33,7 @@ all three containers.
 | Upgrade n8n | [Upgrading n8n](#upgrading-n8n) |
 | Give the workflows Open Collective access | [The Open Collective host-admin credential](#the-open-collective-host-admin-credential) |
 | Let the workflows post to Slack | [The Slack credential](#the-slack-credential) |
+| Let reviewers approve or reject from Slack | [Deciding from Slack](#deciding-from-slack) |
 | Let the workflows send email | [The SMTP credential](#the-smtp-credential) |
 | Ship a workflow or infra change from `main` | [Deploying on merge](#deploying-on-merge) |
 | Find out when a deploy or backup fails | [Alerts when the box fails](#alerts-when-the-box-fails) |
@@ -408,8 +409,8 @@ that: a copy of this system somewhere else, or a rebuild with no dump.
 |---|---|---|
 | OVHcloud | the VPS and the DNS zone for both hostnames | `~/.ovh.conf` on your own machine |
 | Scaleway | the model behind the review and the summary, and the backup bucket | `AI_API_KEY` in `.env`, and `~/.config/scw/config.yaml` on your own machine |
-| Open Collective | an admin of the host account, for its API token | the n8n credential `oc-host-admin` |
-| Slack | an app with a bot token, invited to the reviewers' channel | the n8n credential `slack-bot`, and `~/.slack-bot-token` on the box |
+| Open Collective | an admin of the host account, for its API tokens | the n8n credentials `oc-host-admin` and `oc-host-decide` |
+| Slack | an app with a bot token, invited to the reviewers' channel | the n8n credentials `slack-bot` and `slack-signing-secret`, and `~/.slack-bot-token` on the box |
 | Proton Mail | an SMTP token for the sending address | the n8n credential `smtp-proton` |
 | a shared password vault | the encryption key, the backup decryption key and the bucket key | the vault |
 | an uptime service | an outside check on the applicant hostname | that service's account |
@@ -483,8 +484,9 @@ The script ends with the steps it cannot do for you. Do them in this order:
    python3 automation/scripts/create-data-table.py
    ```
 
-5. Create the n8n credentials `oc-host-admin`, `slack-bot` and `smtp-proton`,
-   as the credential sections below describe. The workflows find them by those
+5. Create the n8n credentials `oc-host-admin`, `oc-host-decide`, `slack-bot`,
+   `slack-signing-secret` and `smtp-proton`, as the credential sections below
+   describe. The workflows find them by those
    names.
 6. Set `AI_API_KEY`, `SLACK_CHANNEL`, `SMTP_FROM` and `DRY_RUN_RECIPIENT` in
    `.env`, as in
@@ -1220,9 +1222,10 @@ person knows the app already exists instead of creating a second one.
    that Slack sends to n8n, and the pipeline never receives Slack events.
 4. Set **Allowed HTTP Request Domains** to **Specific domains** and enter
    `slack.com`. This setting decides where the credential may be sent when
-   it is picked inside an HTTP Request or GraphQL node. Nothing in the
-   pipeline does that, so the list exists only to stop a future HTTP
-   Request node with a wrong URL from sending this token to another host.
+   it is picked inside an HTTP Request or GraphQL node, as the weekly digest
+   and apply 6 do to call Slack methods the Slack node lacks. The list stops
+   an HTTP Request node with a wrong URL from sending this token to another
+   host.
    Do not choose **None**: n8n's own connection test runs through the same
    path, so **None** fails the test with "This credential is configured to
    prevent use within an HTTP Request node" even though the token is fine.
@@ -1232,8 +1235,9 @@ person knows the app already exists instead of creating a second one.
    incompletely or the app was not installed to the workspace. A success
    proves only that the token is valid. The scope and the channel are
    proven in [Confirm by effect](#confirm-by-effect-1).
-6. Attach the credential to the twenty-two Slack nodes. They are the only
-   places the workflows talk to Slack, and every one of them needs it:
+6. Attach the credential to every Slack node, and to the HTTP Request nodes
+   that call Slack. They are the only places the workflows talk to Slack, and
+   every one of them needs it:
 
    | Workflow | Node |
    |---|---|
@@ -1257,7 +1261,12 @@ person knows the app already exists instead of creating a second one.
    | `apply 3 — follow-up` | **React with an alarm on the parent** |
    | `apply 4 — application form` | **Reply that the form was submitted** |
    | `apply 4 — application form` | **React that a decision is needed** |
+   | `apply 4 — application form` | **Post the decision buttons** |
    | `apply 5 — application summary` | **Reply with the summary in thread** |
+   | `apply 6 — decision from Slack` | **Open the decision dialog** |
+   | `apply 6 — decision from Slack` | **Reply with the Slack decision in thread** |
+   | `ops — weekly digest of open applications in Slack` | **Look up the Slack workspace** |
+   | `ops — weekly digest of open applications in Slack` | **Post weekly digest to Slack** |
    | `ops — alert Slack when any apply workflow fails` | **Post failure alert to Slack** |
 
    Open each workflow, open the node, pick `slack-bot` under
@@ -1320,6 +1329,108 @@ Tokens**, then **Install to Workspace** again. Slack issues a new
 credential in n8n and save, and write it into `~/.slack-bot-token` on the box.
 The nodes reference the credential by name, so nothing else changes. The old
 token stops working the moment it is revoked, so do these steps together.
+
+## Deciding from Slack
+
+Once an applicant submits the form, apply 4 posts **Approve…** and
+**Reject…** buttons in the application's thread. A click opens a dialog with
+the closing email prefilled for editing and a field for a private note, then a
+view showing both for confirmation. Confirm asks Open Collective to approve or
+reject, posts the note on the application for host admins only, and replies in
+the thread. apply 1a or 1b then records the decision and sends the email as for
+a decision made on Open Collective.
+
+Slack sends every click and dialog to `apply 6 — decision from Slack`, at
+`https://{N8N_HOST}/webhook/slack-interactions`. The admin host already lets
+`/webhook/*` through, so no Caddy change is involved. The webhook is public,
+and what keeps it safe is the signature: apply 6 refuses every request whose
+`X-Slack-Signature` does not match the app's signing secret, or whose timestamp
+is more than five minutes old, before it reads anything else.
+
+Four things make it work. Set them up in this order, because the Slack app
+should only point at apply 6 once apply 6 can check what Slack sends.
+
+### The signing secret credential
+
+The signing secret is on the Slack app's **Basic Information** page, under
+**App Credentials**, as **Signing Secret**. It is not the bot token and not
+the client secret.
+
+1. In the n8n editor, open **Credentials** and create a credential of type
+   **Crypto**.
+2. Rename it, by its title, to exactly `slack-signing-secret`.
+3. Paste the signing secret into **Hmac Secret**. Leave every other field
+   empty. Save.
+
+The node **Sign with the Slack secret** in apply 6 uses it. Nothing else does.
+
+### The Open Collective decision credential
+
+apply 6 decides with a token of its own, separate from `oc-host-admin`, so the
+token every sweep uses stays one that never writes. Open Collective shows the
+token's owner as the person who approved or rejected and as the author of the
+note, whoever pressed Confirm. That is why the note and the thread reply name
+the person who pressed it.
+
+1. Log in to opencollective.com as an admin of the host account, and create a
+   personal token as in
+   [Generate the token](#generate-the-token), with the scopes **host** and
+   **applications**. Open Collective checks the `applications` scope on
+   `hostApplications`, which apply 6 reads to find the application's id.
+2. Create a **Header Auth** credential named exactly `oc-host-decide`, with
+   **Name** `Personal-Token` and the token as **Value**, and allowed domain
+   `api.opencollective.com`, as in [Store it in n8n](#store-it-in-n8n).
+
+Three HTTP Request nodes in apply 6 use it: **Find the pending application**,
+**Decide on Open Collective** and **Post the private note**.
+
+### Who may decide
+
+`SLACK_DECIDERS` in `.env` lists the Slack user ids allowed to decide, comma
+separated. Empty, or unset, lets nobody decide from Slack, and a click then gets
+a reply only the clicker sees. Set it with the recipe in
+[Setting a plain configuration value](#setting-a-plain-configuration-value). A
+person's id is in their Slack profile, behind the three dots, as
+**Copy member ID**.
+
+### Point the Slack app at apply 6
+
+Do this after apply 6 is active, and not before: until then n8n answers the
+webhook with an error and every click fails.
+
+1. On api.slack.com/apps, open the app, then **Interactivity & Shortcuts**.
+2. Switch **Interactivity** on and set **Request URL** to
+   `https://{N8N_HOST}/webhook/slack-interactions`. Save.
+
+No new scope is needed. Opening a dialog with `views.open` needs none, and the
+bot already posts the buttons with `chat:write`.
+
+### Confirm by effect
+
+There is no dry run of a decision. `DRY_RUN` holds back the closing email, but
+the approval or rejection and the note are real. Rehearse on a test
+collective's application to the host, never on a real one.
+
+1. Click **Approve…** in the test application's thread. The dialog opening
+   proves the bot token and the Request URL. Nothing happening, with an alert
+   from the failure workflow, means the dialog took longer than Slack's three
+   seconds or the token was refused.
+2. Press **Review**, then **Approve**. The thread gets a reply naming you, and
+   the application shows as approved on Open Collective with the private note
+   on it. That proves the signing secret, `SLACK_DECIDERS` and the decision
+   token together.
+3. A reply saying nothing was decided carries Open Collective's reason. A
+   refused lookup usually means the token lacks a scope or its owner is not a
+   host admin.
+
+Delete the test application's row afterwards, as for any rehearsal.
+
+### Rotate
+
+Regenerate the signing secret on the app's **Basic Information** page and
+replace **Hmac Secret** in `slack-signing-secret` at once, because every click
+fails between the two. Rotate `oc-host-decide` as in [Rotate](#rotate), on
+that credential instead of `oc-host-admin`.
 
 ## The SMTP credential
 
