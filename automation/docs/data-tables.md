@@ -244,6 +244,13 @@ Not every `{{ placeholder }}` used in `automation/emails/*.md` and
   n8n environment (see `automation/infra/docker-compose.yml` and
   `automation/infra/README.md`). There is no `form_url` column and no token
   for it in this table.
+- `legal_name_note`: a paragraph in the form invitation, filled only when an
+  admin in `oc_admins` has no legal name on Open Collective, and empty
+  otherwise. apply 3 looks each admin up just before sending and keeps only
+  their public names, never a legal name. Nothing about it is stored. A legal
+  name is a reminder, never a condition, so a failed lookup or a token
+  without the `account` scope leaves the paragraph out and says so in the
+  Slack thread.
 - `collective_name`, `ai_applicant_message` and the rest of the template
   placeholders come straight from the columns above.
 

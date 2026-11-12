@@ -27,4 +27,6 @@ you run, and it does not ask you for a repository or a licence.
 
 Questions or disagreement? Reply to this email and a reviewer will read it.
 
+{{ legal_name_note }}
+
 — {{ org_name }}
