@@ -54,6 +54,7 @@
       },
       "credentials": {
         "crypto": {
+          "id": "z66dCL0Pawpcl8cw",
           "name": "slack-signing-secret"
         }
       }
