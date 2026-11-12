@@ -511,7 +511,7 @@
             {
               "fieldType": "html",
               "elementName": "",
-              "html": "<p>A collective is best run by more than one admin, so that it never depends on a single person. If someone else can share the work, give us their name and email.</p>"
+              "html": "<p>A collective is best run by more than one admin, so that it never depends on a single person. If someone else can share the work, give us their name and email.</p><p>A second admin is optional, with one exception. If an admin will invoice the collective for paid work, you need a second admin before that can happen. If an admin only needs to be paid back for costs they covered, one admin is enough.</p>"
             },
             {
               "fieldLabel": "Name of a second admin (optional)",
