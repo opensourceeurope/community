@@ -1367,8 +1367,10 @@ The node **Sign with the Slack secret** in apply 6 uses it. Nothing else does.
 
 ### The Open Collective decision credential
 
-apply 6 decides with a token of its own, separate from `oc-host-admin`, so the
-token every sweep uses stays one that never writes. Open Collective shows the
+apply 6 decides through a credential of its own, so revoking it stops decisions
+from Slack and nothing else. It is not a security boundary: the `host` scope on
+`oc-host-admin` permits the same writes. The same token may serve both when its
+owner should appear as the approver. Open Collective shows the
 token's owner as the person who approved or rejected and as the author of the
 note, whoever pressed Confirm. That is why the note and the thread reply name
 the person who pressed it.
