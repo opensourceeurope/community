@@ -1267,6 +1267,61 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// The admin page asked where each admin lives, under labels it built from the row, and\n// Form page 6 asked again so the applicant could correct it. This collects those answers\n// into admin_countries, one line per admin, and passes the page 6 answers on untouched for\n// Record submission.\n//\n// The labels are computed, so no static check can see a typo in one. adminLabel is spelled\n// identically in Form page admins, Form page 6 and here, and\n// automation/test/admin-details.py fails when the three drift apart. Page 6 is read first\n// with ??, so an answer the applicant cleared there stays cleared.\n//\n// admin_countries carries names, so it is a column of its own and never one of the\n// answers: the summary model reads answers, and check 9 keeps it away from this column.\nconst ADULT = 'Are all admins of the collective at least 18 years old?';\nconst OTHER = 'Any other admins we did not list, and where do they live?';\nconst FALLBACK = 'In which country does each admin live?';\nconst adminName = (a) => String(a.name || '').replace(/[<>]/g, '').trim() || String(a.slug); const adminLabel = (a) => 'Where does ' + adminName(a) + ' (@' + String(a.slug) + ') live?';\nconst parseAdmins = (value) => {\n  let list = null; try { list = value ? JSON.parse(value) : null; } catch (error) { list = null; } return Array.isArray(list) ? list.filter((a) => a && a.slug) : []; };\n\nconst row = $('Read the stored answers again').item.json;\nconst page = $('Form page admins').item.json;\nconst answer = (label) => String($json[label] ?? page[label] ?? '').trim();\n\nconst admins = parseAdmins(row.oc_admins);\nlet adminCountries = answer(FALLBACK);\nif (admins.length) {\n  const lines = admins.map((admin) => `${adminName(admin)} (@${admin.slug}): ${answer(adminLabel(admin))}`.trimEnd());\n  const other = answer(OTHER);\n  if (other) lines.push(`Other admins: ${other}`);\n  adminCountries = lines.join('\\n');\n}\n\nreturn { json: { ...$json, admin_countries: adminCountries, admins_adult: answer(ADULT) } };"
       }
+    },
+    {
+      "id": "5bf7fe01-8132-4d0c-b597-ef00af9a67d1",
+      "name": "Render decision buttons",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5072,
+        112
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// The Approve and Reject buttons apply 6 answers. They go in a reply of their own, after\n// the answers, so the long submission reply can be split into as many messages as it needs\n// without the buttons landing in the middle. This node runs on a branch beside the hand-off\n// to apply 5, so a failure here never costs the application its summary.\n//\n// Each button carries the slug and nothing else. apply 6 reads everything it shows from\n// the row, so a button in an old thread or a forged payload decides nothing by itself:\n// apply 6 checks the signature, the clicker and the row's stage before it opens a dialog.\n// The slug is Open Collective's own identifier, never shown as text here.\nconst first = $('Render submission thread reply').first();\nif (!first || !first.json.channel || !first.json.thread_ts || !first.json.slug) return [];\nconst { slug, channel, thread_ts } = first.json;\nconst text = ':ballot_box_with_check: Ready for a decision. Approve or reject here, or on Open Collective as before. Either way the closing email goes out once Open Collective has the decision.';\nconst blocks = [\n  { type: 'section', text: { type: 'mrkdwn', text } },\n  { type: 'actions', block_id: 'ose_decision', elements: [\n    { type: 'button', action_id: 'ose_decide_approve', style: 'primary', value: slug,\n      text: { type: 'plain_text', text: 'Approve…' } },\n    { type: 'button', action_id: 'ose_decide_reject', style: 'danger', value: slug,\n      text: { type: 'plain_text', text: 'Reject…' } },\n  ] },\n];\nreturn [{ json: { slug, channel, thread_ts, text, blocks } }];\n"
+      }
+    },
+    {
+      "id": "7a8e516a-65d1-4404-9832-5cab8d308aeb",
+      "name": "Post the decision buttons",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        5280,
+        112
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "messageType": "block",
+        "blocksUi": "={{ JSON.stringify({ blocks: $json.blocks }) }}",
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "ff9d128f-2788-4179-9c84-f4b485abd138",
+      "disabled": false
     }
   ],
   "connections": {
@@ -1537,6 +1592,11 @@
             "node": "Ask apply 5 for a summary now",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Render decision buttons",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1641,6 +1701,17 @@
         [
           {
             "node": "Record submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render decision buttons": {
+      "main": [
+        [
+          {
+            "node": "Post the decision buttons",
             "type": "main",
             "index": 0
           }

@@ -567,5 +567,23 @@
         }
       ]
     }
+  },
+  "Render decision buttons": {
+    "feeds": {
+      "Render submission thread reply": [
+        {
+          "slug": "sample-collective",
+          "channel": "C0SAMPLE",
+          "thread_ts": "1730000000.000100",
+          "text": ":clipboard: *Sample Collective* submitted the application form and is ready for evaluation."
+        },
+        {
+          "slug": "sample-collective",
+          "channel": "C0SAMPLE",
+          "thread_ts": "1730000000.000100",
+          "text": "_continued, 2 of 2_\n..."
+        }
+      ]
+    }
   }
 }
