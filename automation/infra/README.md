@@ -719,8 +719,8 @@ Create the key in the n8n UI under **Settings**, **n8n API**. Where the dialog
 offers scopes, give it `workflow:list`, `workflow:read`, `workflow:create`,
 `workflow:update`, `dataTable:read`, `dataTableColumn:create` and
 `execution:list`, and nothing else. `workflow:create` lets the deploy add a
-workflow a merge brings, inactive. The two data table scopes let it add the
-columns a merge brings, as
+workflow a merge brings, inactive. `dataTable:read` and
+`dataTableColumn:create` let it add the columns a merge brings, as
 [What an infra change does](#what-an-infra-change-does) describes.
 `execution:list` lets the recovery check read whether a run failed, as
 [When it works again](#when-it-works-again) describes. A key
@@ -1911,14 +1911,16 @@ failure before it, so an outage that failed five hourly runs posts five alerts
 and one recovery. A workflow that fails, works and fails again between two
 checks posts no recovery, since the newer alert is the one that holds.
 
-A run started by hand counts neither way, the same as for the handler. The
+A test run from the editor counts neither way, the same as for the handler. A
+retry from the executions list counts, since a retry that succeeds is a
+recovery. The
 first run on a new box records where each history ends and posts nothing, so
 installing it never replays old failures. What it remembers is
 `~/.local/state/ose-workflow-recovery/state.json`. Deleting the file costs at
 most the recovery message of a failure open at that moment.
 
-When n8n does not answer, or answers 5xx as it does during an upgrade, the
-check skips the run and reads the same history next time. When it cannot read
+When n8n does not answer, answers too slowly or answers 5xx, as it can during
+an upgrade, the check skips the run and reads the same history next time. When it cannot read
 at all, such as with a key that lacks `execution:list`, or cannot post, the unit
 fails and `ose-alert@` posts that once, as for the other timers. To run it by
 hand on the box:

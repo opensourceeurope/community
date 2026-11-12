@@ -45,6 +45,9 @@ class Fake(http.server.BaseHTTPRequestHandler):
     workflows = []
     runs = {}
     down = False
+    drop_n8n = False
+    drop_slack_for = None
+    no_status = False
     executions_forbidden = False
     slack_ok = True
     posted = []
@@ -60,7 +63,14 @@ class Fake(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def drop(self):
+        # A reply that breaks off: urllib raises RemoteDisconnected, not URLError.
+        self.close_connection = True
+        self.connection.close()
+
     def do_GET(self):
+        if Fake.drop_n8n:
+            return self.drop()
         if Fake.down:
             return self.reply(503, {"message": "Service unavailable"})
         if self.headers.get("X-N8N-API-KEY") != "test-key":
@@ -73,6 +83,8 @@ class Fake(http.server.BaseHTTPRequestHandler):
             wid = self.path.split("workflowId=")[1].split("&")[0]
             Fake.read.append(wid)
             newest_first = sorted(Fake.runs.get(wid, []), key=lambda r: -int(r["id"]))
+            if Fake.no_status:
+                newest_first = [dict((k, v) for k, v in r.items() if k != "status") for r in newest_first]
             return self.reply(200, {"data": newest_first, "nextCursor": None})
         return self.reply(404, {"message": "not found"})
 
@@ -80,6 +92,8 @@ class Fake(http.server.BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if self.headers.get("Authorization") != "Bearer xoxb-test":
             return self.reply(200, {"ok": False, "error": "invalid_auth"})
+        if Fake.drop_slack_for and Fake.drop_slack_for in body["text"]:
+            return self.drop()
         if not Fake.slack_ok:
             return self.reply(200, {"ok": False, "error": "not_in_channel"})
         Fake.posted.append(body)
@@ -234,6 +248,42 @@ def main():
         code, out = run()
         check("the next run posts the recovery from what the aborted runs left unread",
               code == 0 and len(Fake.posted) == 1 and "executions/24" in Fake.posted[0]["text"], out)
+
+        # Both workflows recover in one run, and Slack drops the second post.
+        Fake.runs["s1"] += [run_(25, "error", "2026-11-12T13:00:00.000Z"),
+                            run_(26, "success", "2026-11-12T13:10:00.000Z")]
+        Fake.runs["r1"] += [run_(27, "error", "2026-11-12T13:00:00.000Z"),
+                            run_(28, "success", "2026-11-12T13:10:00.000Z")]
+        Fake.drop_slack_for = "/workflow/r1/"
+        code, out = run()
+        Fake.drop_slack_for = None
+        check("a post that breaks off exits 1 rather than a traceback",
+              code == 1 and "Traceback" not in out and "could not reach Slack" in out, out)
+        check("the recovery posted before it was kept", len(Fake.posted) == 1
+              and "executions/26" in Fake.posted[0]["text"] and saved()["s1"]["failure"] is None, out)
+        code, out = run()
+        check("the next run posts only the one that broke off",
+              code == 0 and len(Fake.posted) == 1 and "executions/28" in Fake.posted[0]["text"], out)
+
+        Fake.runs["s1"].append(run_(29, "error", "2026-11-12T14:00:00.000Z"))
+        before = saved()
+        Fake.drop_n8n = True
+        code, out = run()
+        Fake.drop_n8n = False
+        check("an n8n reply that breaks off exits 0 and moves nothing on",
+              code == 0 and "did not answer" in out and saved() == before, out)
+
+        Fake.no_status = True
+        code, out = run()
+        Fake.no_status = False
+        check("runs without a status are a check that could not run, not silence",
+              code == 2 and "no status" in out, out)
+
+        with open(state, "w") as handle:
+            json.dump([], handle)
+        code, out = run()
+        check("a state file that is not an object exits 2 and says what to do",
+              code == 2 and "Delete it" in out and "Traceback" not in out, out)
 
         if os.path.isdir(PYCACHE):
             shutil.rmtree(PYCACHE)

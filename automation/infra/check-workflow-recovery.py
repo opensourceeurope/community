@@ -47,6 +47,7 @@ N8N_API_KEY_FILE, by default ~/.n8n-api-key. The same key the deploy uses.
 
     check-workflow-recovery.py [repo root]
 """
+import http.client
 import importlib.util
 import json
 import os
@@ -54,7 +55,6 @@ import re
 import stat
 import sys
 import tempfile
-import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -84,8 +84,15 @@ sync = _load("sync_workflows", "sync-workflows.py")
 inactive = _load("check_inactive_workflows", "check-inactive-workflows.py")
 
 
+# urllib wraps a failure to connect in URLError, which sync.call reports as
+# "cannot reach", but not a reply that times out or breaks off halfway.
+DROPPED = (TimeoutError, ConnectionError, http.client.HTTPException)
+
+
 def unreachable(error):
     """An n8n that is down or restarting, rather than one refusing the key."""
+    if isinstance(error, DROPPED):
+        return True
     text = str(error)
     return text.startswith("cannot reach") or re.match(r"HTTP 5\d\d ", text) is not None
 
@@ -95,11 +102,17 @@ def executions(base, key, workflow_id):
     path = "/api/v1/executions?" + urllib.parse.urlencode(
         {"workflowId": workflow_id, "limit": PAGE, "includeData": "false"})
     try:
-        return sync.call(base, key, "GET", path).get("data", [])
+        runs = sync.call(base, key, "GET", path).get("data", [])
     except sync.ApiError as error:
         if str(error).startswith("HTTP 403 "):
             raise sync.ApiError("%s. The key needs the execution:list scope" % error)
         raise
+    # Every run is filtered on these, so an n8n that stopped returning them
+    # would make this check report nothing, forever, instead of failing.
+    if runs and not any(r.get("status") and r.get("stoppedAt") for r in runs):
+        raise sync.ApiError("the executions of workflow %s carry no status or stoppedAt, "
+                            "so this check cannot read them" % workflow_id)
+    return runs
 
 
 def ended(run):
@@ -201,7 +214,7 @@ def post(token, channel, text):
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             data = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, ValueError) as error:
+    except (OSError, http.client.HTTPException, ValueError) as error:
         return "could not reach Slack: %s" % getattr(error, "reason", error)
     return None if data.get("ok") else "Slack refused the message: %s" % data.get("error", "unknown error")
 
@@ -214,9 +227,12 @@ def state_path():
 def load_state(path):
     try:
         with open(path) as handle:
-            return json.load(handle)
+            state = json.load(handle)
     except FileNotFoundError:
         return {}
+    if not isinstance(state, dict):
+        raise ValueError("%s does not hold an object. Delete it, and the next run starts over" % path)
+    return state
 
 
 def save_state(path, state):
@@ -235,16 +251,20 @@ def main():
         key = inactive.read_key()
         names = watched(sync.load_exports(os.path.join(root, EXPORTS)))
         state = load_state(path)
+    except (OSError, ValueError, sync.ApiError) as exc:
+        print("the workflow recovery check could not run: %s" % exc)
+        return 2
+    try:
         live = [w for w in sync.list_workflows(base, key)
                 if w["name"] in names and not w.get("isArchived")]
         found = [(w, walk(state.get(w["id"]), executions(base, key, w["id"]))) for w in live]
-    except sync.ApiError as exc:
+    except (sync.ApiError,) + DROPPED as exc:
         if unreachable(exc):
             print("n8n did not answer, so nothing was read. The next run reads the same history: %s" % exc)
             return 0
         print("the workflow recovery check could not run: %s" % exc)
         return 2
-    except (OSError, ValueError) as exc:
+    except ValueError as exc:
         print("the workflow recovery check could not run: %s" % exc)
         return 2
 
@@ -263,6 +283,10 @@ def main():
                 refused.append("%s: %s" % (workflow["name"], problem))
                 continue
             print("posted: %s recovered with execution %s" % (workflow["name"], recovery[1]["id"]))
+            # Saved at once, so a later failure in this run cannot post it twice.
+            state[workflow["id"]] = after
+            save_state(path, state)
+            continue
         state[workflow["id"]] = after
 
     open_now = sorted(w["name"] for w, (after, _) in found if after["failure"])
