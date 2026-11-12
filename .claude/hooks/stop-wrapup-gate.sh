@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Stop hook: a wrap-up gate that checks docs and automation still match the code.
 #
-# It blocks the stop ONCE, and only when THIS SESSION actually changed something.
-# "This session" is measured against the baseline session-baseline.sh records at
-# SessionStart. It is deliberately NOT the branch diff against main: that reports the
+# It blocks a stop only when something changed since the last time it looked. The
+# first comparison is against the baseline session-baseline.sh records at
+# SessionStart. Every time the gate fires it moves that baseline to the current
+# state, so the next stop is quiet unless more files changed in between. Without
+# that it fired at every stop for the rest of a session after a single edit. It is deliberately NOT the branch diff against main: that reports the
 # same long file list at every stop — in sessions that only read files too — which is
 # noise rather than a review, and it buries the answer the user actually asked for.
 #
@@ -62,15 +64,13 @@ automation_changed=$(printf '%s\n' "$changed" | grep -E "$AUTOMATION")
 
 [ -z "$code_changed" ] && [ -z "$docs_changed" ] && [ -z "$automation_changed" ] && exit 0
 
-reason="WRAP-UP GATE (fires once, then lets you finish). You changed files this session — check the docs still match before stopping.
+# The next stop compares against what is reviewed now, so the gate fires once per
+# batch of changes rather than at every stop that follows.
+printf '%s %s\n' "$head_now" "$tree_now" > "$baseline" 2>/dev/null
 
-Changed since this session started:
-$(printf '%s\n' "$changed" | head -20)
+count=$(printf '%s\n' "$changed" | grep -c .)
+reason="Wrap-up gate: new changes since the last check. Files changed this session ($count), e.g.
+$(printf '%s\n' "$changed" | head -8)
+Check the docs that describe them (READMEs, automation/docs/, .env.example, AGENTS.md) against the diff: env and credential names, DRY_RUN, what sends an email or Slack message, the advisory-only AI review. Fix any drift and name it in one sentence. If none, finish without mentioning this check."
 
-Open the docs describing the behaviour, contract or config you touched — automation/README.md, automation/infra/README.md, automation/docs/, automation/.env.example, README.md — and read them against the real diff, not from memory. Drift that matters here: env var and credential names; the DRY_RUN gate and anything else deciding whether a real applicant is contacted; the order of the application flow and what triggers an email, a Slack message or a Freshdesk update; which Open Collective webhooks are subscribed; the AI review inputs and verdict shape, and that it stays advisory only (approve/reject is human, on Open Collective, per AI-POLICY.md); commands and examples that are now wrong.
-
-Also ask once: did anything this session make a hook, a skill, a CI workflow or an AGENTS.md rule wrong, incomplete or missing? Fix it now if so.
-
-Then fix whatever drifted. If you changed something, name it in ONE short sentence. If nothing drifted, just finish — do not narrate that you ran this check."
-
-jq -n --arg r "$reason" '{ decision: "block", reason: $r, systemMessage: "Wrap-up gate: checking whether changes from this session left docs or automation stale." }'
+jq -n --arg r "$reason" '{ decision: "block", reason: $r }'
