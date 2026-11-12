@@ -250,7 +250,7 @@ Not every `{{ placeholder }}` used in `automation/emails/*.md` and
   only their public names. No column stores the result, but the lookup's
   response, legal names included, stays in that execution's saved data, and
   so in backups, until n8n prunes it. A legal
-  name is a reminder, never a condition, so a failed lookup or a token
+  name is asked for firmly but never a condition, so a failed lookup or a token
   without the `account` scope leaves the paragraph out and says so in the
   Slack thread.
 - `collective_name`, `ai_applicant_message` and the rest of the template

@@ -1087,7 +1087,7 @@ authenticates fine and then every fetch fails with an authorization error.
    that intake reads, `email` for the applicant admin addresses that intake
    stores as the contact address, and `account` lets apply 3 see whether each
    admin of an applying collective has a legal name on their profile. Without
-   `account` the invitation leaves out the legal name reminder and the Slack
+   `account` the invitation leaves out the legal name request and the Slack
    thread says the check did not run. The admin role above is the real gate
    on application data, so additional scopes add exposure without adding
    capability.
