@@ -24,4 +24,6 @@ other host really is the better fit, applying there instead is completely fine.
 
 Questions or disagreement? Reply to this email and a reviewer will read it.
 
+{{ legal_name_note }}
+
 — {{ org_name }}

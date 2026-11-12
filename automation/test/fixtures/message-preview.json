@@ -169,11 +169,34 @@
       "Render form invitation": [
         {
           "slug": "sample-collective",
-          "advisory_note_included": false
+          "advisory_note_included": false,
+          "legal_name_check": "checked",
+          "legal_name_check_reason": "",
+          "admins_without_legal_name": []
         },
         {
           "slug": "quiet-garden",
-          "advisory_note_included": true
+          "advisory_note_included": true,
+          "legal_name_check": "checked",
+          "legal_name_check_reason": "",
+          "admins_without_legal_name": [
+            "Anna Example",
+            "<!channel> New Admin"
+          ]
+        },
+        {
+          "slug": "scopeless",
+          "advisory_note_included": false,
+          "legal_name_check": "no_scope",
+          "legal_name_check_reason": "",
+          "admins_without_legal_name": []
+        },
+        {
+          "slug": "failed-check",
+          "advisory_note_included": true,
+          "legal_name_check": "failed",
+          "legal_name_check_reason": "Something went wrong <here>",
+          "admins_without_legal_name": []
         }
       ],
       "Mark form_invited": [
@@ -186,6 +209,16 @@
           "slug": "quiet-garden",
           "slack_channel_id": "C0SAMPLE",
           "slack_thread_ts": "1730000000.000200"
+        },
+        {
+          "slug": "scopeless",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000300"
+        },
+        {
+          "slug": "failed-check",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000400"
         }
       ]
     }
@@ -365,7 +398,7 @@
   },
   "Render form invitation": {
     "feeds": {
-      "Still pending on Open Collective?": [
+      "Find admins without a legal name": [
         {
           "org": "OSE",
           "collective_name": "Sample Collective",
@@ -373,7 +406,10 @@
           "applicant_email": "applicant@example.org",
           "slug": "verdict-fits",
           "ai_verdict": "fits",
-          "ai_applicant_message": ""
+          "ai_applicant_message": "",
+          "legal_name_check": "checked",
+          "legal_name_check_reason": "",
+          "admins_without_legal_name": []
         },
         {
           "org": "OSE",
@@ -383,7 +419,12 @@
           "slug": "verdict-wrong-host",
           "ai_verdict": "wrong_host",
           "contact_email": "contact@example.org",
-          "ai_applicant_message": "The page describes a local community group, which another fiscal host may suit better."
+          "ai_applicant_message": "The page describes a local community group, which another fiscal host may suit better.",
+          "legal_name_check": "checked",
+          "legal_name_check_reason": "",
+          "admins_without_legal_name": [
+            "Anna Example"
+          ]
         },
         {
           "org": "OSE",
@@ -392,7 +433,14 @@
           "applicant_email": "applicant@example.org",
           "slug": "verdict-not-open-source",
           "ai_verdict": "not_open_source",
-          "ai_applicant_message": "The page does not mention any source code or licence.\nIt reads as a consultancy."
+          "ai_applicant_message": "The page does not mention any source code or licence.\nIt reads as a consultancy.",
+          "legal_name_check": "checked",
+          "legal_name_check_reason": "",
+          "admins_without_legal_name": [
+            "Anna Example",
+            "New Admin",
+            "Sam Sample"
+          ]
         },
         {
           "org": "OSE",
@@ -401,7 +449,10 @@
           "applicant_email": "applicant@example.org",
           "slug": "verdict-unclear",
           "ai_verdict": "unclear",
-          "ai_applicant_message": "The page has a name and no description, so it is not clear what the collective does."
+          "ai_applicant_message": "The page has a name and no description, so it is not clear what the collective does.",
+          "legal_name_check": "no_scope",
+          "legal_name_check_reason": "",
+          "admins_without_legal_name": []
         }
       ]
     }

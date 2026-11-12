@@ -280,6 +280,10 @@ The OSE-specific invariants on top of that skill:
   `No collective found with slug <slug>` for the row's own slug, which closes
   that deleted collective as `resigned`. An error about one row must never stop
   the others, so such an exception is matched exactly and covers that row alone.
+  The one read exempt from throwing is apply 3's admin legal name check, which
+  only decides whether the invitation asks for legal names: it reports an error
+  in the Slack thread and sends the invitation without that request, so asking
+  never holds an invitation back.
 - **An outcome the applicant did not ask for tells them nothing.** `approved`
   and `rejected` email the applicant, who is owed the answer, but only once the
   pipeline has invited them to the form. A decision that lands before the
@@ -290,6 +294,10 @@ The OSE-specific invariants on top of that skill:
   a decision, so its branch ends at the data table and Slack thread with no
   email node, and a misread host costs only a row edit. Keep any future outcome
   of this kind on a branch that cannot reach a send.
+- **Asking for a legal name says where to add it.** Any form, email or message
+  telling someone a legal name is needed asks firmly, never as a condition,
+  and ends with where it goes on Open Collective: Dashboard, Settings, Info,
+  the Legal name field.
 - **Timers are derived from timestamps** by the scheduled runs, never from Wait
   nodes.
 - **Config comes from the env vars in `automation/.env.example`.** Credentials

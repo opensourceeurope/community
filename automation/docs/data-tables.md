@@ -36,7 +36,7 @@ with one of the four types.
 | `website_url` | String | intake | First website social link on the collective, if any. An input to the AI review. |
 | `application_message` | String | intake | The message the applicant wrote when applying on OC. Posted into the application's Slack thread by intake, in as many replies as its length needs, and an input to the AI review. When the collective's page carries no repository link, apply 2 also takes a GitHub or GitLab repository link out of it to fetch a README and a licence. |
 | `applicant_email` | String | intake | The application's `customData` contact email when present, otherwise the first collective admin email visible to the host admin. The `collective.apply` webhook payload carries no application data, so intake reads all of this from the API. Personal data. |
-| `oc_admins` | String | intake | The collective's admins as Open Collective shows them publicly, a JSON array of `{slug, name, description, company, socialLinks: [{type, url}], createdAt, adminOfOthers}` taken when the application arrives. `company` is `null` for an organization. `createdAt` is when the admin's profile was made and `adminOfOthers` how many other collectives they administer, `null` for an organization, so the thread can say how established each admin is. Rows stored before those two existed lack them. Empty when the collective lists no admins. apply 2 posts it in the Slack thread, and the form builds one country question per admin from it. Never holds an email address. Personal data. |
+| `oc_admins` | String | intake | The collective's admins as Open Collective shows them publicly, a JSON array of `{slug, name, description, company, socialLinks: [{type, url}], createdAt, adminOfOthers}` taken when the application arrives. `company` is `null` for an organization. `createdAt` is when the admin's profile was made and `adminOfOthers` how many other collectives they administer, `null` for an organization, so the thread can say how established each admin is. Rows stored before those two existed lack them. Empty when the collective lists no admins. apply 2 posts it in the Slack thread, the form builds one country question per admin from it, and apply 3 looks up each admin's legal name from its slugs before the invitation. Never holds an email address. Personal data. |
 | `stage` | String | every workflow, as the application progresses | One of the ten stage values below. |
 | `applied_at` | Date | intake | The application's `createdAt` on Open Collective. |
 | `ai_review_claimed_at` | Date | AI review | When apply 2 took this row to work on. A claim, not a result. See "The three claim columns" below. |
@@ -244,6 +244,15 @@ Not every `{{ placeholder }}` used in `automation/emails/*.md` and
   n8n environment (see `automation/infra/docker-compose.yml` and
   `automation/infra/README.md`). There is no `form_url` column and no token
   for it in this table.
+- `legal_name_note`: a paragraph in the form invitation, filled only when an
+  admin in `oc_admins` has no legal name on Open Collective, and empty
+  otherwise. apply 3 looks each admin up just before sending and passes on
+  only their public names. No column stores the result, but the lookup's
+  response, legal names included, stays in that execution's saved data, and
+  so in backups, until n8n prunes it. A legal
+  name is asked for firmly but never a condition, so a failed lookup or a token
+  without the `account` scope leaves the paragraph out and says so in the
+  Slack thread.
 - `collective_name`, `ai_applicant_message` and the rest of the template
   placeholders come straight from the columns above.
 

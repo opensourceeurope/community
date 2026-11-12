@@ -16,4 +16,6 @@ you give, the better the human review.
 It takes about ten minutes. If anything is unclear, reply to this email and a human will
 get back to you.
 
+{{ legal_name_note }}
+
 — {{ org_name }}

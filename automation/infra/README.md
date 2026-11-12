@@ -1080,12 +1080,17 @@ authenticates fine and then every fetch fails with an authorization error.
 1. Log in to opencollective.com with that account.
 2. Open the personal **Dashboard**, then **For developers**, then
    **Personal tokens**, and create a token.
-3. Select the scopes **host** and **email**, and leave every other scope
-   unselected. A token permits only the scopes selected on it. These two
-   cover what the workflows read: `host` is the scope for fiscal-host data,
-   and `email` covers the applicant admin addresses that intake stores as
-   the contact address. The admin role above is the real gate on application
-   data, so additional scopes add exposure without adding capability.
+3. Select the scopes **host**, **applications**, **email** and **account**,
+   and leave every other scope unselected. A token permits only the scopes
+   selected on it. These cover what the workflows read: `host` is the scope
+   for fiscal-host data, `applications` for the host's list of applications
+   that intake reads, `email` for the applicant admin addresses that intake
+   stores as the contact address, and `account` lets apply 3 see whether each
+   admin of an applying collective has a legal name on their profile. Without
+   `account` the invitation leaves out the legal name request and the Slack
+   thread says the check did not run. The admin role above is the real gate
+   on application data, so additional scopes add exposure without adding
+   capability.
 4. An expiration date is optional. If you set one, put a reminder on it: an
    expired token fails exactly like a revoked one, and every sweep run fails
    until the token is replaced.
@@ -1111,7 +1116,7 @@ the credential name in the **Name** field makes every API call anonymous.
 4. Change **Allowed HTTP Request Domains** from **All** to
    `api.opencollective.com`, so n8n refuses to attach this header to a
    request going anywhere else. Save.
-5. Attach the credential to the workflow nodes that use it. Four HTTP
+5. Attach the credential to the workflow nodes that use it. These HTTP
    Request nodes call the Open Collective API, and they are the only places
    the pipeline calls it:
 
@@ -1121,6 +1126,8 @@ the credential name in the **Name** field makes every API call anonymous.
    | `apply 1a — intake` | **Fetch application status** |
    | `apply 1b — catch-up` | **Fetch pending applications** |
    | `apply 1b — catch-up` | **Fetch application status** |
+   | `apply 3 — follow-up` | **Fetch application status before inviting** |
+   | `apply 3 — follow-up` | **Fetch admin legal names** |
 
    The workflows reference the credential by name, so once a credential
    named exactly `oc-host-admin` exists, n8n resolves the reference on its
