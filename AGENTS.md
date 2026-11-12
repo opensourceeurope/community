@@ -207,8 +207,8 @@ The OSE-specific invariants on top of that skill:
   is skipped, in silence for a sweep and with a thread reply in apply 6, whose
   person is waiting. Otherwise sweeps on one cron work rows twice. A claim
   older than `STALE_CLAIM_MINUTES` is claimable again. Only apply 6 ever clears
-  its claim, when Open Collective refused the decision. The claim columns are
-  in `automation/docs/data-tables.md`.
+  its claim, when Open Collective failed it, and only the value it stamped. The
+  claim columns are in `automation/docs/data-tables.md`.
 - **The column table in `automation/docs/data-tables.md` builds the data
   table.** `automation/scripts/create-data-table.py` creates `ose_applications`
   from it, so document a column a workflow writes in the same change.

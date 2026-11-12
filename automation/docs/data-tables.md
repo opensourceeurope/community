@@ -72,7 +72,7 @@ with one of the four types.
 | `ai_summarised_at` | Date | apply 5 | When the summary was written. |
 | `readme_source` | String | apply 5 | `github`, `gitlab`, `generic` or `none`, so a reviewer can see whether the summary had a README to work from. |
 | `slack_decision_claimed_at` | Date | apply 6 | When a person's Confirm in the Slack decision dialog took this row to decide on. A claim, not a result. See "The claim columns" below. |
-| `slack_decided_by` | String | apply 6 | The Slack user who confirmed a decision in the dialog, as `<@USERID> (name)`. Set just before apply 6 asks Open Collective to decide, cleared again if Open Collective refuses. |
+| `slack_decided_by` | String | apply 6 | The Slack user who confirmed a decision in the dialog, as `<@USERID> (name)`. Set just before apply 6 asks Open Collective to decide. |
 | `decision_email_body` | String | apply 6 | The body of the closing email as the person edited it in the Slack dialog, for this application only. Empty means the decision branch uses the template. |
 | `decision_email_for` | String | apply 6 | `approved` or `rejected`, the decision `decision_email_body` was written for. The decision branch uses the edited body only when this equals the decision Open Collective reports, so a body written for an approval never goes out with a rejection. |
 
@@ -103,10 +103,12 @@ unset, is treated as abandoned and may be claimed again. A run that dies
 partway through therefore delays its application by that window instead of
 stranding it forever.
 
-Only one claim is ever cleared. When Open Collective refuses the decision,
-apply 6 clears `slack_decision_claimed_at` together with `slack_decided_by`,
-`decision_email_body` and `decision_email_for`, because nothing was decided and
-the person should be able to try again at once. Every other claim stays, so a
+Only one claim is ever cleared. When the lookup or the decision call to Open
+Collective fails, apply 6 clears `slack_decision_claimed_at`, filtered on the
+value that run stamped, so the person can try again at once and no run clears
+another's claim. The saved email stays: a decision call that failed may still
+have landed, and `decision_email_for` keeps the email from going out with the
+other decision. Every other claim stays, so a
 row that has been through every stage keeps its timestamps, and `stage`
 remains the record of where the application actually is.
 

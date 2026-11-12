@@ -1347,8 +1347,8 @@ and what keeps it safe is the signature: apply 6 refuses every request whose
 `X-Slack-Signature` does not match the app's signing secret, or whose timestamp
 is more than five minutes old, before it reads anything else.
 
-Four things make it work. Set them up in this order, because the Slack app
-should only point at apply 6 once apply 6 can check what Slack sends.
+Set up the parts below in this order, because the Slack app should only point
+at apply 6 once apply 6 can check what Slack sends.
 
 ### The signing secret credential
 
@@ -1381,8 +1381,9 @@ the person who pressed it.
    **Name** `Personal-Token` and the token as **Value**, and allowed domain
    `api.opencollective.com`, as in [Store it in n8n](#store-it-in-n8n).
 
-Three HTTP Request nodes in apply 6 use it: **Find the pending application**,
-**Decide on Open Collective** and **Post the private note**.
+The HTTP Request nodes in apply 6 that call Open Collective use it:
+**Find the pending application**, **Decide on Open Collective** and
+**Post the private note**.
 
 ### Who may decide
 
@@ -1419,9 +1420,10 @@ collective's application to the host, never on a real one.
    the application shows as approved on Open Collective with the private note
    on it. That proves the signing secret, `SLACK_DECIDERS` and the decision
    token together.
-3. A reply saying nothing was decided carries Open Collective's reason. A
-   refused lookup usually means the token lacks a scope or its owner is not a
-   host admin.
+3. A warning reply carries Open Collective's reason. A refused lookup usually
+   means the token lacks a scope or its owner is not a host admin. After a
+   failed decision call, look at the application on Open Collective before
+   trying again, since a call that timed out may still have landed.
 
 Delete the test application's row afterwards, as for any rehearsal.
 

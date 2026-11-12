@@ -597,7 +597,8 @@
           "note": "Checked the licence.",
           "note_html": "<p>Approved via Slack by sample.admin.</p><p>Checked the licence.</p>",
           "decided_by": "<@U0SAMPLE> (sample.admin)",
-          "user_id": "U0SAMPLE"
+          "user_id": "U0SAMPLE",
+          "allowed": true
         }
       ],
       "Read the row to decide": [
@@ -630,7 +631,8 @@
           "note": "Checked the licence.",
           "note_html": "<p>Approved via Slack by sample.admin.</p><p>Checked the licence.</p>",
           "decided_by": "<@U0SAMPLE> (sample.admin)",
-          "user_id": "U0SAMPLE"
+          "user_id": "U0SAMPLE",
+          "allowed": true
         }
       ],
       "Read the row to decide": [
@@ -674,7 +676,8 @@
           "note": "",
           "note_html": "<p>Approved via Slack by sample.admin.</p><p>Checked the licence.</p>",
           "decided_by": "<@U0SAMPLE> (sample.admin)",
-          "user_id": "U0SAMPLE"
+          "user_id": "U0SAMPLE",
+          "allowed": true
         }
       ],
       "Read the row to decide": [
