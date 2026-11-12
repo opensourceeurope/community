@@ -409,7 +409,7 @@ that: a copy of this system somewhere else, or a rebuild with no dump.
 |---|---|---|
 | OVHcloud | the VPS and the DNS zone for both hostnames | `~/.ovh.conf` on your own machine |
 | Scaleway | the model behind the review and the summary, and the backup bucket | `AI_API_KEY` in `.env`, and `~/.config/scw/config.yaml` on your own machine |
-| Open Collective | an admin of the host account, for its API tokens | the n8n credentials `oc-host-admin` and `oc-host-decide` |
+| Open Collective | an admin of the host account, for its API tokens | the n8n credential `oc-host-admin` |
 | Slack | an app with a bot token, invited to the reviewers' channel | the n8n credentials `slack-bot` and `slack-signing-secret`, and `~/.slack-bot-token` on the box |
 | Proton Mail | an SMTP token for the sending address | the n8n credential `smtp-proton` |
 | a shared password vault | the encryption key, the backup decryption key and the bucket key | the vault |
@@ -484,7 +484,7 @@ The script ends with the steps it cannot do for you. Do them in this order:
    python3 automation/scripts/create-data-table.py
    ```
 
-5. Create the n8n credentials `oc-host-admin`, `oc-host-decide`, `slack-bot`,
+5. Create the n8n credentials `oc-host-admin`, `slack-bot`,
    `slack-signing-secret` and `smtp-proton`, as the credential sections below
    describe. The workflows find them by those
    names.
@@ -1071,8 +1071,9 @@ every step reports success while the key is missing.
 ## The Open Collective host-admin credential
 
 The two intake workflows, `apply 1a — intake` and `apply 1b — catch-up`,
-read pending applications and decisions from the Open Collective GraphQL API.
-They authenticate with a personal token, stored in n8n's credential store
+read pending applications and decisions from the Open Collective GraphQL API,
+and `apply 6 — decision from Slack` approves or rejects through it. They
+authenticate with a personal token, stored in n8n's credential store
 under the name `oc-host-admin`.
 
 ### Generate the token
@@ -1087,9 +1088,9 @@ authenticates fine and then every fetch fails with an authorization error.
    **Personal tokens**, and create a token.
 3. Select the scopes **host**, **applications**, **email** and **account**,
    and leave every other scope unselected. A token permits only the scopes
-   selected on it. These cover what the workflows read: `host` is the scope
-   for fiscal-host data, `applications` for the host's list of applications
-   that intake reads, `email` for the applicant admin addresses that intake
+   selected on it. These cover what the workflows need: `host` is the scope
+   for fiscal-host data and for approving or rejecting from Slack, `applications` for the host's list of applications
+   that intake and apply 6 read, `email` for the applicant admin addresses that intake
    stores as the contact address, and `account` lets apply 3 see whether each
    admin of an applying collective has a legal name on their profile. Without
    `account` the invitation leaves out the legal name request and the Slack
@@ -1133,6 +1134,9 @@ the credential name in the **Name** field makes every API call anonymous.
    | `apply 1b — catch-up` | **Fetch application status** |
    | `apply 3 — follow-up` | **Fetch application status before inviting** |
    | `apply 3 — follow-up` | **Fetch admin legal names** |
+   | `apply 6 — decision from Slack` | **Find the pending application** |
+   | `apply 6 — decision from Slack` | **Decide on Open Collective** |
+   | `apply 6 — decision from Slack` | **Post the private note** |
 
    The workflows reference the credential by name, so once a credential
    named exactly `oc-host-admin` exists, n8n resolves the reference on its
@@ -1365,28 +1369,17 @@ the client secret.
 
 The node **Sign with the Slack secret** in apply 6 uses it. Nothing else does.
 
-### The Open Collective decision credential
+### The Open Collective credential
 
-apply 6 decides through a credential of its own, so revoking it stops decisions
-from Slack and nothing else. It is not a security boundary: the `host` scope on
-`oc-host-admin` permits the same writes. The same token may serve both when its
-owner should appear as the approver. Open Collective shows the
-token's owner as the person who approved or rejected and as the author of the
-note, whoever pressed Confirm. That is why the note and the thread reply name
-the person who pressed it.
+apply 6 decides through `oc-host-admin`, the credential intake already uses,
+in **Find the pending application**, **Decide on Open Collective** and
+**Post the private note**. Its token needs the `host` and `applications`
+scopes, as in [Generate the token](#generate-the-token).
 
-1. Log in to opencollective.com as an admin of the host account, and create a
-   personal token as in
-   [Generate the token](#generate-the-token), with the scopes **host** and
-   **applications**. Open Collective checks the `applications` scope on
-   `hostApplications`, which apply 6 reads to find the application's id.
-2. Create a **Header Auth** credential named exactly `oc-host-decide`, with
-   **Name** `Personal-Token` and the token as **Value**, and allowed domain
-   `api.opencollective.com`, as in [Store it in n8n](#store-it-in-n8n).
-
-The HTTP Request nodes in apply 6 that call Open Collective use it:
-**Find the pending application**, **Decide on Open Collective** and
-**Post the private note**.
+Open Collective shows the token's owner as the person who approved or rejected
+and as the author of the note, whoever pressed Confirm. That is why the note
+and the thread reply name the person who pressed it. To have decisions appear
+under a different account, mint the token from that account.
 
 ### Who may decide
 
@@ -1434,8 +1427,8 @@ Delete the test application's row afterwards, as for any rehearsal.
 
 Regenerate the signing secret on the app's **Basic Information** page and
 replace **Hmac Secret** in `slack-signing-secret` at once, because every click
-fails between the two. Rotate `oc-host-decide` as in [Rotate](#rotate), on
-that credential instead of `oc-host-admin`.
+fails between the two. The Open Collective token rotates as in
+[Rotate](#rotate).
 
 ## The SMTP credential
 
