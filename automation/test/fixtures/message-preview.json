@@ -585,5 +585,107 @@
         }
       ]
     }
+  },
+  "Render the decision reply": {
+    "feeds": {
+      "Read the confirmation": [
+        {
+          "slug": "sample-collective",
+          "decision": "approved",
+          "action": "APPROVE",
+          "email": "Hi,\n\nWelcome on board!",
+          "note": "Checked the licence.",
+          "note_html": "<p>Approved via Slack by sample.admin.</p><p>Checked the licence.</p>",
+          "decided_by": "<@U0SAMPLE> (sample.admin)",
+          "user_id": "U0SAMPLE"
+        }
+      ],
+      "Read the row to decide": [
+        {
+          "slug": "sample-collective",
+          "stage": "awaiting_decision",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        }
+      ],
+      "Post the private note": [
+        {
+          "data": {
+            "createComment": {
+              "id": "comment-1"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "Render the failed decision reply": {
+    "feeds": {
+      "Read the confirmation": [
+        {
+          "slug": "sample-collective",
+          "decision": "approved",
+          "action": "APPROVE",
+          "email": "Hi,\n\nWelcome on board!",
+          "note": "Checked the licence.",
+          "note_html": "<p>Approved via Slack by sample.admin.</p><p>Checked the licence.</p>",
+          "decided_by": "<@U0SAMPLE> (sample.admin)",
+          "user_id": "U0SAMPLE"
+        }
+      ],
+      "Read the row to decide": [
+        {
+          "slug": "sample-collective",
+          "stage": "awaiting_decision",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        }
+      ],
+      "Choose the pending application": [
+        {
+          "ok": true,
+          "application_id": "ha_sample"
+        }
+      ],
+      "Read the decision answer": [
+        {
+          "ok": false,
+          "reason": "Open Collective did not take the decision: <b>already processed</b>"
+        }
+      ],
+      "Release the claim": [
+        {
+          "slug": "sample-collective",
+          "stage": "awaiting_decision",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        }
+      ]
+    }
+  },
+  "Render the refused decision reply": {
+    "feeds": {
+      "Read the confirmation": [
+        {
+          "slug": "sample-collective",
+          "decision": "rejected",
+          "action": "REJECT",
+          "email": "",
+          "note": "",
+          "note_html": "<p>Approved via Slack by sample.admin.</p><p>Checked the licence.</p>",
+          "decided_by": "<@U0SAMPLE> (sample.admin)",
+          "user_id": "U0SAMPLE"
+        }
+      ],
+      "Read the row to decide": [
+        {
+          "slug": "sample-collective",
+          "stage": "approved",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100",
+          "decision": "approved"
+        }
+      ]
+    }
   }
 }
