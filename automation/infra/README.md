@@ -1338,7 +1338,10 @@ token stops working the moment it is revoked, so do these steps together.
 ## Deciding from Slack
 
 Once an applicant submits the form, apply 4 posts **Approve…** and
-**Reject…** buttons in the application's thread. A click opens a dialog with
+**Reject…** buttons in the application's thread. apply 3 posts the same
+buttons with its escalation, when an applicant goes silent after the reminder,
+and a rejection there starts from the email that closes an application for
+lack of a response. A click opens a dialog with
 the closing email prefilled for editing and a field for a private note, then a
 view showing both for confirmation. Confirm asks Open Collective to approve or
 reject, saves the applicant's form answers on the application, where host
