@@ -95,6 +95,9 @@ services:
       FORM_URL_OSE: ${FORM_URL_OSE}
       SMTP_FROM: ${SMTP_FROM}
       SLACK_CHANNEL: ${SLACK_CHANNEL}
+      # Defaulted to empty, which lets nobody decide from Slack, so a box whose .env
+      # predates it keeps deploying.
+      SLACK_DECIDERS: ${SLACK_DECIDERS:-}
     volumes:
       - n8n_data:/home/node/.n8n
 

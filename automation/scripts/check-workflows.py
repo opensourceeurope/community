@@ -85,6 +85,10 @@ CHECKS = """\
    reviewed as text, and a change made to only one of them leaves the file
    describing an email nobody receives. A node with a "Subject: " line the
    check cannot read as such a template fails too, rather than being skipped.
+   A Code node that only shows the copy, such as the Slack dialog in apply 6
+   that prefills the closing email for editing, is held to the same files:
+   each of its templates must match one, though showing a file does not
+   count as sending it.
 """
 
 DATA_TABLE = "ose_applications"
@@ -800,7 +804,10 @@ def check_email_copy(workflows, problems, complete):
         for node in workflow.nodes:
             if node.get("type") == EMAIL_TYPE:
                 renders += [s for s in workflow.predecessors(node.get("name")) if s not in renders]
-        for name in renders:
+        shows = [node.get("name") for node in workflow.nodes
+                 if node.get("type") == CODE_TYPE and node.get("name") not in renders
+                 and SUBJECT_LINE.search((node.get("parameters") or {}).get("jsCode", ""))]
+        for name in renders + shows:
             code = ((workflow.by_name.get(name) or {}).get("parameters") or {}).get("jsCode", "")
             templates = EMAIL_TEMPLATE.findall(code)
             # A template this check cannot read would otherwise be skipped without a word,
@@ -816,7 +823,8 @@ def check_email_copy(workflows, problems, complete):
                      % (len(templates), subjects))
             for template in templates:
                 matches = [file for file, text in copies.items() if text == template.strip()]
-                sent.update(matches)
+                if name in renders:
+                    sent.update(matches)
                 if template.endswith("\\"):
                     fail(problems, workflow, name,
                          "the email whose subject line is %r contains a backtick, which "

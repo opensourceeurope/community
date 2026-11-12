@@ -79,6 +79,16 @@ replace n8n/intake-sweep.json "Welcome on board!" "Welcome aboard!"
 expect "one intake workflow left behind" "oc-events-intake.json: Render decision email: the email whose subject line is"
 
 fresh
+replace emails/decision-approved.md "Welcome on board!" "Welcome aboard!"
+replace n8n/intake-sweep.json "Welcome on board!" "Welcome aboard!"
+replace n8n/oc-events-intake.json "Welcome on board!" "Welcome aboard!"
+expect "the Slack dialog's prefill left behind" "decide-from-slack.json: Render the decision dialog: the email whose subject line is"
+
+fresh
+replace n8n/decide-from-slack.json "Welcome on board!" "Welcome aboard!"
+expect "only the Slack dialog's prefill changed" "decide-from-slack.json: Render the decision dialog: the email whose subject line is"
+
+fresh
 replace n8n/oc-events-intake.json "\`Subject: {{ collective_name }} is approved" "'Subject: ' + \`{{ collective_name }} is approved"
 expect "a template split by concatenation, its file sent by the other workflow" \
   "oc-events-intake.json: Render decision email: check 10 finds 2 email template(s) it can read but 3 'Subject: ' line(s)"

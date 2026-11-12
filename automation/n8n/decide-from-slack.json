@@ -1,0 +1,1381 @@
+{
+  "name": "apply 6 — decision from Slack: approve or reject an application from its thread",
+  "nodes": [
+    {
+      "id": "671c9450-7212-5f58-873e-d923de0cf4d9",
+      "name": "Slack interaction",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "slack-interactions",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "webhookId": "0d6c1b7a-6f2e-4b8e-9a51-3c2f7e8d9b10",
+      "notes": "Slack app > Interactivity & Shortcuts > Request URL points here. Every request is checked against the signing secret before anything else runs."
+    },
+    {
+      "id": "a98a1b49-6d98-514d-8edd-5cb1c8d6a60a",
+      "name": "Build the signed string",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Slack signs every request: the X-Slack-Signature header is v0= followed by the hex\n// HMAC-SHA256 of v0:<timestamp>:<raw body>, keyed with the app's signing secret. The raw\n// body has to be the bytes Slack sent, so the webhook keeps them, and re-encoding the\n// parsed form would not reproduce them. The next node computes the HMAC with the secret\n// from n8n's credential store, so the secret never appears in this workflow.\n//\n// Nothing in the payload is trusted until the signature has been checked. `kind` only\n// decides which branch runs after the check.\nconst item = $input.first();\nconst raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\nconst headers = item.json.headers || {};\nconst timestamp = String(headers['x-slack-request-timestamp'] || '');\nlet payload = null;\ntry {\n  payload = JSON.parse((item.json.body || {}).payload || 'null');\n} catch (error) {\n  payload = null;\n}\nlet kind = 'other';\nif (payload && payload.type === 'block_actions') {\n  const action = (payload.actions || [])[0] || {};\n  if (action.action_id === 'ose_decide_approve' || action.action_id === 'ose_decide_reject') kind = 'click';\n} else if (payload && payload.type === 'view_submission') {\n  const callback = (payload.view || {}).callback_id;\n  if (callback === 'ose_decision_edit') kind = 'edit';\n  if (callback === 'ose_decision_confirm') kind = 'confirm';\n}\nreturn [{ json: {\n  base: `v0:${timestamp}:${raw}`,\n  signature: String(headers['x-slack-signature'] || ''),\n  timestamp,\n  payload,\n  kind,\n} }];\n"
+      }
+    },
+    {
+      "id": "509bc10f-1dd3-54ec-a75c-d16d2b166645",
+      "name": "Sign with the Slack secret",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        448,
+        300
+      ],
+      "parameters": {
+        "action": "hmac",
+        "binaryData": false,
+        "type": "SHA256",
+        "value": "={{ $json.base }}",
+        "dataPropertyName": "expected",
+        "encoding": "hex"
+      },
+      "credentials": {
+        "crypto": {
+          "name": "slack-signing-secret"
+        }
+      }
+    },
+    {
+      "id": "0fd48f67-6530-5c16-a5ae-33ef0980d9f9",
+      "name": "Signed by Slack in the last five minutes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "bc91c696-3641-593a-81a4-df8afad5a304",
+              "leftValue": "={{ !!$json.payload && /^[0-9]+$/.test($json.timestamp) && Math.abs($now.toSeconds() - Number($json.timestamp)) <= 300 && $json.signature.length === 67 && $json.signature === 'v0=' + $json.expected }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "26abdf5b-7063-5fce-b561-aabb9a3c3904",
+      "name": "Refuse an unsigned request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        520
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'unauthorized' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "e2bda301-a6fc-553c-b43a-d27b7591b9d2",
+      "name": "Route by interaction",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        896,
+        280
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "afe44826-795d-567c-bbe6-c80ae8655598",
+                    "leftValue": "={{ $json.kind === 'click' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "button clicked"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "6ec45d64-bcc3-56b9-905f-4c1cb243644c",
+                    "leftValue": "={{ $json.kind === 'edit' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "dialog submitted"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "eea9daa3-f448-59d2-93f8-3f36a1b92c4e",
+                    "leftValue": "={{ $json.kind === 'confirm' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "decision confirmed"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "anything else"
+        }
+      }
+    },
+    {
+      "id": "0077add9-c866-52c5-a81c-3c09a48ba3f4",
+      "name": "Acknowledge anything else",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1120,
+        700
+      ],
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "81aacbc1-3d81-560e-b996-3e24b23af3f2",
+      "name": "Acknowledge the click",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "0f72c3ad-8481-5995-86f8-9d68e9747480",
+      "name": "Read the clicked application",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "condition": "eq",
+              "keyValue": "={{ $('Route by interaction').first().json.payload.actions[0].value }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "30922829-be56-5ca5-aba7-4b5c596df6a1",
+      "name": "Render the decision dialog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// The dialog a reviewer edits before deciding. Everything it shows comes from the row,\n// never from the button, which carries the slug alone. A click by someone not in\n// SLACK_DECIDERS, or on an application that is no longer waiting for a decision, gets a\n// reply only the clicker sees, through the response_url Slack sent with the click.\n//\n// The email field starts from the same copy apply 1a and 1b send, from\n// automation/emails, which check 10 holds word for word. What the reviewer changes applies\n// to this application only. The subject is not editable and comes from the template.\n// A rejection always starts from decision-rejected: the no-response variant is apply\n// 1a and 1b's own choice for a form that never came back, which is not this case.\nconst TEMPLATES = {\n  approved: `Subject: {{ collective_name }} is approved on Open Collective\n\nHi,\n\nWelcome on board! We have approved your application to {{ org_name }}.\n\nYou can find our hosting documentation here:\nhttps://docs.opencollective.com/open-source-europe\n\nWe would also be happy to schedule a short onboarding call to get to know each other a\nlittle better and go through some practical details together. If that would be useful,\nplease feel free to select a time here:\nhttps://calendly.com/ivan-oce/onboarding-call\n\nBest regards,\nThe OSE Team`,\n  rejected: `Subject: {{ collective_name }} — outcome of your application to {{ org_name }}\n\nHi,\n\nThank you for your application to be fiscally hosted by {{ org_name }}, and for taking the\ntime to share your project with us.\n\nAfter careful review, we have decided not to move forward with your application. Based on\nthe information provided, we do not think OSE is the right fiscal host for the\nproject at this stage.\n\nWe appreciate your interest and wish you all the best with the development of your\ninitiative.\n\nBest regards,\nThe OSE Team`,\n};\nconst ORG_NAMES = { OSE: 'Open Source Europe' };\n// SLACK_DECIDERS lists the Slack user ids allowed to decide, comma separated. Unset or\n// empty means nobody: like DRY_RUN, a missing line in .env fails safe.\nconst DECIDERS = String($env.SLACK_DECIDERS || '').split(',').map((id) => id.trim()).filter(Boolean);\nconst payload = $('Route by interaction').first().json.payload;\nconst action = payload.actions[0];\nconst decision = action.action_id === 'ose_decide_approve' ? 'approved' : 'rejected';\nconst user = (payload.user || {}).id || '';\nconst row = $input.first().json || {};\nconst responseUrl = String(payload.response_url || '');\n\nconst refuse = (text) => [{ json: {\n  action: 'refuse',\n  // Only Slack's own address is ever posted to, whatever the payload says.\n  response_url: /^https:\\/\\/hooks\\.slack\\.com\\//.test(responseUrl) ? responseUrl : '',\n  message: { response_type: 'ephemeral', replace_original: false, text },\n} }];\n\nif (!DECIDERS.includes(user)) {\n  return refuse(':no_entry: Only the people listed in SLACK_DECIDERS can decide from Slack. You can still decide on Open Collective.');\n}\nif (!row.slug || row.slug !== action.value) {\n  return refuse(':warning: This application is not in the pipeline\\'s table, so it cannot be decided from Slack. Decide on Open Collective.');\n}\nif (row.decision || row.stage !== 'awaiting_decision') {\n  return refuse(`:information_source: This application is not waiting for a decision any more. Its stage is ${row.stage || 'unknown'}.`);\n}\n\nconst raw = TEMPLATES[decision];\nconst vars = { collective_name: row.collective_name, org_name: ORG_NAMES[row.org] || row.org };\nconst render = (tpl) => tpl.replace(/\\{\\{\\s*(\\w+)\\s*\\}\\}/g, (m, key) => String(vars[key] || ''));\nconst cut = raw.indexOf('\\n');\nconst subject = render(raw.slice('Subject: '.length, cut));\nconst body = render(raw.slice(cut).trimStart());\n// An application decided before its form invitation gets no closing email from apply 1a\n// or 1b, so the dialog says so instead of offering an email nobody would receive.\nconst invited = !!row.form_invited_at;\nconst verb = decision === 'approved' ? 'approve' : 'reject';\n\nconst blocks = [\n  { type: 'section', text: { type: 'plain_text', text: `You are about to ${verb} ${row.collective_name || row.slug} on Open Collective.` } },\n];\nif (invited) {\n  blocks.push({\n    type: 'input', block_id: 'ose_email',\n    label: { type: 'plain_text', text: 'Email to the applicant' },\n    hint: { type: 'plain_text', text: `Sent by n8n once Open Collective has the decision, with the subject \"${subject}\". Your edits apply to this application only.`.slice(0, 2000) },\n    element: { type: 'plain_text_input', action_id: 'value', multiline: true, initial_value: body, max_length: 2000 },\n  });\n} else {\n  blocks.push({ type: 'section', text: { type: 'plain_text', text: 'This applicant was never invited to the form, so no closing email will be sent. Open Collective sends its own notice.' } });\n}\nblocks.push({\n  type: 'input', block_id: 'ose_note', optional: true,\n  label: { type: 'plain_text', text: 'Private note on Open Collective' },\n  hint: { type: 'plain_text', text: 'Posted on the application for host admins only. The applicant never sees it.' },\n  element: { type: 'plain_text_input', action_id: 'value', multiline: true, max_length: 500 },\n});\n\nconst view = {\n  type: 'modal',\n  callback_id: 'ose_decision_edit',\n  title: { type: 'plain_text', text: decision === 'approved' ? 'Approve application' : 'Reject application' },\n  submit: { type: 'plain_text', text: 'Review' },\n  close: { type: 'plain_text', text: 'Cancel' },\n  private_metadata: JSON.stringify({ slug: row.slug, decision }),\n  blocks,\n};\nreturn [{ json: { action: 'open', body: { trigger_id: payload.trigger_id, view } } }];\n"
+      }
+    },
+    {
+      "id": "18263b23-d6bd-5234-9f0d-aad5f86ed28b",
+      "name": "Open the dialog?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "5a016e5a-aca1-5a0e-a5a5-a3bb11317830",
+              "leftValue": "={{ $json.action === 'open' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8a47bd97-d20e-58d2-9cc8-96a49cb1c1f0",
+      "name": "Open the decision dialog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2016,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/views.open",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      }
+    },
+    {
+      "id": "7274601d-65d3-5af3-9148-c473bdb34137",
+      "name": "Fail loudly if Slack refused the dialog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        -100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// views.open answers 200 with ok: false when it refuses, most often because the click's\n// trigger_id expired after three seconds. Throwing hands it to the failure alert, since the\n// reviewer saw nothing happen and can simply click again.\nconst answer = $input.first().json || {};\nif (answer.ok !== true) throw new Error(`apply 6: Slack refused to open the decision dialog: ${answer.error || 'no answer'}`);\nreturn [];\n"
+      }
+    },
+    {
+      "id": "9fdc7690-4e42-5cf4-b389-36a7f4f67d80",
+      "name": "Tell the clicker why not",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2016,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.response_url }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.message) }}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "11589c40-9d65-5a26-87fd-ae5383b0bd6f",
+      "name": "Render the confirmation view",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        280
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// The dialog was submitted. Slack waits three seconds for the answer, and the answer is\n// the confirmation view, pushed on top of the dialog so its Back button returns to the\n// text as it was typed. Nothing has been sent or saved yet.\n//\n// The confirmation carries the texts to the next step in private_metadata, which Slack\n// caps at 3000 characters. That is why the email is capped at 2000 and the note at 500,\n// and a pair that still does not fit is sent back as an error on the dialog.\n// SLACK_DECIDERS lists the Slack user ids allowed to decide, comma separated. Unset or\n// empty means nobody: like DRY_RUN, a missing line in .env fails safe.\nconst DECIDERS = String($env.SLACK_DECIDERS || '').split(',').map((id) => id.trim()).filter(Boolean);\nconst payload = $input.first().json.payload;\nconst view = payload.view || {};\nconst user = (payload.user || {}).id || '';\nconst values = (view.state || {}).values || {};\nconst read = (block) => ((values[block] || {}).value || {}).value;\nconst errors = (block, text) => [{ json: { response: { response_action: 'errors', errors: { [block]: text } } } }];\n\nif (!DECIDERS.includes(user)) return errors('ose_note', 'Only the people listed in SLACK_DECIDERS can decide from Slack.');\nlet meta = {};\ntry { meta = JSON.parse(view.private_metadata || '{}'); } catch (error) { meta = {}; }\nif (!meta.slug || !['approved', 'rejected'].includes(meta.decision)) {\n  return errors('ose_note', 'This dialog lost track of its application. Close it and click the button again.');\n}\nconst invited = Object.prototype.hasOwnProperty.call(values, 'ose_email');\nconst email = invited ? String(read('ose_email') || '').trim() : '';\nconst note = String(read('ose_note') || '').trim();\nif (invited && !email) return errors('ose_email', 'The email cannot be empty.');\n\nconst next = JSON.stringify({ slug: meta.slug, decision: meta.decision, invited, email, note });\nif (next.length > 3000) {\n  return errors('ose_email', `Too long to carry to the confirmation by ${next.length - 3000} characters. Shorten the email or the note.`);\n}\nconst approve = meta.decision === 'approved';\nconst blocks = [\n  { type: 'section', text: { type: 'mrkdwn', text: approve\n    ? '*Confirm to approve this application on Open Collective.*'\n    : '*Confirm to reject this application on Open Collective.*' } },\n  { type: 'context', elements: [{ type: 'mrkdwn', text: 'Open Collective also sends the applicant its own standard notice. Nothing is added to it.' }] },\n  { type: 'divider' },\n  { type: 'section', text: { type: 'mrkdwn', text: '*Email to the applicant*, from n8n once Open Collective has the decision:' } },\n  { type: 'section', text: { type: 'plain_text', text: invited ? email : 'None. This applicant was never invited to the form.' } },\n  { type: 'divider' },\n  { type: 'section', text: { type: 'mrkdwn', text: '*Private note on Open Collective*, for host admins only:' } },\n  { type: 'section', text: { type: 'plain_text', text: note || 'None.' } },\n];\nreturn [{ json: { response: { response_action: 'push', view: {\n  type: 'modal',\n  callback_id: 'ose_decision_confirm',\n  title: { type: 'plain_text', text: approve ? 'Confirm approval' : 'Confirm rejection' },\n  submit: { type: 'plain_text', text: approve ? 'Approve' : 'Reject' },\n  close: { type: 'plain_text', text: 'Back' },\n  private_metadata: next,\n  blocks,\n} } } }];\n"
+      }
+    },
+    {
+      "id": "51999bd9-2602-5914-8dd2-353b135f12d0",
+      "name": "Show the confirmation",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        280
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.response) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "d28991a0-2c16-580c-a023-a6a01d22c45b",
+      "name": "Close the dialogs",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1120,
+        900
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ response_action: 'clear' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "4e19dfe9-0cb3-504f-868e-1aafe0da60e0",
+      "name": "Read the confirmation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        900
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Confirm was pressed. Slack has already been told to close the dialogs, so what happens\n// from here is reported in the application's thread. The person is checked against\n// SLACK_DECIDERS again, because the list may have changed since the dialog opened.\n// SLACK_DECIDERS lists the Slack user ids allowed to decide, comma separated. Unset or\n// empty means nobody: like DRY_RUN, a missing line in .env fails safe.\nconst DECIDERS = String($env.SLACK_DECIDERS || '').split(',').map((id) => id.trim()).filter(Boolean);\nconst payload = $('Route by interaction').first().json.payload;\nconst user = payload.user || {};\nif (!DECIDERS.includes(user.id || '')) return [];\nlet meta = {};\ntry { meta = JSON.parse((payload.view || {}).private_metadata || '{}'); } catch (error) { return []; }\nif (!meta.slug || !['approved', 'rejected'].includes(meta.decision)) return [];\nconst name = String(user.name || user.username || user.id);\n// The note goes to Open Collective as HTML, so the person's text is escaped and only the\n// line breaks become markup. It opens with who decided, since Open Collective shows the\n// owner of the token as the author whoever pressed Confirm.\nconst escapeHtml = (value) => String(value)\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\"/g, '&quot;')\n  .replace(/'/g, '&#39;');\nconst verb = meta.decision === 'approved' ? 'Approved' : 'Rejected';\nconst note = String(meta.note || '').trim();\nreturn [{ json: {\n  slug: meta.slug,\n  decision: meta.decision,\n  action: meta.decision === 'approved' ? 'APPROVE' : 'REJECT',\n  email: meta.invited ? String(meta.email || '').trim() : '',\n  note,\n  note_html: `<p>${verb} via Slack by ${escapeHtml(name)}.</p><p>${escapeHtml(note).replace(/\\r?\\n/g, '<br>')}</p>`,\n  decided_by: `<@${user.id}> (${name})`,\n  user_id: user.id,\n} }];\n"
+      }
+    },
+    {
+      "id": "926532e9-e69a-5f96-a678-6ff67a1e4150",
+      "name": "Read the row to decide",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1568,
+        900
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "condition": "eq",
+              "keyValue": "={{ $json.slug }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "ad09a654-f97c-5cfb-aa97-c7ad1290ac43",
+      "name": "Claimable for a decision?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        900
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "0f92ca4a-aec7-59aa-8b77-c112b4195cfb",
+              "leftValue": "={{ $json.slug === $('Read the confirmation').first().json.slug && $json.stage === 'awaiting_decision' && !$json.decision && (!$json.slack_decision_claimed_at || DateTime.fromJSDate(new Date($json.slack_decision_claimed_at)) < $now.minus({ minutes: Number($env.STALE_CLAIM_MINUTES || 30) })) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "bd050fa2-69cf-593b-a15d-bae2057a7ea0",
+      "name": "Claim the row for a decision",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2016,
+        800
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "condition": "eq",
+              "keyValue": "={{ $json.slug }}"
+            },
+            {
+              "keyName": "slack_decision_claimed_at",
+              "condition": "eq",
+              "keyValue": "={{ $json.slack_decision_claimed_at || null }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "slack_decision_claimed_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "811d992c-db3d-5733-a499-ecc6578e3505",
+      "name": "Won the claim?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2240,
+        800
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "389f9d4a-38de-598a-b83b-fbfa01bd2afc",
+              "leftValue": "={{ $json.slug === $('Read the confirmation').first().json.slug }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "00060770-9d82-5c33-a05c-83a06f70de50",
+      "name": "Ask for the pending application",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        700
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// processHostApplication and createComment name the application by its id, which the row\n// does not hold. Asking for it among the host's pending applications is also the last\n// check that Open Collective still waits for a decision.\nconst row = $('Read the row to decide').first().json;\nreturn [{ json: { request: {\n  query: 'query($h: String, $s: String) { host(slug: $h) { hostApplications(limit: 20, status: PENDING, searchTerm: $s) { nodes { id account { slug } } } } }',\n  variables: { h: row.host_slug, s: row.slug },\n} } }];\n"
+      }
+    },
+    {
+      "id": "fb6f879d-9290-51fc-905a-4119768a8387",
+      "name": "Find the pending application",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2688,
+        700
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.opencollective.com/graphql/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "ose-automation/1.0 (n8n; apply 6)"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "oc-host-decide"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "ff482754-12ab-502e-a9b3-221e0ab78118",
+      "name": "Choose the pending application",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2912,
+        700
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// The search matches names and descriptions too, so only the application whose account\n// slug is the row's own counts. An error answer, or no such application, stops here and\n// the claim is released, so the person can decide on Open Collective or try again.\nconst answer = $input.first().json || {};\nconst slug = $('Read the confirmation').first().json.slug;\nif (answer.error || Array.isArray(answer.errors)) {\n  const detail = answer.error ? (answer.error.message || 'the request failed') : answer.errors.map((e) => e && e.message).join('; ');\n  return [{ json: { ok: false, reason: `Open Collective refused the lookup: ${detail}` } }];\n}\nconst nodes = ((((answer.data || {}).host || {}).hostApplications || {}).nodes) || [];\nconst match = nodes.find((n) => n && n.account && n.account.slug === slug);\nif (!match) return [{ json: { ok: false, reason: 'Open Collective has no pending application from this collective any more, so it was probably decided there already' } }];\nconst confirmation = $('Read the confirmation').first().json;\nreturn [{ json: { ok: true, application_id: match.id, request: {\n  query: 'mutation($a: HostApplicationReferenceInput!, $x: ProcessHostApplicationAction!) { processHostApplication(hostApplication: $a, action: $x) { hostApplication { id status } } }',\n  // No message: Open Collective sends its standard notice, and OSE's own email comes from\n  // apply 1a or 1b once the decision is recorded.\n  variables: { a: { id: match.id }, x: confirmation.action },\n} } }];\n"
+      }
+    },
+    {
+      "id": "3dd84242-daaa-53f9-a477-72eb1c3541b6",
+      "name": "Pending on Open Collective?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3136,
+        700
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "aaaf0a64-db13-5705-a722-500775885d97",
+              "leftValue": "={{ $json.ok === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1012eead-b44d-56d9-9b16-00b99f6f79bb",
+      "name": "Save the email for the decision",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3360,
+        600
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "condition": "eq",
+              "keyValue": "={{ $('Read the confirmation').first().json.slug }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "decision_email_body": "={{ $('Read the confirmation').first().json.email }}",
+            "decision_email_for": "={{ $('Read the confirmation').first().json.decision }}",
+            "slack_decided_by": "={{ $('Read the confirmation').first().json.decided_by }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cac8c689-a5a6-59b5-80c1-9156a1c469cf",
+      "name": "Decide on Open Collective",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        3584,
+        600
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.opencollective.com/graphql/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "ose-automation/1.0 (n8n; apply 6)"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Choose the pending application').first().json.request) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "oc-host-decide"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "No retry on purpose: a mutation that reached Open Collective and timed out must not be sent twice. A failure releases the claim and the person tries again."
+    },
+    {
+      "id": "5401d310-e9e1-5469-9ef0-c43c62dd8a1a",
+      "name": "Read the decision answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3808,
+        600
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Both outputs of the mutation land here. Only an answer naming the application with the\n// status asked for counts as decided.\nconst answer = $input.first().json || {};\nconst wanted = $('Read the confirmation').first().json.action === 'APPROVE' ? 'APPROVED' : 'REJECTED';\nconst result = ((answer.data || {}).processHostApplication || {}).hostApplication || {};\nif (!answer.error && !Array.isArray(answer.errors) && result.status === wanted) {\n  return [{ json: { ok: true, request: {\n    query: 'mutation($c: CommentCreateInput!) { createComment(comment: $c) { id } }',\n    variables: { c: {\n      hostApplication: { id: $('Choose the pending application').first().json.application_id },\n      type: 'PRIVATE_NOTE',\n      html: $('Read the confirmation').first().json.note_html,\n    } },\n  } } }];\n}\nconst detail = answer.error ? (answer.error.message || 'the request failed')\n  : Array.isArray(answer.errors) ? answer.errors.map((e) => e && e.message).join('; ')\n  : `the application came back as ${result.status || 'unknown'}`;\nreturn [{ json: { ok: false, reason: `Open Collective did not take the decision: ${detail}` } }];\n"
+      }
+    },
+    {
+      "id": "f971b2ca-7006-5e77-85c6-de9dbca1e37a",
+      "name": "Decided on Open Collective?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4032,
+        600
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "05285860-e3ff-5131-b528-6a048ae53388",
+              "leftValue": "={{ $json.ok === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e020d967-82c4-5a33-aece-faa133315e84",
+      "name": "Post the private note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4256,
+        600
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.opencollective.com/graphql/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "ose-automation/1.0 (n8n; apply 6)"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "oc-host-decide"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "The decision has already landed, so a failed note is reported in the thread and never undoes it. The note always carries who decided, even when the dialog's note field was empty."
+    },
+    {
+      "id": "1bc7c7b4-d60e-57e2-8899-8caa9ab52a31",
+      "name": "Render the decision reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4480,
+        600
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// The decision is on Open Collective. apply 1a or 1b records it and sends the closing\n// email, and says so in this thread, so this reply only names who decided here.\nconst escapeSlack = (value) => String(value)\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;');\nconst confirmation = $('Read the confirmation').first().json;\nconst row = $('Read the row to decide').first().json;\nconst answer = $input.first().json || {};\nconst noted = !answer.error && !Array.isArray(answer.errors) && !!((answer.data || {}).createComment || {}).id;\nconst done = confirmation.decision === 'approved'\n  ? `:white_check_mark: <@${confirmation.user_id}> approved this application on Open Collective from Slack.`\n  : `:x: <@${confirmation.user_id}> rejected this application on Open Collective from Slack.`;\nconst email = confirmation.email\n  ? ' The email they wrote goes to the applicant once the decision is recorded.'\n  : '';\nconst note = noted\n  ? ' A private note for host admins is on the application.'\n  : ` :warning: The private note could not be posted on Open Collective${answer.error ? `: ${escapeSlack(answer.error.message || '')}` : ''}.`;\nreturn [{ json: { channel: row.slack_channel_id, thread_ts: row.slack_thread_ts, text: done + email + note } }];\n"
+      }
+    },
+    {
+      "id": "346dbb24-0f4c-5f47-90a0-5b9058b109bb",
+      "name": "Release the claim",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3360,
+        900
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ose_applications"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slug",
+              "condition": "eq",
+              "keyValue": "={{ $('Read the confirmation').first().json.slug }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "slack_decision_claimed_at": "={{ null }}",
+            "slack_decided_by": "",
+            "decision_email_body": "",
+            "decision_email_for": ""
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "notes": "The one claim that is ever cleared: nothing was decided, so the person may try again at once.",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "9ebe5770-4df3-5298-b781-1203075bc6a5",
+      "name": "Render the failed decision reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        900
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Nothing was decided. The reason comes from Open Collective or from the lookup, so it is\n// escaped before it reaches the channel.\nconst escapeSlack = (value) => String(value)\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;');\nconst confirmation = $('Read the confirmation').first().json;\nconst row = $('Read the row to decide').first().json;\n// The mutation runs only after the lookup succeeded, so when it ran, its answer is the\n// reason, and otherwise the lookup's is.\nconst why = $('Read the decision answer').isExecuted\n  ? $('Read the decision answer').first().json.reason\n  : $('Choose the pending application').first().json.reason;\nreturn [{ json: { channel: row.slack_channel_id, thread_ts: row.slack_thread_ts,\n  text: `:warning: <@${confirmation.user_id}> tried to decide from Slack, and nothing was decided. ${escapeSlack(String(why || 'No reason was given.').slice(0, 400))} The email and the claim were cleared, so the decision can be made again, here or on Open Collective.` } }];\n"
+      }
+    },
+    {
+      "id": "fcd43e13-5b52-5930-a82b-9b1fb2e2498e",
+      "name": "Render the refused decision reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        1100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Someone else is deciding, or has decided, or the row is not waiting for a decision. The\n// person who pressed Confirm learns it here, since their dialog has already closed.\nconst confirmation = $('Read the confirmation').first().json;\nconst row = $('Read the row to decide').first().json;\nif (!row.slack_thread_ts || !row.slack_channel_id) return [];\nconst reason = row.decision || row.stage !== 'awaiting_decision'\n  ? `The application is not waiting for a decision any more. Its stage is ${row.stage || 'unknown'}.`\n  : 'Someone else is confirming a decision on it right now.';\nreturn [{ json: { channel: row.slack_channel_id, thread_ts: row.slack_thread_ts,\n  text: `:information_source: <@${confirmation.user_id}> pressed Confirm, and nothing was sent. ${reason}` } }];\n"
+      }
+    },
+    {
+      "id": "d57a8005-85ea-5b5b-96ab-35c83b7b18a8",
+      "name": "Reply with the Slack decision in thread",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        4704,
+        900
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "IaMw5QbOtl3cY80f",
+          "name": "slack-bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "b79e2ee7-6a1e-53a9-b221-e6b54c57312f"
+    }
+  ],
+  "connections": {
+    "Slack interaction": {
+      "main": [
+        [
+          {
+            "node": "Build the signed string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build the signed string": {
+      "main": [
+        [
+          {
+            "node": "Sign with the Slack secret",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign with the Slack secret": {
+      "main": [
+        [
+          {
+            "node": "Signed by Slack in the last five minutes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signed by Slack in the last five minutes?": {
+      "main": [
+        [
+          {
+            "node": "Route by interaction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Refuse an unsigned request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by interaction": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge the click",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Render the confirmation view",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Close the dialogs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Acknowledge anything else",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acknowledge the click": {
+      "main": [
+        [
+          {
+            "node": "Read the clicked application",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the clicked application": {
+      "main": [
+        [
+          {
+            "node": "Render the decision dialog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render the decision dialog": {
+      "main": [
+        [
+          {
+            "node": "Open the dialog?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open the dialog?": {
+      "main": [
+        [
+          {
+            "node": "Open the decision dialog",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tell the clicker why not",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open the decision dialog": {
+      "main": [
+        [
+          {
+            "node": "Fail loudly if Slack refused the dialog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render the confirmation view": {
+      "main": [
+        [
+          {
+            "node": "Show the confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Close the dialogs": {
+      "main": [
+        [
+          {
+            "node": "Read the confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the confirmation": {
+      "main": [
+        [
+          {
+            "node": "Read the row to decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the row to decide": {
+      "main": [
+        [
+          {
+            "node": "Claimable for a decision?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claimable for a decision?": {
+      "main": [
+        [
+          {
+            "node": "Claim the row for a decision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Render the refused decision reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim the row for a decision": {
+      "main": [
+        [
+          {
+            "node": "Won the claim?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Won the claim?": {
+      "main": [
+        [
+          {
+            "node": "Ask for the pending application",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Render the refused decision reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask for the pending application": {
+      "main": [
+        [
+          {
+            "node": "Find the pending application",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find the pending application": {
+      "main": [
+        [
+          {
+            "node": "Choose the pending application",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Choose the pending application",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Choose the pending application": {
+      "main": [
+        [
+          {
+            "node": "Pending on Open Collective?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pending on Open Collective?": {
+      "main": [
+        [
+          {
+            "node": "Save the email for the decision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Release the claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save the email for the decision": {
+      "main": [
+        [
+          {
+            "node": "Decide on Open Collective",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide on Open Collective": {
+      "main": [
+        [
+          {
+            "node": "Read the decision answer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read the decision answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the decision answer": {
+      "main": [
+        [
+          {
+            "node": "Decided on Open Collective?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decided on Open Collective?": {
+      "main": [
+        [
+          {
+            "node": "Post the private note",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Release the claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post the private note": {
+      "main": [
+        [
+          {
+            "node": "Render the decision reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render the decision reply": {
+      "main": [
+        [
+          {
+            "node": "Reply with the Slack decision in thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release the claim": {
+      "main": [
+        [
+          {
+            "node": "Render the failed decision reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render the failed decision reply": {
+      "main": [
+        [
+          {
+            "node": "Reply with the Slack decision in thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render the refused decision reply": {
+      "main": [
+        [
+          {
+            "node": "Reply with the Slack decision in thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Europe/Berlin",
+    "executionOrder": "v1",
+    "errorWorkflow": "qWHuHamNdmvfrSRt"
+  },
+  "pinData": {}
+}
