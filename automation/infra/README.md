@@ -1413,7 +1413,7 @@ collective's application to the host, never on a real one.
    proves the bot token and the Request URL. Nothing happening, with an alert
    from the failure workflow, means the dialog took longer than Slack's three
    seconds or the token was refused.
-2. Press **Review**, then **Approve**. The thread gets a reply naming you, and
+2. Press **Continue**, then **Approve**. The thread gets a reply naming you, and
    the application shows as approved on Open Collective with the private note
    on it. That proves the signing secret, `SLACK_DECIDERS` and the decision
    token together.
