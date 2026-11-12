@@ -210,7 +210,8 @@ from one applicant to the next, and `Collect admin countries` reads them back
 under the same computed labels.
 
 Page 5 has `activities`, `mission_fit` and `notes`. It then suggests that
-the collective have more than one admin and asks, optionally, for a second
+the collective have more than one admin, says one is needed before an admin
+can invoice the collective for paid work, and asks, optionally, for a second
 admin's name and email. Those two are stored as the columns
 `alternative_admin_name` and `alternative_admin_email` rather than in
 `answers`, so like `contact_email` they reach neither the Slack thread nor the
