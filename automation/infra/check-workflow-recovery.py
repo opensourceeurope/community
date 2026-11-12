@@ -107,12 +107,13 @@ def executions(base, key, workflow_id):
         if str(error).startswith("HTTP 403 "):
             raise sync.ApiError("%s. The key needs the execution:list scope" % error)
         raise
-    # Every run is filtered on these, so an n8n that stopped returning them
-    # would make this check report nothing, forever, instead of failing.
-    if runs and not any(r.get("status") and r.get("stoppedAt") for r in runs):
-        raise sync.ApiError("the executions of workflow %s carry no status or stoppedAt, "
+    # Every run is filtered on its status, so an n8n that stopped returning it
+    # would make this check report nothing, forever, instead of failing. A run
+    # still going has a status and no stoppedAt yet, so only status is required.
+    if runs and not any(r.get("status") for r in runs):
+        raise sync.ApiError("the executions of workflow %s carry no status, "
                             "so this check cannot read them" % workflow_id)
-    return runs
+    return [r for r in runs if r.get("id")]
 
 
 def ended(run):
@@ -224,23 +225,41 @@ def state_path():
         "OSE_RECOVERY_STATE", "~/.local/state/ose-workflow-recovery/state.json"))
 
 
+def valid_entry(entry):
+    if not isinstance(entry, dict) or not isinstance(entry.get("seen_until", ""), str):
+        return False
+    failure = entry.get("failure")
+    return failure is None or (isinstance(failure, dict) and isinstance(failure.get("count"), int)
+                               and isinstance(failure.get("first_at"), str) and "first_id" in failure)
+
+
 def load_state(path):
+    hint = "Delete it, and the next run starts over"
     try:
         with open(path) as handle:
             state = json.load(handle)
     except FileNotFoundError:
         return {}
-    if not isinstance(state, dict):
-        raise ValueError("%s does not hold an object. Delete it, and the next run starts over" % path)
+    except ValueError:
+        raise ValueError("%s is not valid JSON. %s" % (path, hint))
+    if not isinstance(state, dict) or not all(valid_entry(e) for e in state.values()):
+        raise ValueError("%s is not what this check writes. %s" % (path, hint))
     return state
 
 
 def save_state(path, state):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
-    with os.fdopen(fd, "w") as handle:
-        json.dump(state, handle, indent=1, sort_keys=True)
-    os.replace(tmp, path)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(state, handle, indent=1, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
 
 
 def main():
@@ -251,6 +270,9 @@ def main():
         key = inactive.read_key()
         names = watched(sync.load_exports(os.path.join(root, EXPORTS)))
         state = load_state(path)
+        # A state that cannot be written would post the same recovery on every
+        # run. Finding out now, before anything is posted, stops that.
+        save_state(path, state)
     except (OSError, ValueError, sync.ApiError) as exc:
         print("the workflow recovery check could not run: %s" % exc)
         return 2
@@ -270,27 +292,35 @@ def main():
 
     refused = []
     slack = None
-    for workflow, (after, recovery) in found:
-        if recovery:
+    try:
+        for workflow, (after, recovery) in found:
+            if not recovery:
+                state[workflow["id"]] = after
+                continue
             try:
                 slack = slack or slack_settings(root)
             except (OSError, ValueError) as exc:
                 print("the workflow recovery check could not post: %s" % exc)
                 return 2
+            # Recorded before the post, so a post can never be repeated by a
+            # save that fails after it. A refused post puts the old state back,
+            # and the next run finds the recovery again.
+            before = state.get(workflow["id"])
+            state[workflow["id"]] = after
+            save_state(path, state)
             problem = post(slack[0], slack[1], message(base, workflow["name"], workflow["id"], *recovery))
             if problem:
-                # Keep the old state, so the next run finds this recovery again.
+                state[workflow["id"]] = before
+                save_state(path, state)
                 refused.append("%s: %s" % (workflow["name"], problem))
                 continue
             print("posted: %s recovered with execution %s" % (workflow["name"], recovery[1]["id"]))
-            # Saved at once, so a later failure in this run cannot post it twice.
-            state[workflow["id"]] = after
-            save_state(path, state)
-            continue
-        state[workflow["id"]] = after
+        save_state(path, state)
+    except OSError as exc:
+        print("the workflow recovery check could not save %s: %s" % (path, exc))
+        return 2
 
     open_now = sorted(w["name"] for w, (after, _) in found if after["failure"])
-    save_state(path, state)
     for name in open_now:
         print("still failing: %s" % name)
     for line in refused:

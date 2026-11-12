@@ -69,7 +69,7 @@ class Fake(http.server.BaseHTTPRequestHandler):
         self.connection.close()
 
     def do_GET(self):
-        if Fake.drop_n8n:
+        if Fake.drop_n8n and self.path.startswith("/api/v1/executions?"):
             return self.drop()
         if Fake.down:
             return self.reply(503, {"message": "Service unavailable"})
@@ -270,7 +270,7 @@ def main():
         Fake.drop_n8n = True
         code, out = run()
         Fake.drop_n8n = False
-        check("an n8n reply that breaks off exits 0 and moves nothing on",
+        check("an n8n reply that breaks off while reading runs exits 0 and moves nothing on",
               code == 0 and "did not answer" in out and saved() == before, out)
 
         Fake.no_status = True
@@ -279,11 +279,41 @@ def main():
         check("runs without a status are a check that could not run, not silence",
               code == 2 and "no status" in out, out)
 
-        with open(state, "w") as handle:
-            json.dump([], handle)
+        # A workflow whose only run on the page is still going.
+        Fake.runs["r1"] = [{"id": "30", "status": "running", "mode": "trigger",
+                            "startedAt": "2026-11-12T15:00:00.000Z", "stoppedAt": None}]
         code, out = run()
-        check("a state file that is not an object exits 2 and says what to do",
-              code == 2 and "Delete it" in out and "Traceback" not in out, out)
+        check("a page holding only a run still going is read, not refused",
+              code == 0 and "no status" not in out, out)
+
+        # A recovery is due, and the state cannot be written. The run still
+        # going ends, so this case does not depend on the one above.
+        Fake.runs["r1"] = [run_(30, "success", "2026-11-12T15:01:00.000Z")]
+        run()
+        Fake.runs["s1"].append(run_(31, "success", "2026-11-12T15:00:00.000Z"))
+        before = saved()
+        os.chmod(os.path.dirname(state), 0o500)
+        try:
+            code, out = run()
+        finally:
+            os.chmod(os.path.dirname(state), 0o700)
+        check("a state that cannot be saved exits 2 and posts nothing, so nothing repeats",
+              code == 2 and Fake.posted == [] and "Traceback" not in out, out)
+        check("and the state is unchanged", saved() == before, out)
+        code, out = run()
+        check("once it can be saved the recovery posts once",
+              code == 0 and len(Fake.posted) == 1 and "executions/31" in Fake.posted[0]["text"], out)
+        code, out = run()
+        check("and never again", code == 0 and Fake.posted == [], out)
+
+        for label, content in (("not an object", "[]"),
+                               ("not valid JSON", '{"s1": {"seen_until": "2026'),
+                               ("an entry this check never writes", '{"s1": {"failure": {"count": "x"}}}')):
+            with open(state, "w") as handle:
+                handle.write(content)
+            code, out = run()
+            check("a state file that is %s exits 2 and says to delete it" % label,
+                  code == 2 and "Delete it" in out and "Traceback" not in out, out)
 
         if os.path.isdir(PYCACHE):
             shutil.rmtree(PYCACHE)
