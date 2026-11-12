@@ -1921,8 +1921,10 @@ most the recovery message of a failure open at that moment.
 
 When n8n does not answer, answers too slowly or answers 5xx, as it can during
 an upgrade, the check skips the run and reads the same history next time. When it cannot read
-at all, such as with a key that lacks `execution:list`, or cannot post, the unit
-fails and `ose-alert@` posts that once, as for the other timers. To run it by
+at all, such as with a key that lacks `execution:list`, cannot save its state
+file or cannot post, the unit fails and `ose-alert@` posts that once, as for the
+other timers. A recovery is recorded before it is posted, so a state file that
+cannot be written stops the check rather than repeating a message. To run it by
 hand on the box:
 
 ```bash
