@@ -85,6 +85,7 @@ done
 [ "$(count 'enable --now ose-backup.timer' /tmp/calls.log)" -eq 1 ] || fail "the backup timer was not enabled"
 [ "$(count 'enable --now ose-env-drift.timer' /tmp/calls.log)" -eq 1 ] || fail "the .env drift timer was not enabled"
 [ "$(count 'enable --now ose-inactive-workflows.timer' /tmp/calls.log)" -eq 0 ] || fail "the inactive workflow timer was enabled without an API key"
+[ "$(count 'enable --now ose-workflow-recovery.timer' /tmp/calls.log)" -eq 0 ] || fail "the workflow recovery timer was enabled without an API key"
 [ "$(count 'enable --now ose-deploy.timer' /tmp/calls.log)" -eq 0 ] || fail "the deploy timer was enabled without an API key"
 [ "$(cat /home/debian/.local/state/ose-deploy/infra-applied)" = "$(git -C /home/debian/community rev-parse HEAD)" ] \
   || fail "the infra marker does not name the deployed commit"
@@ -107,6 +108,7 @@ sudo -u debian -H bash /src/automation/infra/bootstrap.sh units > /tmp/units.log
   || { cat /tmp/units.log; fail "units failed"; }
 [ "$(count 'enable --now ose-deploy.timer' /tmp/calls.log)" -eq 1 ] || fail "units did not enable the deploy timer once the key existed"
 [ "$(count 'enable --now ose-inactive-workflows.timer' /tmp/calls.log)" -eq 1 ] || fail "units did not enable the inactive workflow timer once the key existed"
+[ "$(count 'enable --now ose-workflow-recovery.timer' /tmp/calls.log)" -eq 1 ] || fail "units did not enable the workflow recovery timer once the key existed"
 [ "$(count 'compose' /tmp/calls.log)" -eq 0 ] || fail "units touched the stack"
 
 echo "bootstrap-smoke: all checks passed"

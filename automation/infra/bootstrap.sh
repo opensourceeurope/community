@@ -213,10 +213,12 @@ units() {
   if [ -f "$HOME/.n8n-api-key" ]; then
     sudo systemctl enable --now ose-inactive-workflows.timer >/dev/null 2>&1
     note "ose-inactive-workflows.timer enabled"
+    sudo systemctl enable --now ose-workflow-recovery.timer >/dev/null 2>&1
+    note "ose-workflow-recovery.timer enabled"
     sudo systemctl enable --now ose-deploy.timer >/dev/null 2>&1
     note "ose-deploy.timer enabled"
   else
-    note "ose-deploy.timer and ose-inactive-workflows.timer NOT enabled: there is no ~/.n8n-api-key yet, and every run would fail"
+    note "ose-deploy.timer, ose-inactive-workflows.timer and ose-workflow-recovery.timer NOT enabled: there is no ~/.n8n-api-key yet, and every run would fail"
   fi
   [ -f "$HOME/.slack-bot-token" ] || note "no ~/.slack-bot-token yet, so a failure cannot alert Slack"
   [ -f "$HOME/.config/ose-backup/backup.env" ] || note "no ~/.config/ose-backup/backup.env yet, so backups stay on this box"
