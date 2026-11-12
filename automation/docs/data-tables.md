@@ -246,8 +246,10 @@ Not every `{{ placeholder }}` used in `automation/emails/*.md` and
   for it in this table.
 - `legal_name_note`: a paragraph in the form invitation, filled only when an
   admin in `oc_admins` has no legal name on Open Collective, and empty
-  otherwise. apply 3 looks each admin up just before sending and keeps only
-  their public names, never a legal name. Nothing about it is stored. A legal
+  otherwise. apply 3 looks each admin up just before sending and passes on
+  only their public names. No column stores the result, but the lookup's
+  response, legal names included, stays in that execution's saved data, and
+  so in backups, until n8n prunes it. A legal
   name is a reminder, never a condition, so a failed lookup or a token
   without the `account` scope leaves the paragraph out and says so in the
   Slack thread.

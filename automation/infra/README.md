@@ -1080,12 +1080,13 @@ authenticates fine and then every fetch fails with an authorization error.
 1. Log in to opencollective.com with that account.
 2. Open the personal **Dashboard**, then **For developers**, then
    **Personal tokens**, and create a token.
-3. Select the scopes **host**, **email** and **account**, and leave every
-   other scope unselected. A token permits only the scopes selected on it.
-   These cover what the workflows read: `host` is the scope for fiscal-host
-   data, `email` covers the applicant admin addresses that intake stores as
-   the contact address, and `account` lets apply 3 see whether each admin of
-   an applying collective has a legal name on their profile. Without
+3. Select the scopes **host**, **applications**, **email** and **account**,
+   and leave every other scope unselected. A token permits only the scopes
+   selected on it. These cover what the workflows read: `host` is the scope
+   for fiscal-host data, `applications` for the host's list of applications
+   that intake reads, `email` for the applicant admin addresses that intake
+   stores as the contact address, and `account` lets apply 3 see whether each
+   admin of an applying collective has a legal name on their profile. Without
    `account` the invitation leaves out the legal name reminder and the Slack
    thread says the check did not run. The admin role above is the real gate
    on application data, so additional scopes add exposure without adding

@@ -526,7 +526,8 @@ placeholders are `collective_name`, `collective_url`, `org_name`, `form_url`,
 already quoted, each line prefixed with `> `, so an applicant can see where our
 words stop and the automated read begins. `legal_name_note` is the one
 placeholder that may be empty, and its line goes with it. The invitations fill
-it with a reminder naming the admins who have no legal name on Open Collective. See "Filling the email and prompt templates" in
+it with a reminder naming the admins who have no legal name on Open
+Collective. See "Filling the email and prompt templates" in
 [`docs/data-tables.md`](docs/data-tables.md) for where each value comes from.
 
 Which invitation an applicant receives depends on the verdict, and the mapping
