@@ -103,7 +103,10 @@ The OSE-specific invariants on top of that skill:
   [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
   apply 6 is the only caller of `processHostApplication`, and only on a
   signed Confirm from a Slack user in `SLACK_DECIDERS`. Nothing may call it on
-  a schedule, a model's output or any other trigger.
+  a schedule, a model's output or any other trigger. The Slack buttons are the
+  way OSE decides, since only they save the answers and the edited email, so
+  no message, email or doc may point a reviewer to the dashboard to decide.
+  The decision branch still records a dashboard decision if one happens.
 - **apply 6 trusts nothing it has not checked, in this order.** The Slack
   signature over the raw body with the `slack-signing-secret` credential, made
   less than five minutes ago, comes before any other node. The clicker is
