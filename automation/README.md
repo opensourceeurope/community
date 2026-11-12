@@ -9,8 +9,11 @@ The rest of this repository is covered by CC-BY-4.0.
 ## Human decisions
 
 The AI review is advisory. It never approves, rejects or closes an
-application. A person approves or rejects, either on Open Collective or with
-the Approve and Reject buttons in the application's Slack thread. A button
+application. A person approves or rejects, with the Approve and Reject
+buttons in the application's Slack thread. Those buttons are the way to
+decide: a decision made directly in the Open Collective dashboard is still
+recorded and still gets the template email, but it saves no form answers on
+Open Collective and leaves no private note. A button
 opens a dialog where that person edits the closing email and writes an
 optional private note, and asks them to confirm both before anything is sent.
 Only that confirmation calls Open Collective, and nothing else in the
@@ -144,7 +147,7 @@ flowchart TD
     A2 --> A3["apply 3 — follow-up<br>emails the form invitation<br>(reminds and escalates if it stays quiet)"]
     A3 --> A4["apply 4 — application form<br>the applicant answers,<br>their answers go to the Slack thread"]
     A4 --> A5s["apply 5 — application summary<br>reads the README,<br>summarises it in the thread"]
-    A5s --> HUMAN(["A human approves or rejects<br>on Open Collective, or with the<br>buttons in the Slack thread (apply 6)"])
+    A5s --> HUMAN(["A human approves or rejects<br>with the buttons in the<br>Slack thread (apply 6)"])
     A5s --> GONE(["Or the collective moves<br>to another fiscal host,<br>or is deleted"])
     HUMAN --> A5["apply 1a or 1b, decision branch<br>records the outcome"]
     GONE --> A5
