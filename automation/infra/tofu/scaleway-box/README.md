@@ -50,9 +50,12 @@ ssh_public_key = "ssh-ed25519 AAAA... you@laptop"
 | `disk_gb` | `20` | Local SSD size in GB. `DEV1-S` allows at most 20, and a local volume cannot grow later |
 | `name` | `ose-n8n-automation` | Name shown in the Scaleway console |
 
-Scaleway may also keep SMTP blocked for an account it has not cleared to send
-mail, whatever the security group says. Check that in the console under the
-security group, or with Scaleway support, before a move.
+Scaleway lets only a verified Organization (identity verification, KYC)
+unblock SMTP. Until then the apply stops at the security group with `your
+account is not trusted, you cannot disable default security rules`, after the
+addresses already exist. Verification is per Organization, so an older
+account of yours elsewhere does not count. Verify the Organization that owns
+the project first.
 
 ## Create it
 
