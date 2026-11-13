@@ -1788,10 +1788,12 @@ stopped, so going back is a DNS change and nothing more.
 
 5. Copy Caddy's certificates, so the new box serves valid ones before DNS
    points at it. The archive holds the certificates' private keys, so it is
-   deleted on both boxes afterwards. On the old box:
+   readable only by `debian` and deleted on both boxes afterwards. The keys
+   belong to root inside the volume, so `tar` runs as root and hands the
+   archive over. On the old box:
 
    ```bash
-   docker run --rm --user "$(id -u):$(id -g)" -v infra_caddy_data:/data:ro -v "$HOME":/out alpine sh -c 'umask 077 && tar czf /out/caddy-data.tgz -C /data .'
+   docker run --rm -e OWNER="$(id -u):$(id -g)" -v infra_caddy_data:/data:ro -v "$HOME":/out alpine sh -c 'umask 077 && tar czf /out/caddy-data.tgz -C /data . && chown "$OWNER" /out/caddy-data.tgz'
    ```
 
    From your own machine:
