@@ -60,7 +60,7 @@ hash=$(docker run --rm "$IMAGE" caddy hash-password --algorithm bcrypt --bcrypt-
 printf 'basic_auth {\n\tose %s\n}\n' "$hash" > "$WORK/editor-auth.caddy"
 
 docker run -d --name "$RUN-proxy" --network "$RUN" -p 127.0.0.1::443 \
-  -e APPLY_HOST=apply.localhost -e N8N_HOST=admin.localhost \
+  -e APPLY_HOST=apply.localhost -e N8N_HOST=admin.localhost -e ROOT_REDIRECT_HOST=root.localhost \
   -v "$INFRA/Caddyfile:/etc/caddy/Caddyfile:ro" \
   -v "$WORK/editor-auth.caddy:/etc/caddy/editor-auth.caddy:ro" \
   -v "$INFRA/public:/srv/public:ro" "$IMAGE" >/dev/null
@@ -155,6 +155,17 @@ expect admin GET /signin 200 "upstream GET /signin auth=" -- "${AUTH[@]}"
 expect admin GET /form/apply-ose 200 "upstream GET /form/apply-ose auth=" -- "${AUTH[@]}"
 expect admin GET /api/v1/workflows 200 "upstream GET /api/v1/workflows auth=Bearer x" -- -H "Authorization: Bearer x"
 expect admin GET /api/v1/openapi.yml 404
+
+echo "== the bare domain redirects to the website and reaches nothing else"
+for p in / "/about?x=1" /webhook/oc-events /form/apply-ose /api/v1/workflows; do
+  expect root GET "$p" 301
+  where=$(curl -sk --max-time 10 --resolve "root.localhost:$PORT:127.0.0.1" -o /dev/null -w '%{redirect_url}' "https://root.localhost:$PORT$p" || true)
+  if [ "$where" = "https://www.opensourceeurope.org$p" ]; then
+    echo "ok   root GET $p -> $where"
+  else
+    fail "root GET $p redirected to '$where', wanted https://www.opensourceeurope.org$p"
+  fi
+done
 
 echo "== the admin host logs webhook calls, and nothing else"
 expect admin POST /webhook/access-log-probe 200 "upstream POST /webhook/access-log-probe" -- "${AUTH[@]}"
