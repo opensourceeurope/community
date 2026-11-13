@@ -20,6 +20,7 @@ MAP = {
     "qPEF2ldH8pJXU03N": "summary.json",
     "qWHuHamNdmvfrSRt": "ops-alert-on-failure.json",
     "VmIvEVoGXsD3zP85": "ops-weekly-digest.json",
+    "8G9DRzhfQ4cVZTp6": "decide-from-slack.json",
 }
 OUTDIR = "automation/n8n"
 
