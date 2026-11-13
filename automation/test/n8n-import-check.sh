@@ -115,7 +115,10 @@ PORT=$(docker port "$CONTAINER" 5678/tcp | awk -F: 'NR == 1 { print $NF }')
 ready=""
 i=0
 while [ "$i" -lt "$READY_TRIES" ]; do
-  if curl -fsS -o /dev/null "http://127.0.0.1:$PORT/healthz" 2>/dev/null; then
+  # /healthz answers while n8n still runs its migrations, and an import started
+  # then races them over the one SQLite file. /healthz/readiness waits for the
+  # database.
+  if curl -fsS -o /dev/null "http://127.0.0.1:$PORT/healthz/readiness" 2>/dev/null; then
     ready=1
     break
   fi
@@ -123,7 +126,7 @@ while [ "$i" -lt "$READY_TRIES" ]; do
   sleep "$READY_SLEEP"
 done
 if [ -z "$ready" ]; then
-  echo "FAIL: n8n $TAG did not answer /healthz within $((READY_TRIES * READY_SLEEP))s" >&2
+  echo "FAIL: n8n $TAG did not answer /healthz/readiness within $((READY_TRIES * READY_SLEEP))s" >&2
   exit 1
 fi
 echo "    healthy"
@@ -137,7 +140,25 @@ for file in "$EXPORTS"/*.json; do
   docker exec "$CONTAINER" sh -c 'rm -rf /tmp/one && mkdir -p /tmp/one'
   docker cp "$file" "$CONTAINER:/tmp/one/$name" >/dev/null
 
-  if ! output=$(docker exec "$CONTAINER" n8n import:workflow --separate --input=/tmp/one 2>&1); then
+  # The import command runs its own migration check against the same SQLite
+  # file the server holds open. A locked database or a migration the server is
+  # still applying is a race, not a bad export, so those alone are retried.
+  attempt=1
+  while :; do
+    if output=$(docker exec "$CONTAINER" n8n import:workflow --separate --input=/tmp/one 2>&1); then
+      status=0
+    else
+      status=$?
+    fi
+    races=$(printf '%s\n' "$output" | grep -c -e 'SQLITE_BUSY' -e 'error running database migrations' || true)
+    if [ "$status" -eq 0 ] || [ "$races" -eq 0 ] || [ "$attempt" -ge 3 ]; then
+      break
+    fi
+    echo "    $name: the database was busy, trying again"
+    attempt=$((attempt + 1))
+    sleep 5
+  done
+  if [ "$status" -ne 0 ]; then
     printf '%s\n' "$output" >&2
     echo "FAIL: $name: n8n $TAG rejected this export" >&2
     exit 1
