@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs automation/infra/bootstrap.sh twice inside a Debian 13 container, as a
-# `debian` user with passwordless sudo, the way OVH's image provisions one.
+# `debian` user with passwordless sudo, the way OVH's image provisions one and the
+# Scaleway module's cloud-init creates one.
 # Packages, the clone, the .env and the unit files are real. systemd, ufw,
 # sshd and the Docker engine cannot run in a container, so those are stubs that
 # record their calls.
@@ -35,6 +36,11 @@ for cmd in systemctl ufw sshd; do
 done
 printf '#!/bin/sh\necho "ufw $*" >> /tmp/calls.log\n[ "$1" = status ] && [ -f /tmp/ufw-on ] && echo "Status: active"\n[ "$1" = --force ] && touch /tmp/ufw-on\nexit 0\n' > /usr/local/sbin/ufw
 printf '#!/bin/sh\necho "docker $*" >> /tmp/calls.log\n' > /usr/local/sbin/docker
+# A container cannot switch swap on, and `swapon --show` would list the host's.
+for cmd in swapon mkswap; do
+  printf '#!/bin/sh\necho "%s $*" >> /tmp/calls.log\n' "$cmd" > "/usr/local/sbin/$cmd"
+done
+printf '#!/bin/sh\necho "fallocate $*" >> /tmp/calls.log\nfor f; do :; done\ntouch "$f"\n' > /usr/local/sbin/fallocate
 chmod 755 /usr/local/sbin/*
 touch /tmp/calls.log && chmod 666 /tmp/calls.log
 
@@ -82,6 +88,9 @@ for u in ose-deploy.service ose-deploy.timer ose-backup.service ose-backup.timer
   [ -f "/etc/systemd/system/$u" ] || fail "$u not installed"
 done
 [ "$(count 'compose up -d' /tmp/calls.log)" -eq 1 ] || fail "the stack was not brought up"
+[ "$(count '^swapon /swapfile$' /tmp/calls.log)" -eq 1 ] || fail "no swap file switched on"
+[ "$(stat -c %a /swapfile)" = 600 ] || fail "the swap file is mode $(stat -c %a /swapfile)"
+[ "$(count '^/swapfile none swap sw 0 0$' /etc/fstab)" -eq 1 ] || fail "the swap file is not in /etc/fstab"
 [ "$(count 'enable --now ose-backup.timer' /tmp/calls.log)" -eq 1 ] || fail "the backup timer was not enabled"
 [ "$(count 'enable --now ose-env-drift.timer' /tmp/calls.log)" -eq 1 ] || fail "the .env drift timer was not enabled"
 [ "$(count 'enable --now ose-inactive-workflows.timer' /tmp/calls.log)" -eq 0 ] || fail "the inactive workflow timer was enabled without an API key"
@@ -99,6 +108,8 @@ run all --n8n-host other.example.org --apply-host other.example.org > /tmp/secon
 [ "$(count 'left exactly as it is' /tmp/second.log)" -eq 1 ] || fail "the second run did not keep .env"
 [ "$(count '^installed: ' /tmp/second.log)" -eq 0 ] || fail "the second run installed packages again"
 [ "$(count 'ufw --force enable' /tmp/calls.log)" -eq 0 ] || fail "the second run enabled ufw again"
+[ "$(count 'fallocate' /tmp/calls.log)" -eq 0 ] || fail "the second run made a swap file again"
+[ "$(count '^/swapfile ' /etc/fstab)" -eq 1 ] || fail "the second run added the swap file to /etc/fstab again"
 [ "$(count 'reload ssh' /tmp/calls.log)" -eq 0 ] || fail "the second run reloaded sshd again"
 [ "$(count 'automatic security updates already configured' /tmp/second.log)" -eq 1 ] || fail "the second run rewrote the update settings"
 

@@ -415,8 +415,11 @@ The OSE-specific invariants on top of that skill:
   password: the operator generates it and hands over the hash.
 - **`tofu/vps/` is a template and is never applied to the production box.**
   Applying it orders and bills a new VPS, and destroying it terminates one.
-  `tofu/backup-storage/` is applied from the operator's laptop. State for both
-  stays local and gitignored.
+  `tofu/backup-storage/` and `tofu/scaleway-box/` are applied from the
+  operator's laptop, and only after the operator says yes to the named
+  resources and their monthly price. `tofu/scaleway-box/` creates billed
+  resources and a protected instance. State for each stays local and
+  gitignored.
 
 ## Writing Docs
 
