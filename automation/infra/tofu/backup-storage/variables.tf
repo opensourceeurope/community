@@ -11,7 +11,7 @@ variable "bucket_name" {
 }
 
 variable "region" {
-  description = "Scaleway region of the bucket. Pick one away from the VPS, so one incident cannot take both."
+  description = "Scaleway region of the bucket."
   type        = string
   default     = "pl-waw"
 }

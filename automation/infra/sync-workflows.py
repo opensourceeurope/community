@@ -20,7 +20,7 @@ automation/scripts/check-workflows.py, which deploy.sh runs first.
 
 Reads the instance URL from N8N_API_URL and the API key from N8N_API_KEY, or
 from the file named by N8N_API_KEY_FILE. deploy.sh is how this runs
-on the VPS. Call it directly to sync a checkout somewhere else.
+on the box. Call it directly to sync a checkout somewhere else.
 """
 import argparse
 import collections

@@ -32,3 +32,45 @@ variable "name" {
   type        = string
   default     = "ose-n8n-automation"
 }
+
+variable "dns_zone" {
+  description = "Scaleway DNS zone the two hostnames live in, for example example.org. Null creates no records, for a zone hosted elsewhere."
+  type        = string
+  default     = null
+}
+
+variable "n8n_subdomain" {
+  description = "Admin hostname inside dns_zone: the n8n editor and the Open Collective webhook. Avoid naming it after n8n, since every certificate is published in Certificate Transparency logs."
+  type        = string
+  default     = "automation"
+}
+
+variable "apply_subdomain" {
+  description = "Applicant hostname inside dns_zone, whose bare URL serves the application form."
+  type        = string
+  default     = "apply"
+}
+
+variable "ipv6_address" {
+  description = "The box's IPv6 address for the AAAA records, read on the box after the first apply with: ip -6 addr show scope global. Null creates no AAAA records."
+  type        = string
+  default     = null
+}
+
+variable "run_bootstrap" {
+  description = "Run bootstrap.sh all on the new box over SSH, for a fresh install. Leave false for a move, where .env must be copied in before n8n first starts."
+  type        = bool
+  default     = false
+}
+
+variable "repo_url" {
+  description = "Repository the box clones and deploys from."
+  type        = string
+  default     = "https://github.com/opensourceeurope/community.git"
+}
+
+variable "branch" {
+  description = "Branch the box deploys."
+  type        = string
+  default     = "main"
+}

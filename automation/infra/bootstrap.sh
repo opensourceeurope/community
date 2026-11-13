@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Turn a fresh Debian 13 VPS into this stack, or bring an existing box's
+# Turn a fresh Debian 13 machine into this stack, or bring an existing box's
 # systemd timers up to date. Every step checks first and does nothing when its
 # work is already done, so running it twice changes nothing the second time.
 #

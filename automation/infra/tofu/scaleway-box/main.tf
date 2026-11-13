@@ -72,8 +72,7 @@ resource "scaleway_instance_server" "box" {
   }
 
   # Scaleway's Debian image logs in as root. The units run as debian from
-  # /home/debian/community, so cloud-init creates that user the way OVH's
-  # image does.
+  # /home/debian/community, so cloud-init creates that user.
   user_data = {
     cloud-init = templatefile("${path.module}/cloud-init.yaml.tftpl", {
       ssh_public_key = var.ssh_public_key
@@ -81,4 +80,70 @@ resource "scaleway_instance_server" "box" {
   }
 
   tags = ["ose", "n8n"]
+}
+
+locals {
+  n8n_host   = var.dns_zone == null ? null : "${var.n8n_subdomain}.${var.dns_zone}"
+  apply_host = var.dns_zone == null ? null : "${var.apply_subdomain}.${var.dns_zone}"
+  subdomains = var.dns_zone == null ? toset([]) : toset([var.n8n_subdomain, var.apply_subdomain])
+}
+
+resource "scaleway_domain_record" "a" {
+  for_each = local.subdomains
+  dns_zone = var.dns_zone
+  name     = each.value
+  type     = "A"
+  data     = scaleway_instance_ip.v4.address
+  ttl      = 300
+}
+
+# The box takes its IPv6 address from the routed prefix by itself, so the
+# address is known only once it runs. Read it there and set ipv6_address.
+resource "scaleway_domain_record" "aaaa" {
+  for_each = var.ipv6_address == null ? toset([]) : local.subdomains
+  dns_zone = var.dns_zone
+  name     = each.value
+  type     = "AAAA"
+  data     = var.ipv6_address
+  ttl      = 300
+}
+
+# A fresh install only. bootstrap.sh clones the repository itself, so the
+# script is uploaded from this checkout rather than run from a clone that does
+# not exist yet. Caddy gets its certificates once the A records resolve.
+resource "terraform_data" "bootstrap" {
+  count            = var.run_bootstrap ? 1 : 0
+  triggers_replace = [scaleway_instance_server.box.id]
+
+  depends_on = [scaleway_domain_record.a]
+
+  lifecycle {
+    precondition {
+      condition     = var.dns_zone != null
+      error_message = "run_bootstrap needs dns_zone, because bootstrap.sh writes both hostnames into .env."
+    }
+  }
+
+  connection {
+    type  = "ssh"
+    host  = scaleway_instance_ip.v4.address
+    user  = "debian"
+    agent = true
+  }
+
+  provisioner "remote-exec" {
+    # Exit code 2 means cloud-init finished with a warning, which is fine.
+    inline = ["cloud-init status --wait >/dev/null || [ $? -eq 2 ]"]
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/../../bootstrap.sh"
+    destination = "/tmp/bootstrap.sh"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "bash /tmp/bootstrap.sh all --n8n-host '${local.n8n_host}' --apply-host '${local.apply_host}' --repo-url '${var.repo_url}' --branch '${var.branch}'",
+    ]
+  }
 }

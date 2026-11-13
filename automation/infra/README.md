@@ -1,17 +1,17 @@
 # Infra: n8n on Postgres behind Caddy
 
-The VPS that runs the application automation. Three containers: `postgres`
+The Scaleway instance that runs the application automation. Three containers: `postgres`
 (n8n's database, not the default SQLite), `n8n` itself, and `caddy` as a
 reverse proxy that terminates TLS and gets certificates automatically.
 
-Throughout this document, "the box" means this VPS, the one machine that runs
-all three containers.
+Throughout this document, "the box" means this instance, the one machine that
+runs all three containers.
 
 ## Quick facts
 
 | | |
 |---|---|
-| Host | the OVH VPS. Its hostname and IP are in the shared vault, with the SSH access notes |
+| Host | the Scaleway instance `ose-n8n-automation` in `pl-waw-1`, project `ose-resources`. Its IP is in the shared vault, with the SSH access notes |
 | Log in as | `ssh debian@{VPS_IP}`, key only, passwordless sudo. Not root |
 | Checkout on the box | `~/community` on `main`, kept current by the deploy timer |
 | Compose dir | `~/community/automation/infra` |
@@ -26,7 +26,7 @@ all three containers.
 
 | Task | Section |
 |---|---|
-| Install this from nothing | [First install](#first-install-from-a-fresh-vps) |
+| Install this from nothing, or a copy of it elsewhere | [First install](#first-install-from-nothing) |
 | Start, stop, look at logs | [Day to day](#day-to-day) |
 | Take or verify a backup | [Backup](#backup) |
 | Put a backup back | [Restore](#restore) |
@@ -37,7 +37,7 @@ all three containers.
 | Ship a workflow or infra change from `main` | [Deploying on merge](#deploying-on-merge) |
 | Find out when a deploy or backup fails | [Alerts when the box fails](#alerts-when-the-box-fails) |
 | Copy backups off the box | [The copy off the box](#the-copy-off-the-box) |
-| Build a new box with OpenTofu | [`tofu/scaleway-box/README.md`](tofu/scaleway-box/README.md) for Scaleway, [`tofu/vps/README.md`](tofu/vps/README.md) for OVH |
+| Build a new box with OpenTofu | [`tofu/scaleway-box/README.md`](tofu/scaleway-box/README.md) |
 | Move the stack to another box | [Moving to a new box](#moving-to-a-new-box) |
 | Find out when a workflow breaks | [Alerts when a workflow fails](#alerts-when-a-workflow-fails) |
 | Find out when the whole box is down | [The external uptime monitor](#the-external-uptime-monitor) |
@@ -46,14 +46,16 @@ all three containers.
 | Change the image people see when they share the form link | [The form's link preview image](#the-forms-link-preview-image) |
 | Point Open Collective at this box | [Registering the Open Collective webhook](#registering-the-open-collective-webhook) |
 
-## The box (this VPS)
+## The box
 
-OVHcloud VPS-1 2027 (plan code `vps-2027-model1`): 2 vCore, 4096 MB, 40 GB
-NVMe, in Strasbourg, running Debian 13.
+A Scaleway `DEV1-S`: 2 shared vCPU, 2 GB of RAM, a 20 GB local SSD, in Warsaw
+(`pl-waw-1`), running Debian 13, with a 2 GB swap file. OpenTofu describes it
+in [`tofu/scaleway-box/`](tofu/scaleway-box/).
 
-That is about four times what the stack needs. At rest n8n uses 300 to 500 MB,
-Postgres about 150 MB and Caddy about 30 MB, for a few workflow executions a
-day. What fills a box this size is execution history, not load, and
+The stack needs about 750 MB: n8n 450 to 600 MB, Postgres about 180 MB and Caddy
+about 40 MB, for a few workflow executions a day. n8n grows past 1 GB for a
+moment during a busy run, and the swap file takes that peak. CPU stays near 1%.
+What fills the disk is execution history, not load, and
 `EXECUTIONS_DATA_PRUNE` below keeps it bounded.
 
 ## Where each secret lives
@@ -63,12 +65,11 @@ them is easy and has already caused a wrong turn.
 
 | Store | Where | Holds | Not this |
 |---|---|---|---|
-| `~/.ovh.conf` | the operator's own laptop, mode 600, outside this repo | OVH API credentials only: `endpoint`, `application_key`, `application_secret` and `consumer_key`, used by the `ovhcloud` CLI and the OpenTofu VPS template | nothing about n8n, Postgres or inference |
-| `.env` | on the VPS, in `automation/infra/`, mode 600 | `POSTGRES_PASSWORD`, `N8N_ENCRYPTION_KEY`, `AI_API_KEY`, plus all non-secret config | not OVH credentials, not SMTP/Slack/OC credentials |
+| `.env` | on the box, in `automation/infra/`, mode 600 | `POSTGRES_PASSWORD`, `N8N_ENCRYPTION_KEY`, `AI_API_KEY`, plus all non-secret config | not Scaleway account credentials, not SMTP/Slack/OC credentials |
 | n8n's credential store | inside the Postgres database, encrypted with `N8N_ENCRYPTION_KEY` | SMTP, Slack and Open Collective credentials, referenced by name from nodes | anything that has to exist before n8n starts |
-| `~/.n8n-api-key`, `~/.slack-bot-token`, `~/.config/ose-backup/backup.env` | on the VPS, mode 600 each | the scoped n8n API key the deploy uses, the Slack bot token the failure alert uses, and the write-only bucket key and age public key the backup uses | not the compose `.env`, which the container receives. None of these is needed inside n8n |
-| `~/.config/scw/config.yaml` | the operator's own laptop, mode 600 | the Scaleway API key OpenTofu uses to manage the backup bucket and the Scaleway instance | not the bucket upload key, which lives only on the VPS |
-| `~/.n8n-api-key` on the operator's machine | mode 600, read by the shell profile into `N8N_API_KEY` | the n8n API key that exports and edits workflows, as [`automation/README.md`](../README.md) describes | not the compose `.env` on the VPS, which the container receives, and not the box's own deploy key, which has fewer scopes |
+| `~/.n8n-api-key`, `~/.slack-bot-token`, `~/.config/ose-backup/backup.env` | on the box, mode 600 each | the scoped n8n API key the deploy uses, the Slack bot token the failure alert uses, and the write-only bucket key and age public key the backup uses | not the compose `.env`, which the container receives. None of these is needed inside n8n |
+| `~/.config/scw/config.yaml` | the operator's own laptop, mode 600 | the Scaleway API key the `scw` CLI and OpenTofu use for the instance, its DNS records and the backup bucket | not the bucket upload key, which lives only on the box |
+| `~/.n8n-api-key` on the operator's machine | mode 600, read by the shell profile into `N8N_API_KEY` | the n8n API key that exports and edits workflows, as [`automation/README.md`](../README.md) describes | not the compose `.env` on the box, which the container receives, and not the box's own deploy key, which has fewer scopes |
 
 The password vault holds a copy of what cannot be regenerated, as separate
 entries in a vault shared with more than one admin. See
@@ -78,7 +79,6 @@ whoever searches the vault later:
 
 - `OSE automation — n8n encryption key` (unrecoverable if lost)
 - `OSE automation — Postgres (n8n db)` (resettable)
-- `OSE — OVHcloud API` (re-issuable with `ovhcloud login`)
 - `OSE automation — backup decryption key` (unrecoverable if lost: every dump in the bucket becomes unreadable)
 - `OSE automation — n8n editor gate` (replaceable: a new password and a pull request with its hash)
 
@@ -344,58 +344,52 @@ docker compose exec -T postgres psql -U n8n -d n8n -tAc "select key from setting
 ## Sending mail: not from this box
 
 `opensourceeurope.org` publishes `v=spf1 include:_spf.protonmail.ch -all`, a
-hard fail for any sender that is not Proton. This VPS is not an authorised
-sender and has no reverse DNS, so mail sent directly from it as
+hard fail for any sender that is not Proton. This box is not an authorised
+sender, so mail sent directly from it as
 `@opensourceeurope.org` will be rejected or filed as spam.
 
 So the workflows send through an authenticated relay at an authorised sender.
-Keep the VPS out of SPF: adding it would let a box running arbitrary workflows
+Keep the box out of SPF: adding it would let a box running arbitrary workflows
 send as the whole domain.
 [The SMTP credential](#the-smtp-credential) describes the relay in use.
 
 ## Getting into the box
 
-Three things cause almost every failed login here:
+These cause almost every failed login here:
 
-- The login user is `debian`, not `root`. OVH's Debian 13 image creates
-  `debian` with passwordless sudo and puts the SSH key there. `root` gets no
-  key, and Debian's `PermitRootLogin prohibit-password` refuses root passwords,
-  so `ssh root@…` fails whatever is configured.
+- The login user is `debian`, not `root`. Scaleway's Debian image logs in as
+  `root`, and the module's cloud-init creates `debian` with passwordless sudo
+  and your key, then turns root login off. So `ssh root@…` fails whatever is
+  configured.
 - A passphrase-protected key with an empty `ssh-agent` looks like a missing
   key. `ssh -o BatchMode=yes` cannot ask for the passphrase, so it reports
   `Permission denied (publickey)`. Check the local side first: `ssh-add -l`
   lists the key, and `ssh-keygen -y -f ~/.ssh/{KEY}` proves the passphrase.
-- Polling SSH in a loop gets your IP blocked. The box then resets the
-  connection with `banner line 0: Not allowed at this time` before
-  authentication. Stop, wait 10 to 30 minutes, then try once.
 
-When SSH is out of reach, the `ovhcloud` CLI hands you a console URL. The
-console keyboard can be AZERTY, so `q` types `a`, and the password prompt does
-not echo. Type the password at the `login:` prompt, which does echo, to see
-what arrives. Swapping `vnc_lite.html` for `vnc.html` in the console URL adds a
-clipboard panel that bypasses the keyboard layout.
+Run commands on the box from your own machine as one-shot
+`ssh debian@{VPS_HOST} '...'`. A block pasted into an open session is risky:
+while SSH still asks for the passphrase, the paste lands in that prompt and
+the rest runs on your own machine.
 
-To put a key back on the box, choose it in the OVH Manager's reinstall dialog.
-OVH then installs it for `debian` and sends no password, and a delivery mail
-with a user name and no password confirms the key went in. A reinstall wipes the
-disk, so restore from [the copy off the box](#the-copy-off-the-box) afterwards.
+When SSH is out of reach, the instance's page in the Scaleway console opens a
+serial console, but `debian` has no password, so the console cannot log in as
+it. The way back in is Scaleway's rescue mode: boot into it, mount the disk and
+fix `/home/debian/.ssh/authorized_keys`, then boot normally. Follow Scaleway's
+documentation for rescue mode, because its steps change with the instance
+range.
 
 Never remove one way into a machine before its replacement is proven. Turning
 off passwords before a key login works leaves no way in.
 
-### The `ovhcloud` CLI needs credentials, and they expire
+### The `scw` CLI and OpenTofu need a working API key
 
-The `ovhcloud` CLI and the OpenTofu VPS template read OVH API credentials from
-`~/.ovh.conf` (mode 600): endpoint, application key, application secret and
-consumer key. Keep the file in your home directory. `ovh.conf` is gitignored as
-a backstop.
+The `scw` CLI and OpenTofu read a Scaleway API key from
+`~/.config/scw/config.yaml`. A key that has expired fails with
+`denied authentication: API key is expired`. Generate a new one in the console
+under **IAM**, **API keys**, then run `scw init` and override the `default`
+profile.
 
-`INVALID_CREDENTIAL` or `This credential is not valid` (403) on every call means
-the consumer key was revoked or expired. It is not a permissions problem with
-the VPS. Run `ovhcloud login`, which opens a browser consent flow and rewrites
-the file. These credentials are cheap to lose: revoke and re-issue them at will.
-
-## First install, from a fresh VPS
+## First install, from nothing
 
 To rebuild this box after losing it, restore a dump onto a fresh install, as
 [Which backup to restore, when](#which-backup-to-restore-when) describes. The
@@ -407,8 +401,7 @@ that: a copy of this system somewhere else, or a rebuild with no dump.
 
 | Service | What it is for | Where its secret ends up |
 |---|---|---|
-| OVHcloud | the VPS and the DNS zone for both hostnames | `~/.ovh.conf` on your own machine |
-| Scaleway | the model behind the review and the summary, the backup bucket, and the instance when the box runs there | `AI_API_KEY` in `.env`, and `~/.config/scw/config.yaml` on your own machine |
+| Scaleway, in a verified Organization | the instance, the DNS zone for both hostnames, the backup bucket, and the model behind the review and the summary. An unverified Organization cannot send mail from an instance | `AI_API_KEY` in `.env`, and `~/.config/scw/config.yaml` on your own machine |
 | Open Collective | an admin of the host account, for its API token | the n8n credential `oc-host-admin` |
 | Slack | an app with a bot token, invited to the reviewers' channel | the n8n credential `slack-bot`, and `~/.slack-bot-token` on the box |
 | Proton Mail | an SMTP token for the sending address | the n8n credential `smtp-proton` |
@@ -417,11 +410,11 @@ that: a copy of this system somewhere else, or a rebuild with no dump.
 
 ### Install the box
 
-[`bootstrap.sh`](bootstrap.sh) installs the box. To order a new VPS and run
-the script in one step on OVH, use the OpenTofu module in [`tofu/vps/`](tofu/vps/).
-To create a Scaleway instance for it, use [`tofu/scaleway-box/`](tofu/scaleway-box/).
-To install onto a VPS you already have, log in as `debian` and run the script
-yourself.
+[`bootstrap.sh`](bootstrap.sh) installs the box. To create the Scaleway
+instance, its DNS records and run the script in one step, use the OpenTofu
+module in [`tofu/scaleway-box/`](tofu/scaleway-box/) with `dns_zone` set and
+`run_bootstrap = true`. To install onto a Debian 13 machine you already have,
+log in as `debian` and run the script yourself, as follows.
 
 The script needs `git` and `sudo`. A minimal Debian 13 image lacks `git`, so
 install it first:
@@ -473,7 +466,10 @@ The script ends with the steps it cannot do for you. Do them in this order:
 
 1. Copy `N8N_ENCRYPTION_KEY` from `.env` into the password vault. See
    [the encryption key section](#n8n_encryption_key-back-it-up-off-this-box-before-anything-else).
-2. Create the n8n owner account at the admin URL.
+2. On a copy of this setup, give the editor gate a password of your own, as
+   [The editor gate](#the-editor-gate) describes, and commit its hash to your
+   fork. The hash in this repository opens only OSE's box, so without your own
+   you cannot reach the admin URL. Then create the n8n owner account there.
 3. Create two n8n API keys. Your own key stays on your own machine, as
    [`automation/README.md`](../README.md#providing-the-n8n-api-key-to-claude-code)
    describes. The box's deploy key goes in `~/.n8n-api-key`, as in
@@ -531,8 +527,8 @@ The script ends with the steps it cannot do for you. Do them in this order:
     row the rehearsal touched. Going live is writing `DRY_RUN=false` into `.env`
     and running `docker compose up -d`. It is a decision, not a setup step.
 
-The unit files run as `debian` out of `/home/debian/community`, which is what
-OVH's Debian image provides. On another account, change those lines in git
+The unit files run as `debian` out of `/home/debian/community`, which the
+module's cloud-init creates. On another account, change those lines in git
 first. The script stops when the account or the path does not match.
 
 ### Verify the install
@@ -1482,17 +1478,9 @@ The backup of record is this repo's own: `backup.sh` and the systemd units in
 copies a unit again whenever it changes in git. The service runs the script out
 of the checkout, so a pull alone updates it.
 
-OVH also snapshots the VPS daily, around 14:37 UTC, and keeps one restore
-point (Manager → the VPS → Automated backup). Treat it as a safety net, not the
-backup of record:
-
-- One restore point means yesterday only, with no history.
-- It sits with the same provider as the VPS, so it does not survive losing the
-  OVH account or region.
-- It restores only onto OVH. A dump is a portable file.
-- It is crash-consistent: restoring it is like the machine losing power at
-  14:37. Postgres normally recovers from that by replaying its write-ahead log.
-- It contains the whole disk, `.env` and its secrets included.
+Scaleway takes no automatic snapshot of the instance, so the dump is the only
+backup. Before a risky change to the machine itself, take a snapshot of its
+volume in the console. Scaleway bills a snapshot by the GB until you delete it.
 
 [`backup.sh`](backup.sh) writes the dump and refuses to leave a useless file
 behind: it fails if the dump is under 10 KiB, fails the gzip integrity check, or
@@ -1529,9 +1517,10 @@ to be.
 
 A backup that exists only on the machine it protects does not survive that
 machine. After the checks above pass, `backup.sh` encrypts the dump with `age`
-and uploads it to a Scaleway Object Storage bucket in Warsaw (`pl-waw`). That is
-a different provider and a different country from the VPS, so one incident
-cannot take both. The local dump is written first and kept either way, so a
+and uploads it to a Scaleway Object Storage bucket in Warsaw (`pl-waw`), in a
+project of its own with a write-only key. It survives losing the box. It does
+not survive losing the Scaleway account or the whole region, because the box
+lives there too. The local dump is written first and kept either way, so a
 failed upload costs the off-box copy and nothing else. It fails the run, which
 posts an alert.
 
@@ -1640,25 +1629,23 @@ once the bucket holds an encrypted copy of the same day.
 
 ## Which backup to restore, when
 
-The nightly dump copies the database only. The daily OVH snapshot is an image
-of the whole machine. A data problem wants the dump, and a machine problem wants
-the snapshot or a rebuild.
+The nightly dump copies the database only. A data problem wants the dump. A
+machine problem wants a volume snapshot, if you took one, or a rebuild.
 
 | What happened | Restore what | How |
 |---|---|---|
 | Bad data: an n8n upgrade broke things, workflows or rows were deleted or mangled, but the machine itself is fine | The most recent **dump** from before the damage | The Restore steps below, on this box |
 | Only one thing is lost (a single workflow, a few rows) and everything else moved on since | The dump, **into a scratch database** | The rehearsal procedure below, then copy what you need out of `restoretest` instead of rolling the whole database back |
-| The machine is broken (filesystem damage, botched OS change) but OVH is fine | The **OVH snapshot** (Manager → the VPS → Automated backup) | Restores the whole disk to ~14:37 UTC yesterday, `.env` included. Afterwards: check the stack (`docker compose ps`), and run `backup.sh` once so a fresh dump exists |
-| The VPS is gone entirely: terminated, region lost, or an account problem | The latest **dump** from the bucket, plus this repo | New VPS → the "First install" steps → decrypt the dump → load it. Needs `N8N_ENCRYPTION_KEY` and the backup decryption key **from the vault**. This is the moment they exist for |
+| The machine is broken (filesystem damage, botched OS change) | A **volume snapshot** taken before the change, if there is one. Otherwise as in the next row | A snapshot comes back as a new volume, so build an instance on it in the console and point DNS at it. Then check the stack (`docker compose ps`), and run `backup.sh` once so a fresh dump exists |
+| The box is gone entirely: deleted, broken beyond repair, or an account problem | The latest **dump** from the bucket, plus this repo | A new box → [Moving to a new box](#moving-to-a-new-box), with `.env` rebuilt around the vault's key → decrypt the dump → load it. Needs `N8N_ENCRYPTION_KEY` and the backup decryption key **from the vault**. This is the moment they exist for |
 
 Two constraints that hold in every row:
 
 - A dump only yields working credentials under the original
-  `N8N_ENCRYPTION_KEY`. The machine-problem rows keep it in `.env` on the
-  restored disk. The last row is why the vault copy matters.
+  `N8N_ENCRYPTION_KEY`. The snapshot keeps it in `.env` on the restored disk.
+  The last row is why the vault copy matters.
 - The last row works only once [the copy off the box](#the-copy-off-the-box)
-  is set up. Without it, losing the box loses the dumps with it, and the OVH
-  snapshot at the same provider is the only copy left.
+  is set up. Without it, losing the box loses the dumps with it.
 
 ## Restore
 
@@ -1707,7 +1694,7 @@ properties:
 | Scenario | `POSTGRES_PASSWORD` | `N8N_ENCRYPTION_KEY` |
 |---|---|---|
 | Restart, reboot, `down` + `up -d`, n8n upgrade | unchanged, because the volumes persist | unchanged |
-| `docker compose down -v`, box rebuilt, new VPS | gone with the filesystem, so **pick a new one freely** | gone, and it **must be the original or credentials are unreadable** |
+| `docker compose down -v`, box rebuilt, new box | gone with the filesystem, so **pick a new one freely** | gone, and it **must be the original or credentials are unreadable** |
 | Deliberate rotation on a live box | see below | never rotate against an existing database |
 
 Rotating `POSTGRES_PASSWORD` takes two steps. The compose variable only
@@ -2176,9 +2163,8 @@ in this repository. Put the account credentials in the shared vault.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `ssh root@…` refused, any credential | This image has no root key, and Debian sets `PermitRootLogin prohibit-password` | Log in as the non-root user from the vault |
+| `ssh root@…` refused, any credential | Cloud-init's `disable_root` turns root logins away, by design | Log in as `debian` |
 | `Permission denied (publickey)` with the right key | The key is passphrase-protected and `ssh-agent` is empty, so `BatchMode` cannot sign | `ssh-add ~/.ssh/{KEY}`, then confirm with `ssh-add -l` |
-| `banner line 0: Not allowed at this time`, connection reset | Source IP blocked by brute-force protection, usually from polling SSH in a loop | Stop connecting and wait 10 to 30 minutes |
 | `REMOTE HOST IDENTIFICATION HAS CHANGED` | The box was reinstalled | `ssh-keygen -R {VPS_IP}`, and only when you know why it changed |
 | Certificate not issued | DNS for the hostname does not resolve to this box, or 80/443 blocked | Check `dig`, `sudo ufw status` and `docker compose logs caddy` |
 | Caddy 502 for a few seconds after start | n8n is still booting, and Caddy has no healthcheck to wait on | Wait. It clears itself |
@@ -2198,7 +2184,8 @@ in this repository. Put the account credentials in the shared vault.
 | Disk filling | Execution history unpruned | Check `EXECUTIONS_DATA_PRUNE=true` and `EXECUTIONS_DATA_MAX_AGE` |
 | A deploy or backup failed and no Slack alert arrived | `~/.slack-bot-token` is missing or readable by others, or the bot is not in `SLACK_CHANNEL` | Read `journalctl -u ose-alert@{UNIT}.service` |
 | Credentials all broken after a restore | `N8N_ENCRYPTION_KEY` differs from the one in use when the dump was taken | Restore the original key. There is no recovery without it |
-| Every `ovhcloud` command returns 403 | The consumer key in `~/.ovh.conf` was revoked or expired | `ovhcloud login` |
+| `scw` or `tofu` fails with `API key is expired` | The Scaleway API key in `~/.config/scw/config.yaml` expired | A new key in the console under IAM, API keys, then `scw init` |
+| `tofu apply` stops at the security group with `your account is not trusted` | The Scaleway Organization is not verified, so it may not unblock outbound SMTP | Verify the Organization in the console, then apply again. The addresses created before the error already bill |
 | Stray `.*.swp` in `automation/infra/`, or an editor process nobody remembers | A dropped `ssh -t` session left an editor open on `.env`. The swap file holds a copy of the secrets, and a stale editor that saves later overwrites a rotated key with the old one | `pgrep -a 'vim|nano'`, kill the orphan (editors do not save on a plain kill), delete the swap file, then check `.env` by length |
 | Applicant emails rejected or spam-filed | Mail sent from this box, while the domain's SPF allows Proton only | Send through the relay in [The SMTP credential](#the-smtp-credential) |
 | A workflow failed, then worked, and no recovery arrived | `ose-workflow-recovery.timer` is not running, or the deploy key lacks `execution:list` | Read `systemctl status ose-workflow-recovery.timer` and `journalctl -u ose-workflow-recovery.service` |

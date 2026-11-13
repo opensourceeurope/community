@@ -9,7 +9,7 @@ creates four things in an existing Scaleway Organization:
 - A bucket in `pl-waw` with versioning on, and a lifecycle rule. The rule
   deletes a dump after 90 days and a replaced version 90 days after that, and
   it drops an unfinished upload after one day.
-- An IAM application, `ose-n8n-backups-uploader`, that the VPS uploads as.
+- An IAM application, `ose-n8n-backups-uploader`, that the box uploads as.
 - A policy that gives the application `ObjectStorageObjectsWrite` on the
   project and nothing else. It can create objects and cannot delete them.
 
@@ -68,5 +68,5 @@ the upload key, the age key pair and the settings file on the box.
 |---|---|---|
 | `project_name` | `ose-n8n-backups` | Scaleway project that holds only the bucket |
 | `bucket_name` | `ose-n8n-backups` | Bucket for the encrypted dumps. Pick your own when you copy this |
-| `region` | `pl-waw` | Region of the bucket. Pick one away from the VPS |
+| `region` | `pl-waw` | Region of the bucket |
 | `retention_days` | `90` | Days a dump is kept, and days a replaced version is kept after that |
