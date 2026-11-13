@@ -19,8 +19,9 @@ flowchart TD
     OC --> AI["Automated review<br>advisory verdict on the project"]
     AI -->|"step 2, link sent by email"| FORM["OSE application form<br>detailed project questions"]
     FORM --> SUM["Automated summary<br>of the answers"]
-    SUM --> DEC["A person approves or rejects<br>on Open Collective"]
-    DEC --> MAIL(["Applicant receives<br>the decision by email"])
+    SUM --> DEC["A person approves or rejects<br>with the buttons in the Slack thread"]
+    DEC -->|"decision, answers<br>and a private note"| OCD["Open Collective<br>records the decision"]
+    OCD --> MAIL(["Applicant receives<br>the decision by email"])
     SUM --> MOVE(["Or the collective moves<br>to another fiscal host,<br>and no email is sent"])
 
     FORM -->|"no answer<br>after 7 days"| REM["Reminder email"]
@@ -41,9 +42,15 @@ flowchart TD
 ```
 
 An application starts and ends on Open Collective. Open Collective calls OSE a
-fiscal host, and a collective applies to a host from that host's page. Later, a
-person approves or rejects that same application in the same place. Open
-Collective holds the decision, and no automated step makes it, per the
+fiscal host, and a collective applies to a host from that host's page. Once the
+form is in, a person approves or rejects with the Approve and Reject buttons in
+the application's Slack thread. They can edit the email the applicant will get
+and add a note for OSE's admins, and they confirm both before anything is sent.
+Their confirmation records the decision on that same application on Open
+Collective, stores the applicant's form answers with it, where only OSE's admins
+and the collective's own admins can read them, and adds the note, which only
+OSE's admins see. Open Collective holds the decision, and no automated step
+makes it, per the
 [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
 The applicant then receives an email with the outcome. A collective that moves
 to another fiscal host instead ends the application without one, because OSE
@@ -78,13 +85,14 @@ after a submission. It reads the answers and the project's README, then posts
 one paragraph and a verdict of its own.
 
 Both reads are advisory. Neither one recommends an approval or a rejection, and
-a person makes the decision on Open Collective. The workflows run on
+a person makes the decision. The workflows run on
 [n8n](https://n8n.io), self-hosted on a European virtual server.
 
 Every update about every application appears in one Slack channel. The first
 message about an application starts a thread. Every later step replies in that
 thread: the review, the invitation, the reminder, the escalation, the
-answers, the summary, and the outcome. Reactions on the first message show the current
+answers, the summary, the Approve and Reject buttons, who decided, and the
+outcome. Reactions on the first message show the current
 stage. To follow one application, read its thread. To see all of them, read the
 channel.
 

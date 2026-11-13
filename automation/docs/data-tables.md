@@ -39,7 +39,7 @@ with one of the four types.
 | `oc_admins` | String | intake | The collective's admins as Open Collective shows them publicly, a JSON array of `{slug, name, description, company, socialLinks: [{type, url}], createdAt, adminOfOthers}` taken when the application arrives. `company` is `null` for an organization. `createdAt` is when the admin's profile was made and `adminOfOthers` how many other collectives they administer, `null` for an organization, so the thread can say how established each admin is. Rows stored before those two existed lack them. Empty when the collective lists no admins. apply 2 posts it in the Slack thread, the form builds one country question per admin from it, and apply 3 looks up each admin's legal name from its slugs before the invitation. Never holds an email address. Personal data. |
 | `stage` | String | every workflow, as the application progresses | One of the ten stage values below. |
 | `applied_at` | Date | intake | The application's `createdAt` on Open Collective. |
-| `ai_review_claimed_at` | Date | AI review | When apply 2 took this row to work on. A claim, not a result. See "The three claim columns" below. |
+| `ai_review_claimed_at` | Date | AI review | When apply 2 took this row to work on. A claim, not a result. See "The claim columns" below. |
 | `ai_verdict` | String | AI review | One of `fits`, `wrong_host`, `not_open_source`, `unclear`. See `automation/prompts/verdict.schema.json`. |
 | `ai_confidence` | Number | AI review | 0 to 1, from the verdict object. |
 | `ai_reasoning` | String | AI review | Reviewer facing explanation from the model. Never shown to the applicant. |
@@ -50,7 +50,7 @@ with one of the four types.
 | `alternative_admin_name` | String | form workflow | Optional, asked on form page 5 and shown again on page 6: someone else who could also administer the collective. Empty when the applicant left it blank. Personal data. |
 | `alternative_admin_email` | String | form workflow | Optional, asked on form page 5 and shown again on page 6: that second admin's email address. Empty when the applicant left it blank. Personal data. |
 | `admin_countries` | String | form workflow | Where each admin lives, as the applicant answered on the admin page after page 4 and again on page 6. One line per admin, `Name (@slug): Country`, then `Other admins: ...` when the applicant named admins the list lacked. On a row whose `oc_admins` is empty it holds the applicant's free text answer instead. Posted in the Slack thread, never sent to the model. Personal data. |
-| `form_invite_claimed_at` | Date | follow-up | When apply 3 took this row to work on. A claim, not a result. See "The three claim columns" below. |
+| `form_invite_claimed_at` | Date | follow-up | When apply 3 took this row to work on. A claim, not a result. See "The claim columns" below. |
 | `form_invite_skipped_at` | Date | follow-up | When apply 3 found the application already decided on Open Collective and sent no invitation. It only stops apply 3 from claiming the row again. The stage stays where it was until the decision branch records the decision, and because `form_invited_at` is empty that sends no closing email. |
 | `form_invited_at` | Date | follow-up | When the invitation email was sent. The template varies by verdict, and every reviewed application still pending on Open Collective is invited. Empty at decision time means the applicant never heard from the pipeline, so the decision is recorded without a closing email. On a rejection, this column and `form_submitted_at` choose the closing email: invited and never submitted gets the no-response rejection. |
 | `form_reminded_at` | Date | follow-up | When the `reminder` email was sent, after silence following the invite. Driven by `REMINDER_AFTER_MINUTES` and `SWEEP_CRON`. |
@@ -64,40 +64,53 @@ with one of the four types.
 | `freshdesk_ticket_id` | String | none | Reserved for a possible future Freshdesk integration. No workflow writes it. |
 | `slack_channel_id` | String | intake | The channel holding this application's Slack thread. Written once, by whichever intake workflow created the row. |
 | `slack_thread_ts` | String | intake | The parent message's timestamp, which is the thread anchor. A Slack identifier, not a number: stored as a number it rounds and every reply fails. |
-| `ai_summary_claimed_at` | Date | apply 5 | When apply 5 took this row to work on. A claim, not a result. See "The three claim columns" below. |
+| `ai_summary_claimed_at` | Date | apply 5 | When apply 5 took this row to work on. A claim, not a result. See "The claim columns" below. |
 | `ai_summary` | String | apply 5 | The summary posted to the thread: the verdict line, then the description. Empty means apply 5 has not succeeded for this row, which is what makes its sweep idempotent. |
 | `ai_summary_verdict` | String | apply 5 | One of `fits`, `wrong_host`, `not_open_source`, `unclear`, the same four values as `ai_verdict`. apply 2 reads the public Open Collective page and apply 5 reads the answered form, so the two can differ. It is advisory, and nothing acts on it. |
 | `ai_summary_confidence` | Number | apply 5 | 0 to 1, how sure the model is of `ai_summary_verdict`. |
 | `ai_summary_model` | String | apply 5 | The model that produced it, so a summary stays traceable across a model change. |
 | `ai_summarised_at` | Date | apply 5 | When the summary was written. |
 | `readme_source` | String | apply 5 | `github`, `gitlab`, `generic` or `none`, so a reviewer can see whether the summary had a README to work from. |
+| `slack_decision_claimed_at` | Date | apply 6 | When a person's Confirm in the Slack decision dialog took this row to decide on. A claim, not a result. See "The claim columns" below. |
+| `slack_decided_by` | String | apply 6 | The Slack user who confirmed a decision in the dialog, as `<@USERID> (name)`. Set just before apply 6 asks Open Collective to decide. |
+| `decision_email_body` | String | apply 6 | The body of the closing email as the person edited it in the Slack dialog, for this application only. Empty means the decision branch uses the template. |
+| `decision_email_for` | String | apply 6 | `approved` or `rejected`, the decision `decision_email_body` was written for. The decision branch uses the edited body only when this equals the decision Open Collective reports, so a body written for an approval never goes out with a rejection. |
 
-### The three claim columns
+### The claim columns
 
-`ai_review_claimed_at`, `form_invite_claimed_at` and `ai_summary_claimed_at`
-record that a workflow run has taken a row to work on. Every other timestamp
-here records something that happened to the application. These three record an
-intention, so read them as a lock and never as evidence that a review, an
-invitation or a summary exists. `ai_reviewed_at`, `form_invited_at` and
-`ai_summarised_at` are the columns that say the work was actually done.
+`ai_review_claimed_at`, `form_invite_claimed_at`, `ai_summary_claimed_at` and
+`slack_decision_claimed_at` record that a workflow run has taken a row to work
+on. Every other timestamp here records something that happened to the
+application. These record an intention, so read them as a lock and never as
+evidence that a review, an invitation, a summary or a decision exists.
+`ai_reviewed_at`, `form_invited_at`, `ai_summarised_at` and `decided_at` are
+the columns that say the work was actually done.
 
-apply 2, apply 3 and apply 5 each stamp their column before the expensive step,
-which is the model call in apply 2 and apply 5 and the email in apply 3. The
-stamp is a conditional update whose filter names the value that run just read,
-null included, which makes it a compare and swap rather than a hopeful write.
-Of several runs starting at the same moment exactly one matches the row. The
-rest get an empty result back and skip that row in silence. That is what stops
-two sweeps paying for the same model call or putting a second copy of the same
-message in a thread.
+apply 2, apply 3, apply 5 and apply 6 each stamp their column before the
+expensive step, which is the model call in apply 2 and apply 5, the email in
+apply 3 and the call asking Open Collective to decide in apply 6. The stamp is
+a conditional update whose filter names the value that run just read, null
+included, which makes it a compare and swap rather than a hopeful write. Of
+several runs starting at the same moment exactly one matches the row. The rest
+get an empty result back and skip that row. apply 2, 3 and 5 skip in silence.
+apply 6 tells the person in the thread that the application was already being
+decided. That is what stops two sweeps paying for the same model call, two
+people deciding the same application, or a second copy of the same message in
+a thread.
 
 A claim older than `STALE_CLAIM_MINUTES`, 30 minutes when the variable is
 unset, is treated as abandoned and may be claimed again. A run that dies
 partway through therefore delays its application by that window instead of
 stranding it forever.
 
-Nothing ever clears a claim. A row that has been through all three stages keeps
-all three timestamps, and `stage` remains the record of where the application
-actually is.
+Only one claim is ever cleared. When the lookup or the decision call to Open
+Collective fails, apply 6 clears `slack_decision_claimed_at`, filtered on the
+value that run stamped, so the person can try again at once and no run clears
+another's claim. The saved email stays: a decision call that failed may still
+have landed, and `decision_email_for` keeps the email from going out with the
+other decision. Every other claim stays, so a
+row that has been through every stage keeps its timestamps, and `stage`
+remains the record of where the application actually is.
 
 ### The ten `stage` values
 

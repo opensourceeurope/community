@@ -30,8 +30,10 @@ CHECKS = """\
 
 4. Form answers reach the reviewer. Every key of the responses object built by
    'Record submission' (form-ose.json) must appear in the label list of
-   'Render submission thread reply' (form-ose.json) and of
-   'Render summary request' (summary.json). A key missing from a label list is
+   'Render submission thread reply' (form-ose.json), of
+   'Render summary request' (summary.json) and of 'Choose the pending
+   application' (decide-from-slack.json), which saves the answers on the
+   Open Collective application. A key missing from a label list is
    dropped silently, so an answer the applicant gave never reaches the people
    deciding. A key in MODEL_FREE_KEYS is the other way round in the second
    list: it has to reach a person, so the Slack list carries it, and it must
@@ -85,6 +87,10 @@ CHECKS = """\
    reviewed as text, and a change made to only one of them leaves the file
    describing an email nobody receives. A node with a "Subject: " line the
    check cannot read as such a template fails too, rather than being skipped.
+   A Code node that only shows the copy, such as the Slack dialog in apply 6
+   that prefills the closing email for editing, is held to the same files:
+   each of its templates must match one, though showing a file does not
+   count as sending it.
 """
 
 DATA_TABLE = "ose_applications"
@@ -96,7 +102,8 @@ ANSWERS_NODE = "Record submission"
 ANSWERS_FILE = "form-ose.json"
 # The third element says whether the list is read into a model prompt.
 LABEL_NODES = [("form-ose.json", "Render submission thread reply", False),
-               ("summary.json", "Render summary request", True)]
+               ("summary.json", "Render summary request", True),
+               ("decide-from-slack.json", "Choose the pending application", False)]
 # Answers that are not about the application. Only public project material goes to a
 # model, and how the applicant found the form is not that, so these keys stay out of
 # every label list that feeds one.
@@ -800,7 +807,10 @@ def check_email_copy(workflows, problems, complete):
         for node in workflow.nodes:
             if node.get("type") == EMAIL_TYPE:
                 renders += [s for s in workflow.predecessors(node.get("name")) if s not in renders]
-        for name in renders:
+        shows = [node.get("name") for node in workflow.nodes
+                 if node.get("type") == CODE_TYPE and node.get("name") not in renders
+                 and SUBJECT_LINE.search((node.get("parameters") or {}).get("jsCode", ""))]
+        for name in renders + shows:
             code = ((workflow.by_name.get(name) or {}).get("parameters") or {}).get("jsCode", "")
             templates = EMAIL_TEMPLATE.findall(code)
             # A template this check cannot read would otherwise be skipped without a word,
@@ -816,7 +826,8 @@ def check_email_copy(workflows, problems, complete):
                      % (len(templates), subjects))
             for template in templates:
                 matches = [file for file, text in copies.items() if text == template.strip()]
-                sent.update(matches)
+                if name in renders:
+                    sent.update(matches)
                 if template.endswith("\\"):
                     fail(problems, workflow, name,
                          "the email whose subject line is %r contains a backtick, which "

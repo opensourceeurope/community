@@ -210,10 +210,14 @@ def sections(text):
     return pieces
 
 
-def builder_url(text):
-    """A Block Kit Builder link that shows the text as Slack renders mrkdwn."""
-    blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": piece}}
-              for piece in sections(text)]
+def builder_url(text, blocks=None):
+    """A Block Kit Builder link that shows the message as Slack renders it.
+
+    A node that posts blocks, such as buttons, returns them beside its fallback text, and
+    those are shown as they are. Otherwise the text is shown as mrkdwn sections."""
+    if not (isinstance(blocks, list) and blocks):
+        blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": piece}}
+                  for piece in sections(text)]
     return BUILDER + urllib.parse.quote(json.dumps({"blocks": blocks}, ensure_ascii=False), safe="")
 
 
@@ -270,7 +274,7 @@ def message(item):
     if not text.strip():
         return '<div class="msg"><span class="error">Empty message</span></div>'
     return (f'<div class="msg"><pre>{html.escape(text)}</pre>'
-            f'<a href="{html.escape(builder_url(text))}" target="_blank" rel="noopener">'
+            f'<a href="{html.escape(builder_url(text, item.get("blocks")))}" target="_blank" rel="noopener">'
             f'Open in Block Kit Builder</a> · {len(text)} characters</div>')
 
 
@@ -402,7 +406,7 @@ def main():
             state = f"error: {job['error']}" if job["error"] else f"{len(job['messages'])} message(s)"
             print(f"{name} ({', '.join(files)}) [{title}]: {state}")
     print(page(previews, args.out))
-    links = [builder_url(str(item.get("text", "")))
+    links = [builder_url(str(item.get("text", "")), item.get("blocks"))
              for _, _, sides in previews for _, job in sides if job
              for item in job["messages"]
              if "subject" not in item and str(item.get("text", "")).strip()]

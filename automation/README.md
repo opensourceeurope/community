@@ -9,8 +9,15 @@ The rest of this repository is covered by CC-BY-4.0.
 ## Human decisions
 
 The AI review is advisory. It never approves, rejects or closes an
-application. Approve and reject happen on Open Collective, by a person, and
-the automation only listens for the result. The org
+application. A person approves or rejects, with the Approve and Reject
+buttons in the application's Slack thread. Those buttons are the way to
+decide: a decision made directly in the Open Collective dashboard is still
+recorded and still gets the template email, but it saves no form answers on
+Open Collective and leaves no private note. A button
+opens a dialog where that person edits the closing email and writes an
+optional private note, and asks them to confirm both before anything is sent.
+Only that confirmation calls Open Collective, and nothing else in the
+automation ever does. The rest of the automation only listens for the result. The org
 [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md)
 lists "casting governance votes or approvals" as human-only.
 
@@ -94,8 +101,8 @@ different job, described in [`infra/README.md`](infra/README.md).
 
 ## The workflows
 
-`automation/n8n/` holds the export of every workflow. Six of them carry the
-application pipeline and coordinate through one Data table
+`automation/n8n/` holds the export of every workflow. The `apply` workflows
+carry the application pipeline and coordinate through one Data table
 (`ose_applications`, keyed by collective slug). The `ops` workflows sit
 outside the pipeline: one posts to Slack when a workflow fails, the other posts
 a weekly digest of the applications still open. The row is the record: a workflow
@@ -127,9 +134,10 @@ the workflow list reads in pipeline order. The export files use short names.
 | `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | A `collective.apply` event carries no application, so new applications are read from the API. An approve or reject event names the collective, so only that application is checked, with one API call that confirms the decision before anything is recorded. The webhook has no authentication, which is why the payload alone is never trusted. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
 | `apply 1b — catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
 | `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`, and posts it in the application's Slack thread, followed by the collective's admins with their public profile links. |
-| `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row still pending on Open Collective, and posts in the thread instead when a decision got there first. The verdict picks the email, and it asks for legal names now when an admin has none on Open Collective. Also sends the one reminder and the Slack escalation, both derived from timestamps. |
-| `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. It also tells the applicant what is automated, where a Mistral model on Scaleway reads the application and what it writes, and that a person makes every decision, with links to this code and the AI policy. Page 3 asks whether the project is already a legal entity, which decides whether page 4 opens by asking what kind and where. After page 4, a page built from the collective's admin list asks whether every admin is at least 18 and where each one lives. Page 5 also asks, optionally, for a second admin's name and email. Page 6 shows the whole application back for correction and ends with an optional question about the form itself. Answers persist after every page, and a submission puts them in the application's Slack thread. |
+| `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row still pending on Open Collective, and posts in the thread instead when a decision got there first. The verdict picks the email, and it asks for legal names now when an admin has none on Open Collective. Also sends the one reminder and the Slack escalation, both derived from timestamps. The escalation carries the Approve and Reject buttons, so a person can close a silent application from the thread. |
+| `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. It also tells the applicant what is automated, where a Mistral model on Scaleway reads the application and what it writes, that a person makes every decision, and that its answers are kept on the Open Collective application where only OSE's admins and the collective's own admins can read them, with links to this code and the AI policy. Page 3 asks whether the project is already a legal entity, which decides whether page 4 opens by asking what kind and where. After page 4, a page built from the collective's admin list asks whether every admin is at least 18 and where each one lives. Page 5 also asks, optionally, for a second admin's name and email. Page 6 shows the whole application back for correction and ends with an optional question about the form itself. Answers persist after every page, and a submission puts them in the application's Slack thread. |
 | `apply 5 — application summary` | `summary.json` | A direct call from apply 4, and `SUMMARY_CRON` as the catch-up | Reads a submitted form and the project's README, then posts a verdict, a confidence and a one paragraph description into the thread. It is advisory, like the review, and it recommends no decision. It asks no questions of its own, because which answers to follow up is the reviewer's call. |
+| `apply 6 — decision from Slack: approve or reject an application from its thread` | `decide-from-slack.json` | `POST /webhook/slack-interactions`, Slack's interactivity requests | Answers the Approve and Reject buttons apply 4 posts in the thread when the form arrives, and apply 3 posts with an escalation. Every request must carry Slack's signature, made less than five minutes ago, and come from a Slack user listed in `SLACK_DECIDERS`. A click opens a dialog with the closing email prefilled from the template and a field for a private note, then a view showing both for confirmation. Confirm claims the row, saves the edited email on it, asks Open Collective to approve or reject with no message of its own, saves the applicant's form answers on the application as `customData`, one readable text under `applicationForm`, posts the note as a comment only host admins see, and replies in the thread. The collective's admins can read `customData`, so it holds only what the applicant wrote, never the AI review or a reviewer's words. It sends no email and records no decision: apply 1a or 1b does both, as for a decision made on Open Collective, and uses the edited email instead of the template. |
 | `ops — alert Slack when any apply workflow fails` | `ops-alert-on-failure.json` | An unhandled error in any other workflow, through its `Error Workflow` setting | Posts the workflow that failed, the node that threw and the error text to `SLACK_CHANNEL`, with links to the execution and the editor. Outside the pipeline, so it holds no application state. |
 | `ops — weekly digest of open applications in Slack` | `ops-weekly-digest.json` | `DIGEST_CRON`, Fridays at 09:00 | Posts one message to `SLACK_CHANNEL` listing every application not yet approved, rejected or resigned, grouped by who has the next move: OSE, the applicant, or the pipeline itself. Each line says how long the application has waited and links to its thread, and one that has waited on OSE longer than `DIGEST_STALE_DAYS` is marked. It reads the table and changes nothing. |
 
@@ -145,7 +153,7 @@ flowchart TD
     A2 --> A3["apply 3 — follow-up<br>emails the form invitation<br>(reminds and escalates if it stays quiet)"]
     A3 --> A4["apply 4 — application form<br>the applicant answers,<br>their answers go to the Slack thread"]
     A4 --> A5s["apply 5 — application summary<br>reads the README,<br>summarises it in the thread"]
-    A5s --> HUMAN(["A human approves or rejects<br>on Open Collective"])
+    A5s --> HUMAN(["A human approves or rejects<br>with the buttons in the<br>Slack thread (apply 6)"])
     A5s --> GONE(["Or the collective moves<br>to another fiscal host,<br>or is deleted"])
     HUMAN --> A5["apply 1a or 1b, decision branch<br>records the outcome"]
     GONE --> A5
@@ -170,7 +178,7 @@ Sweeps landing together is also why every stage claims its row before working
 it. Three schedules on one cron means three runs over the same rows at the
 same moment, which is how one application got two summaries in its thread. A
 stage now stamps its claim column with a conditional update that only one run
-can win, and the runs that lose skip the row in silence. See "The three claim
+can win, and the runs that lose skip the row in silence. See "The claim
 columns" in [`docs/data-tables.md`](docs/data-tables.md).
 
 `apply 1b — catch-up` exists because Open Collective delivers each
@@ -201,7 +209,9 @@ and takes the real ones with it.
    must be a Code node that reads `DRY_RUN`.
 4. **Form answers reach the reviewer.** Every key of the `responses` object
    built by `Record submission` must appear in the label list of
-   `Render submission thread reply` and of `Render summary request`. A key
+   `Render submission thread reply`, of `Render summary request` and of
+   `Choose the pending application`, which saves the answers on Open
+   Collective. A key
    missing from a label list is dropped in silence, so an answer the applicant
    gave never reaches the people deciding. `form_feedback` is the exception,
    because it asks about the form and not about the application: the Slack
@@ -337,7 +347,9 @@ writes an `index.html`. An email shows the subject and body the applicant gets,
 rendered as if `DRY_RUN` were `false`, which is safe because nothing after the
 render node runs. A Slack message shows its raw text and a link that opens it in
 Slack's Block Kit Builder, which renders it the way Slack does for anyone signed
-in to Slack. The same links, one per Slack message, go into
+in to Slack. A message whose render node also returns `blocks`, such as the
+Approve and Reject buttons, opens in Builder with those blocks, so the buttons
+show too. The same links, one per Slack message, go into
 `builder-links.txt` beside the page, so a preview of Slack messages alone opens
 straight in Builder with `xargs -n 1 open < /tmp/message-preview/builder-links.txt`. CI renders every message with `--all`, so a new one needs a fixture
 entry in the same pull request. It needs docker.

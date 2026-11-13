@@ -92,6 +92,28 @@
           "slack_thread_ts": "1730000000.000500",
           "form_invited_at": null,
           "form_submitted_at": null
+        },
+        {
+          "slack_channel_id": "C0SAMPLE",
+          "form_invited_at": "2026-11-01T10:00:00.000Z",
+          "form_submitted_at": "2026-11-02T10:00:00.000Z",
+          "slug": "approved-from-slack-edited",
+          "decision": "approved",
+          "slack_thread_ts": "1730000000.000600",
+          "slack_decided_by": "<@U0SAMPLE> (Sample <Admin>)",
+          "decision_email_body": "Edited body",
+          "decision_email_for": "approved"
+        },
+        {
+          "slack_channel_id": "C0SAMPLE",
+          "form_invited_at": "2026-11-01T10:00:00.000Z",
+          "form_submitted_at": "2026-11-02T10:00:00.000Z",
+          "slug": "rejected-from-slack-template",
+          "decision": "rejected",
+          "slack_thread_ts": "1730000000.000700",
+          "slack_decided_by": "<@U0SAMPLE> (Sample Admin)",
+          "decision_email_body": "",
+          "decision_email_for": ""
         }
       ]
     }
@@ -516,6 +538,155 @@
           "decision": "rejected",
           "form_invited_at": "2026-10-01T10:00:00.000Z",
           "form_submitted_at": null
+        },
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "form_invited_at": "2026-11-01T10:00:00.000Z",
+          "form_submitted_at": "2026-11-02T10:00:00.000Z",
+          "slug": "decision-approved-edited-in-slack",
+          "decision": "approved",
+          "decision_email_body": "Hi,\n\nWelcome on board! We have approved your application to Open Source Europe.\n\nAs a reminder, funds must be used for activities related to your open source project.\n\nBest regards,\nThe OSE Team",
+          "decision_email_for": "approved",
+          "slack_decided_by": "<@U0SAMPLE> (Sample Admin)"
+        },
+        {
+          "org": "OSE",
+          "collective_name": "Sample Collective",
+          "collective_url": "https://opencollective.com/sample-collective",
+          "applicant_email": "applicant@example.org",
+          "form_invited_at": "2026-11-01T10:00:00.000Z",
+          "form_submitted_at": "2026-11-02T10:00:00.000Z",
+          "slug": "decision-rejected-body-was-for-approval",
+          "decision": "rejected",
+          "decision_email_body": "Hi,\n\nWelcome on board! This text was written for an approval and must not go out.",
+          "decision_email_for": "approved",
+          "slack_decided_by": "<@U0SAMPLE> (Sample Admin)"
+        }
+      ]
+    }
+  },
+  "Render decision buttons": {
+    "feeds": {
+      "Render submission thread reply": [
+        {
+          "slug": "sample-collective",
+          "channel": "C0SAMPLE",
+          "thread_ts": "1730000000.000100",
+          "text": ":clipboard: *Sample Collective* submitted the application form and is ready for evaluation."
+        },
+        {
+          "slug": "sample-collective",
+          "channel": "C0SAMPLE",
+          "thread_ts": "1730000000.000100",
+          "text": "_continued, 2 of 2_\n..."
+        }
+      ]
+    }
+  },
+  "Render the decision reply": {
+    "feeds": {
+      "Read the confirmation": [
+        {
+          "slug": "sample-collective",
+          "decision": "approved",
+          "action": "APPROVE",
+          "email": "Hi,\n\nWelcome on board!",
+          "note": "Checked the licence.",
+          "note_html": "<p>Approved via Slack by sample.admin.</p><p>Checked the licence.</p>",
+          "decided_by": "<@U0SAMPLE> (sample.admin)",
+          "user_id": "U0SAMPLE",
+          "allowed": true
+        }
+      ],
+      "Read the row to decide": [
+        {
+          "slug": "sample-collective",
+          "stage": "awaiting_decision",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        }
+      ],
+      "Post the private note": [
+        {
+          "data": {
+            "createComment": {
+              "id": "comment-1"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "Render the failed decision reply": {
+    "feeds": {
+      "Read the confirmation": [
+        {
+          "slug": "sample-collective",
+          "decision": "approved",
+          "action": "APPROVE",
+          "email": "Hi,\n\nWelcome on board!",
+          "note": "Checked the licence.",
+          "note_html": "<p>Approved via Slack by sample.admin.</p><p>Checked the licence.</p>",
+          "decided_by": "<@U0SAMPLE> (sample.admin)",
+          "user_id": "U0SAMPLE",
+          "allowed": true
+        }
+      ],
+      "Read the row to decide": [
+        {
+          "slug": "sample-collective",
+          "stage": "awaiting_decision",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        }
+      ],
+      "Choose the pending application": [
+        {
+          "ok": true,
+          "application_id": "ha_sample"
+        }
+      ],
+      "Read the decision answer": [
+        {
+          "ok": false,
+          "reason": "Open Collective did not take the decision: <b>already processed</b>"
+        }
+      ],
+      "Release the claim": [
+        {
+          "slug": "sample-collective",
+          "stage": "awaiting_decision",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100"
+        }
+      ]
+    }
+  },
+  "Render the refused decision reply": {
+    "feeds": {
+      "Read the confirmation": [
+        {
+          "slug": "sample-collective",
+          "decision": "rejected",
+          "action": "REJECT",
+          "email": "",
+          "note": "",
+          "note_html": "<p>Approved via Slack by sample.admin.</p><p>Checked the licence.</p>",
+          "decided_by": "<@U0SAMPLE> (sample.admin)",
+          "user_id": "U0SAMPLE",
+          "allowed": true
+        }
+      ],
+      "Read the row to decide": [
+        {
+          "slug": "sample-collective",
+          "stage": "approved",
+          "slack_channel_id": "C0SAMPLE",
+          "slack_thread_ts": "1730000000.000100",
+          "decision": "approved"
         }
       ]
     }
