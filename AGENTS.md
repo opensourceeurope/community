@@ -418,7 +418,8 @@ the `new-instance` skill in `.claude/skills/` describes.
   serves the form paths and 404s the rest. The admin host leaves `/webhook/*`,
   `/form/*`, `/form-waiting/*`, `/api/v1/*` and `/healthz` open and puts
   everything else, editor and login included, behind the gate in
-  `editor-auth.caddy`. Opening a path changes the Caddyfile and
+  `editor-auth.caddy`. The bare domain only redirects to the website and
+  reaches nothing. Opening a path changes the Caddyfile and
   `automation/test/caddy-routes.sh` in the same pull request, never a catch-all
   `handle`. Caddy matches the cleaned path but forwards the raw one, so
   `clean_path_only` refuses dot segments and encoded separators before any rule

@@ -113,6 +113,11 @@ container serves both.
 | `apply.opensourceeurope.org` | applicants | the OSE application form, at the bare URL, and nothing else |
 | `automation.opensourceeurope.org` | you | the n8n editor behind [the editor gate](#the-editor-gate), and the OC webhook endpoint |
 
+The box also answers the organisation's bare domain, `ROOT_REDIRECT_HOST`,
+with a permanent redirect to `https://www.opensourceeurope.org` and the same
+path. The website is hosted elsewhere, and no path on the bare domain reaches
+n8n.
+
 The applicant's link is just `https://apply.opensourceeurope.org`, with no
 `/form/...` path. n8n serves forms at `/form/<path>` and keeps the editor at
 `/`, so the bare URL is a Caddy rewrite of `/` alone. Page-to-page posts and
