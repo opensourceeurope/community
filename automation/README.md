@@ -203,7 +203,9 @@ and takes the real ones with it.
    must be a Code node that reads `DRY_RUN`.
 4. **Form answers reach the reviewer.** Every key of the `responses` object
    built by `Record submission` must appear in the label list of
-   `Render submission thread reply` and of `Render summary request`. A key
+   `Render submission thread reply`, of `Render summary request` and of
+   `Choose the pending application`, which saves the answers on Open
+   Collective. A key
    missing from a label list is dropped in silence, so an answer the applicant
    gave never reaches the people deciding. `form_feedback` is the exception,
    because it asks about the form and not about the application: the Slack
