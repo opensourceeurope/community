@@ -70,7 +70,7 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        module: [vps, backup-storage]
+        module: [vps, scaleway-box, backup-storage]
     defaults:
       run:
         working-directory: automation/infra/tofu/${{ matrix.module }}

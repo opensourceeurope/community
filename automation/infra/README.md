@@ -37,7 +37,8 @@ all three containers.
 | Ship a workflow or infra change from `main` | [Deploying on merge](#deploying-on-merge) |
 | Find out when a deploy or backup fails | [Alerts when the box fails](#alerts-when-the-box-fails) |
 | Copy backups off the box | [The copy off the box](#the-copy-off-the-box) |
-| Build a new box with OpenTofu | [`tofu/vps/README.md`](tofu/vps/README.md) |
+| Build a new box with OpenTofu | [`tofu/scaleway-box/README.md`](tofu/scaleway-box/README.md) for Scaleway, [`tofu/vps/README.md`](tofu/vps/README.md) for OVH |
+| Move the stack to another box | [Moving to a new box](#moving-to-a-new-box) |
 | Find out when a workflow breaks | [Alerts when a workflow fails](#alerts-when-a-workflow-fails) |
 | Find out when the whole box is down | [The external uptime monitor](#the-external-uptime-monitor) |
 | Something is broken | [Troubleshooting](#troubleshooting) |
@@ -417,7 +418,8 @@ that: a copy of this system somewhere else, or a rebuild with no dump.
 ### Install the box
 
 [`bootstrap.sh`](bootstrap.sh) installs the box. To order a new VPS and run
-the script in one step, use the OpenTofu module in [`tofu/vps/`](tofu/vps/).
+the script in one step on OVH, use the OpenTofu module in [`tofu/vps/`](tofu/vps/).
+To create a Scaleway instance for it, use [`tofu/scaleway-box/`](tofu/scaleway-box/).
 To install onto a VPS you already have, log in as `debian` and run the script
 yourself.
 
@@ -449,7 +451,10 @@ changes nothing, and the script never edits an existing `.env`. In order, it:
    Then it switches on daily security updates, Docker's own packages included,
    with a reboot at 04:30 when a kernel update needs one. See
    [Keeping the box patched](#keeping-the-box-patched).
-4. Installs Docker and adds `debian` to the `docker` group.
+4. Adds a 2 GB swap file, unless the box already has swap, so a short n8n
+   peak on a 2 GB box swaps instead of the kernel killing a container.
+   `SWAP_SIZE` changes the size.
+   Then it installs Docker and adds `debian` to the `docker` group.
 5. Clones the repository into `~/community`.
 6. Writes `.env` from `automation/.env.example`, with the hostnames you passed
    and a generated `POSTGRES_PASSWORD` and `N8N_ENCRYPTION_KEY`. The secrets are
@@ -1737,6 +1742,189 @@ docker compose exec -T postgres psql -U n8n -d postgres -qc "DROP DATABASE resto
 For a dump from the bucket, decrypt it first as above. A restore only produces
 a working instance under the `N8N_ENCRYPTION_KEY` the dump was taken with.
 Under any other key the credentials are in the database but unreadable.
+
+## Moving to a new box
+
+A move keeps the database, the encryption key and both hostnames. Only the
+machine and its addresses change. The old box stays as it is, with n8n
+stopped, so going back is a DNS change and nothing more.
+
+> [!CAUTION]
+> Never run n8n on both boxes against the same data. Both would run every
+> sweep, post every Slack message and send every email twice.
+
+### Before the move, with no downtime
+
+1. Create the new box, a Debian 13 machine with a `debian` user, for example
+   with [`tofu/scaleway-box/`](tofu/scaleway-box/). Do not run
+   `bootstrap.sh` yet.
+2. On the new box, clone the repository:
+
+   ```bash
+   sudo apt-get update -qq && sudo apt-get install -y -qq git
+   git clone https://github.com/opensourceeurope/community.git ~/community
+   ```
+
+3. Copy `.env` from the old box before anything starts n8n on the new one.
+   n8n stores the key it first starts with in its own volume and refuses to
+   start under a different one later. From your own machine:
+
+   ```bash
+   scp -3 debian@{OLD_IP}:community/automation/infra/.env debian@{NEW_IP}:community/automation/infra/.env
+   ssh debian@{NEW_IP} chmod 600 community/automation/infra/.env
+   ```
+
+4. On the new box, run the install. It keeps the copied `.env` and starts the
+   stack on an empty database. The deploy timer stays off, because the box has
+   no `~/.n8n-api-key` yet:
+
+   ```bash
+   ~/community/automation/infra/bootstrap.sh all
+   ```
+
+   Skip the list of manual steps it prints at the end. They are for an empty
+   instance, and this one gets the old box's database. Log out and back in, so
+   the new `docker` group membership applies.
+
+5. Copy Caddy's certificates, so the new box serves valid ones before DNS
+   points at it. The archive holds the certificates' private keys, so it is
+   deleted on both boxes afterwards. On the old box:
+
+   ```bash
+   docker run --rm --user "$(id -u):$(id -g)" -v infra_caddy_data:/data:ro -v "$HOME":/out alpine sh -c 'umask 077 && tar czf /out/caddy-data.tgz -C /data .'
+   ```
+
+   From your own machine:
+
+   ```bash
+   scp -3 debian@{OLD_IP}:caddy-data.tgz debian@{NEW_IP}:
+   ```
+
+   On the new box:
+
+   ```bash
+   cd ~/community/automation/infra
+   docker compose stop caddy
+   docker run --rm -v infra_caddy_data:/data -v "$HOME":/in alpine sh -c 'rm -rf /data/* && tar xzf /in/caddy-data.tgz -C /data'
+   docker compose start caddy
+   rm ~/caddy-data.tgz
+   ```
+
+   Then `rm ~/caddy-data.tgz` on the old box too. From your own machine, the
+   new box must answer `200` under the real name:
+
+   ```bash
+   curl -sS -o /dev/null -w '%{http_code}\n' --resolve {ADMIN_HOSTNAME}:443:{NEW_IP} https://{ADMIN_HOSTNAME}/healthz
+   ```
+
+6. Copy last night's dump to the new box and
+   [rehearse the restore](#rehearse-it-without-risking-the-live-database)
+   there. It loads into a scratch database, which n8n never reads.
+7. Prove the new box can send mail through the relay. Scaleway blocks outbound
+   SMTP unless the security group allows it and the account is cleared for it.
+   On the new box, the answer must be `open`:
+
+   ```bash
+   timeout 5 bash -c '</dev/tcp/smtp.protonmail.ch/587' && echo open || echo blocked
+   ```
+8. A day ahead, lower the TTL of the `A` and `AAAA` records of both hostnames
+   to 300 seconds.
+
+### The move, with downtime
+
+From the first command to the DNS change, the form and the webhooks are down.
+Open Collective events missed meanwhile are picked up by the next apply 1b
+sweep, and every timer catches up from its timestamps. Pick a quiet hour.
+
+1. On the old box, disable every timer, so neither a deploy nor the nightly
+   reboot brings n8n back, and wait until no `ose-` service is still running.
+   Then stop n8n and take the final dump:
+
+   ```bash
+   sudo systemctl disable --now $(systemctl list-unit-files 'ose-*.timer' --no-legend | awk '{print $1}')
+   systemctl list-units 'ose-*.service' --state=active --no-legend
+   ```
+
+   The second command must print nothing. Then:
+
+   ```bash
+   cd ~/community/automation/infra
+   docker compose stop n8n
+   ./backup.sh
+   F=$(ls -t ~/backups/n8n-*.sql.gz | head -1); echo "$F"; sha256sum "$F"
+   ```
+
+2. From your own machine, copy the dump to the new box. Run `sha256sum` on it
+   there, and compare it with the old box's checksum character for character:
+
+   ```bash
+   scp -3 "debian@{OLD_IP}:{DUMP_PATH}" debian@{NEW_IP}:
+   ```
+
+3. On the new box, load it. The dump is in the home directory, and
+   `{STAMP}` is the one in its name:
+
+   ```bash
+   cd ~/community/automation/infra
+   docker compose stop n8n
+   docker compose exec -T postgres psql -U n8n -d postgres -c "DROP DATABASE n8n;"
+   docker compose exec -T postgres psql -U n8n -d postgres -c "CREATE DATABASE n8n OWNER n8n;"
+   gunzip -c ~/n8n-{STAMP}.sql.gz | docker compose exec -T postgres psql -U n8n -d n8n -q
+   docker compose start n8n
+   ```
+
+   Then compare the counts with the old box:
+
+   ```bash
+   for t in workflow_entity credentials_entity; do
+     printf "%-20s " "$t"
+     docker compose exec -T postgres psql -U n8n -d n8n -tAc "select count(*) from $t"
+   done
+   ```
+
+4. Point the `A` records of both hostnames at the new IPv4 address and the
+   `AAAA` records at the new IPv6 address. The downtime ends as the old
+   records expire.
+5. From your own machine, copy the files the timers need, then switch the
+   timers on:
+
+   ```bash
+   ssh debian@{NEW_IP} 'mkdir -p ~/.config/ose-backup && chmod 700 ~/.config/ose-backup'
+   scp -3 debian@{OLD_IP}:.n8n-api-key debian@{NEW_IP}:.n8n-api-key
+   scp -3 debian@{OLD_IP}:.slack-bot-token debian@{NEW_IP}:.slack-bot-token
+   scp -3 debian@{OLD_IP}:.config/ose-backup/backup.env debian@{NEW_IP}:.config/ose-backup/backup.env
+   ssh debian@{NEW_IP} 'chmod 600 ~/.n8n-api-key ~/.slack-bot-token ~/.config/ose-backup/backup.env && ~/community/automation/infra/bootstrap.sh units'
+   ```
+
+### Check it
+
+- `https://{ADMIN_HOSTNAME}/healthz` answers `200`, and
+  `https://{APPLY_HOSTNAME}` shows the form.
+- The n8n API lists the same active workflows as before.
+- A dry-run email reaches `DRY_RUN_RECIPIENT`, or a live one its applicant.
+  Every email goes through the relay on port 587.
+- `curl -6 -sS -o /dev/null -w '%{http_code}\n' https://{APPLY_HOSTNAME}` from
+  a machine with IPv6 answers `200`.
+- The next apply 1b sweep succeeds. It reads Open Collective with a stored
+  credential, which proves the encryption key is the right one.
+- `sudo systemctl start ose-backup.service`, then
+  `journalctl -u ose-backup.service -n 3` ends with `ok uploaded`.
+- `journalctl -u ose-deploy.service -n 20` shows a deploy run that changed
+  nothing.
+- The external uptime monitor reports the applicant hostname up.
+
+### Going back
+
+1. On the new box, disable the timers as in step 1 of the move, then
+   `docker compose stop n8n` in `~/community/automation/infra`.
+2. If the new box has handled anything since the move, take a dump there and
+   load it on the old box as in [Restore](#restore).
+3. On the old box, `docker compose start n8n`, then
+   `sudo systemctl enable --now` the timers you disabled.
+4. Point the records back at the old addresses.
+
+Cancel the old machine only once the new one has run its sweeps, a deploy and
+an uploaded backup without a failure.
 
 ## Upgrading n8n
 

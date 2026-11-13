@@ -19,6 +19,7 @@ REPO_URL="https://github.com/opensourceeurope/community.git"
 BRANCH="main"
 N8N_HOST=""
 APPLY_HOST=""
+SWAP_SIZE="${SWAP_SIZE:-2G}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 step() { printf '\n== %s\n' "$*"; }
@@ -117,6 +118,27 @@ auto_updates() {
   else
     note "daily security updates on, Docker's packages included, reboot at 04:30 when one is needed"
   fi
+}
+
+swap_file() {
+  # A 2 GB box holds the stack, about 750 MB in use, but n8n grows for a
+  # moment while a workflow runs. Swap takes that peak instead of the kernel
+  # killing a container. A box that already has swap is left alone.
+  if [ "$(grep -c '^/swapfile ' /etc/fstab || true)" -gt 0 ]; then
+    note "swap file already in /etc/fstab"
+    return
+  fi
+  if [ -n "$(sudo swapon --show --noheadings)" ]; then
+    note "swap already active, no swap file added"
+    return
+  fi
+  sudo fallocate -l "$SWAP_SIZE" /swapfile
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile >/dev/null
+  # fstab first: a run that stops after this line still gets swap at boot.
+  echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+  sudo swapon /swapfile
+  note "added a $SWAP_SIZE swap file"
 }
 
 docker_engine() {
@@ -252,6 +274,8 @@ if [ "$mode" = all ]; then
   firewall
   step "ssh"
   ssh_hardening
+  step "swap"
+  swap_file
   step "docker"
   docker_engine
   step "checkout"
