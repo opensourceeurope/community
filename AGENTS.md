@@ -120,7 +120,9 @@ The OSE-specific invariants on top of that skill:
   so rehearse apply 6 on a test collective only.
 - **What apply 6 saves on Open Collective, the applicant can read.** The
   decision call stores the applicant's own form answers, contact and admin
-  details in the application's `customData`, under `oseApplicationForm`.
+  details in the application's `customData`, as one text value under
+  `applicationForm`, which the dashboard shows as a readable row. A nested
+  object would show as raw JSON, and separate keys in a scrambled order.
   Open Collective shows `customData` to the host's admins and to the
   collective's own admins, and form page 1 tells applicants so. Only what the
   applicant wrote goes there, by named key, never the AI review, the summary
@@ -244,7 +246,8 @@ The OSE-specific invariants on top of that skill:
   into the last two, or it silently vanishes on the next page. It goes into the
   `Form page 6` field list so the applicant can correct it, and into the label
   lists that silently omit missing keys: `Render submission thread reply`
-  (apply 4, for Slack) and `Render summary request` (apply 5, for the model).
+  (apply 4, for Slack), `Render summary request` (apply 5, for the model) and
+  `Choose the pending application` (apply 6, for Open Collective).
   A question that is not about the application, today only `form_feedback`,
   goes in the Slack list alone, and `check-workflows.py` fails if the summary
   list has it. A field has no

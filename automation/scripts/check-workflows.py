@@ -30,8 +30,10 @@ CHECKS = """\
 
 4. Form answers reach the reviewer. Every key of the responses object built by
    'Record submission' (form-ose.json) must appear in the label list of
-   'Render submission thread reply' (form-ose.json) and of
-   'Render summary request' (summary.json). A key missing from a label list is
+   'Render submission thread reply' (form-ose.json), of
+   'Render summary request' (summary.json) and of 'Choose the pending
+   application' (decide-from-slack.json), which saves the answers on the
+   Open Collective application. A key missing from a label list is
    dropped silently, so an answer the applicant gave never reaches the people
    deciding. A key in MODEL_FREE_KEYS is the other way round in the second
    list: it has to reach a person, so the Slack list carries it, and it must
@@ -100,7 +102,8 @@ ANSWERS_NODE = "Record submission"
 ANSWERS_FILE = "form-ose.json"
 # The third element says whether the list is read into a model prompt.
 LABEL_NODES = [("form-ose.json", "Render submission thread reply", False),
-               ("summary.json", "Render summary request", True)]
+               ("summary.json", "Render summary request", True),
+               ("decide-from-slack.json", "Choose the pending application", False)]
 # Answers that are not about the application. Only public project material goes to a
 # model, and how the applicant found the form is not that, so these keys stay out of
 # every label list that feeds one.
