@@ -1873,8 +1873,10 @@ sweep, and every timer catches up from its timestamps. Pick a quiet hour.
    done
    ```
 
-4. Point the `A` records of both hostnames at the new IPv4 address and the
-   `AAAA` records at the new IPv6 address. The downtime ends as the old
+4. Point the `A` records of both hostnames and of the bare domain the box
+   redirects (`ROOT_REDIRECT_HOST`) at the new IPv4 address, and their `AAAA`
+   records at the new IPv6 address. The bare domain matters to the website,
+   not to the timers below. The downtime ends as the old
    records expire.
 5. The timers call n8n by its hostname, so switch them on only once the new
    box resolves both names to itself. `getent` prints each address once per
@@ -2199,7 +2201,7 @@ in this repository. Put the account credentials in the shared vault.
   variables, and [the variables table](#variables-this-compose-file-needs)
   lists the infra ones.
 - Caddy issues and renews the certificates for `N8N_HOST`, `APPLY_HOST` and
-  `ROOT_REDIRECT_HOST` itself, which works once DNS for each name resolves to this box. Caddy sees
-  the two names only because the `caddy` service passes them in its own
-  `environment:` block. Compose's `${VAR}` interpolation of the YAML does not
+  `ROOT_REDIRECT_HOST` itself, which works once DNS for each name resolves to
+  this box. Caddy sees these names only because the `caddy` service passes
+  them in its own `environment:` block. Compose's `${VAR}` interpolation of the YAML does not
   put a variable inside a container by itself.

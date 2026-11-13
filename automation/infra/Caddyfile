@@ -1,6 +1,7 @@
 # automation/infra/Caddyfile
 #
-# Two names, one n8n container.
+# The applicant and admin names in front of one n8n container, and the
+# organisation's bare domain, which only redirects to its website.
 #
 # APPLY_HOST is applicant-facing: the bare URL is the OSE application form, so
 # the link in a step-2 email is https://apply.opensourceeurope.org and nothing
