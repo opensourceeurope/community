@@ -67,7 +67,7 @@ them is easy and has already caused a wrong turn.
 | `.env` | on the VPS, in `automation/infra/`, mode 600 | `POSTGRES_PASSWORD`, `N8N_ENCRYPTION_KEY`, `AI_API_KEY`, plus all non-secret config | not OVH credentials, not SMTP/Slack/OC credentials |
 | n8n's credential store | inside the Postgres database, encrypted with `N8N_ENCRYPTION_KEY` | SMTP, Slack and Open Collective credentials, referenced by name from nodes | anything that has to exist before n8n starts |
 | `~/.n8n-api-key`, `~/.slack-bot-token`, `~/.config/ose-backup/backup.env` | on the VPS, mode 600 each | the scoped n8n API key the deploy uses, the Slack bot token the failure alert uses, and the write-only bucket key and age public key the backup uses | not the compose `.env`, which the container receives. None of these is needed inside n8n |
-| `~/.config/scw/config.yaml` | the operator's own laptop, mode 600 | the Scaleway API key OpenTofu uses to manage the backup bucket | not the bucket upload key, which lives only on the VPS |
+| `~/.config/scw/config.yaml` | the operator's own laptop, mode 600 | the Scaleway API key OpenTofu uses to manage the backup bucket and the Scaleway instance | not the bucket upload key, which lives only on the VPS |
 | `~/.n8n-api-key` on the operator's machine | mode 600, read by the shell profile into `N8N_API_KEY` | the n8n API key that exports and edits workflows, as [`automation/README.md`](../README.md) describes | not the compose `.env` on the VPS, which the container receives, and not the box's own deploy key, which has fewer scopes |
 
 The password vault holds a copy of what cannot be regenerated, as separate
@@ -408,7 +408,7 @@ that: a copy of this system somewhere else, or a rebuild with no dump.
 | Service | What it is for | Where its secret ends up |
 |---|---|---|
 | OVHcloud | the VPS and the DNS zone for both hostnames | `~/.ovh.conf` on your own machine |
-| Scaleway | the model behind the review and the summary, and the backup bucket | `AI_API_KEY` in `.env`, and `~/.config/scw/config.yaml` on your own machine |
+| Scaleway | the model behind the review and the summary, the backup bucket, and the instance when the box runs there | `AI_API_KEY` in `.env`, and `~/.config/scw/config.yaml` on your own machine |
 | Open Collective | an admin of the host account, for its API token | the n8n credential `oc-host-admin` |
 | Slack | an app with a bot token, invited to the reviewers' channel | the n8n credential `slack-bot`, and `~/.slack-bot-token` on the box |
 | Proton Mail | an SMTP token for the sending address | the n8n credential `smtp-proton` |
