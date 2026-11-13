@@ -1889,7 +1889,8 @@ sweep, and every timer catches up from its timestamps. Pick a quiet hour.
    `AAAA` records at the new IPv6 address. The downtime ends as the old
    records expire.
 5. The timers call n8n by its hostname, so switch them on only once the new
-   box resolves both names to itself. Each count must be `1`:
+   box resolves both names to itself. `getent` prints each address once per
+   socket type, so each count must be above `0`, usually `3`:
 
    ```bash
    ssh debian@{NEW_IP} 'getent ahostsv4 {ADMIN_HOSTNAME} | grep -c {NEW_IP}; getent ahostsv4 {APPLY_HOSTNAME} | grep -c {NEW_IP}'
