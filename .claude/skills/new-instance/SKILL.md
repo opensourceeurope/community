@@ -45,7 +45,11 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
 - **Never two n8n on the same data.** Both would run every sweep and send
   every email twice. A rehearsal restores into a scratch database only.
 - **Nothing is activated without asking**, and `DRY_RUN` stays `true` until
-  the operator decides to go live.
+  the operator decides to go live. Then walk "Going live" in the runbook
+  first: rows handled in a dry run never mailed their applicant.
+- **Applicant data stays in the operator's terminal.** Queries you write for
+  them print counts, stages and slugs. When they need addresses, ask them not
+  to paste the output back.
 
 ## Fresh install
 

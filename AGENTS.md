@@ -67,6 +67,11 @@ under the Open Source Europe (OSE) umbrella. Content is CC-BY-4.0, except
 - **Never write the box's IP address or provider hostname into this
   repository.** It is public. Use `{VPS_IP}` or `{VPS_HOST}`. The vault holds
   the real values.
+- **Applicant data stays in the operator's terminal.** A query an agent writes
+  for the operator selects counts, stages and slugs, never an address column
+  or form answers. When the operator needs addresses, the agent says so and
+  asks them not to paste the output back, because what lands in a transcript
+  is another copy to protect.
 
 ## Shell Scripts
 
@@ -229,7 +234,9 @@ The OSE-specific invariants on top of that skill:
   `settings.errorWorkflow` name workflows by id, and `export-workflows.py` maps
   ids to files. Replace them in git after the first deploy creates the
   workflows on a new instance, per the first-install checklist
-  in `automation/infra/README.md`.
+  in `automation/infra/README.md`. A new export the deploy creates on the
+  running instance gets a new id too: add it to `MAP` in
+  `export-workflows.py` in the next pull request, or exports skip it.
 - **An active workflow cannot reference an unpublished sub-workflow.** n8n
   publishes a workflow only on first activation, and saving an active workflow
   needs every sub-workflow it calls published. Activating a sub-workflow first

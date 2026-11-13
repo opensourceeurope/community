@@ -532,8 +532,8 @@ The script ends with the steps it cannot do for you. Do them in this order:
     [the external uptime monitor](#the-external-uptime-monitor).
 13. Rehearse with `DRY_RUN=true`, as the
     [testing section](../README.md#testing-safely) describes, then delete every
-    row the rehearsal touched. Going live is writing `DRY_RUN=false` into `.env`
-    and running `docker compose up -d`. It is a decision, not a setup step.
+    row the rehearsal touched. Going live is a decision, not a setup step, and
+    [Going live](#going-live) lists what to check first.
 
 The unit files run as `debian` out of `/home/debian/community`, which the
 module's cloud-init creates. On another account, change those lines in git
@@ -612,6 +612,40 @@ docker compose up -d n8n           # recreates with the new .env values
 Change `docker-compose.yml`, the `Caddyfile` and the units in git, never on the
 box. The deploy refuses to run over local changes in the checkout, and it
 applies the merged version within ten minutes.
+
+### Reading the data table from Postgres
+
+The data table lives in the same database, under a name built from its id.
+That name has capital letters, so it needs double quotes, or Postgres folds it
+to lower case and finds nothing. On the box, this counts rows by stage and
+prints no applicant data:
+
+```bash
+cd ~/community/automation/infra
+T=$(docker compose exec -T postgres psql -U n8n -d n8n -tAc "select id from data_table where name = 'ose_applications'")
+docker compose exec -T postgres psql -U n8n -d n8n -c "select stage, dry_run, count(*) from \"data_table_user_$T\" group by 1, 2 order by 1"
+```
+
+Read it, never write to it here. A row changes through the workflows, or is
+deleted so the sweep recreates it.
+
+### Going live
+
+While `DRY_RUN` is not `false`, every applicant email goes to
+`DRY_RUN_RECIPIENT`. Rows keep moving, so switching it off does not resend
+anything. Before you switch:
+
+1. Every link in `automation/emails` points at your own pages: docs, terms and
+   the onboarding booking page.
+2. Count the rows by stage and `dry_run`, as above. Decided rows need nothing.
+   A `form_invited` row never reached its applicant: it gets a real reminder,
+   which carries the form link, only while `form_reminded_at` is empty, and
+   then only escalation. Delete such a row for a fresh invitation, which the
+   sweep sends with a new review and a new Slack thread, or contact the
+   applicant yourself. Delete any row a rehearsal touched, because it may hold
+   a tester's address in `contact_email`.
+3. Write `DRY_RUN=false` into `.env`, run `docker compose up -d n8n`, and expect
+   `Recreated`. `docker exec infra-n8n-1 printenv DRY_RUN` prints `false`.
 
 ## Deploying on merge
 
