@@ -58,9 +58,8 @@ the order it printed them. It exits 1 if a node threw or sent nothing for its sa
 ## What the preview does not show exactly
 
 - Emails render as if `DRY_RUN` were `false`, so the subject is the applicant's.
-  The live instance runs in a dry run until someone sets `DRY_RUN=false`, and then
-  the subject names the intended recipient and the mail goes to
-  `DRY_RUN_RECIPIENT`. Line breaks in the body are the ones the template has.
+  In a dry run, when `DRY_RUN` is anything but `false`, the subject names the
+  intended recipient instead and the mail goes to `DRY_RUN_RECIPIENT`. Line breaks in the body are the ones the template has.
 - The workflows post Slack text, and Builder only renders blocks, so each message
   is shown as `section` blocks. Bold, italics, emoji, links and line breaks match.
   Builder drops leading spaces that indent a line, so judge indentation from the
