@@ -259,9 +259,10 @@ next_steps() {
   4. Write the Slack bot token into ~/.slack-bot-token, mode 600, and set
      SLACK_CHANNEL in .env.
   5. Write the backup bucket settings into ~/.config/ose-backup/backup.env, mode 600.
-  6. Create the n8n credentials: oc-host-admin, slack-bot, smtp-proton. Set
-     AI_API_KEY, SMTP_FROM and DRY_RUN_RECIPIENT in .env. The deploy refuses
-     to run while any required value is empty.
+  6. Create the n8n credentials: oc-host-admin, slack-bot, slack-signing-secret,
+     smtp-proton. Set AI_API_KEY, SMTP_FROM, DRY_RUN_RECIPIENT and
+     SLACK_DECIDERS in .env. The deploy refuses to run while any required
+     value is empty.
   7. First workflow deploy: $INFRA_DIR/deploy.sh
   8. Register the Open Collective webhooks.
 EOF
