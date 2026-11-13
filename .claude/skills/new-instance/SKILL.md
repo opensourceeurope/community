@@ -72,6 +72,9 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
    runbook, in that order. Its step 1 comes first: the encryption key goes into
    the vault before anything else. A copy needs its own editor gate password
    and hash, from step 2, or nobody reaches its editor.
+   It also sets `ROOT_REDIRECT_HOST` in `.env` to its own bare domain and
+   points the redirect in the Caddyfile at its own website. Otherwise its
+   Caddy keeps asking for a certificate for opensourceeurope.org.
 6. **Verify.** "Verify the install" in the runbook. Then the checks of
    "Check it" under "Moving to a new box". Email out on port 587 must answer
    `open`.

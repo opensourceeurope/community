@@ -126,3 +126,15 @@
 		reverse_proxy n8n:5678
 	}
 }
+
+# The organisation's bare domain, which only redirects. The website lives on
+# the www name, hosted elsewhere, and the bare name's DNS zone takes only an
+# address record at its root, not a CNAME. This box has a fixed address, so it
+# answers the bare name with a permanent redirect and serves nothing of its
+# own there. No path reaches n8n. The name is opensourceeurope.org unless
+# .env sets ROOT_REDIRECT_HOST, which a copy of this setup does. The fallback
+# is here as well as in compose, because an empty site address stops Caddy
+# from loading any site at all.
+{$ROOT_REDIRECT_HOST:opensourceeurope.org} {
+	redir https://www.opensourceeurope.org{uri} 301
+}

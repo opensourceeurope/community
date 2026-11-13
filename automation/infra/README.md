@@ -97,6 +97,7 @@ directory:
 |---|---|
 | `N8N_HOST` | The admin hostname, `automation.opensourceeurope.org`: the editor and the Open Collective webhook. n8n builds `WEBHOOK_URL` and `N8N_EDITOR_BASE_URL` from it, and Caddy serves it as a TLS site. |
 | `APPLY_HOST` | The applicant hostname, `apply.opensourceeurope.org`, whose bare URL is the application form. See [Two hostnames](#two-hostnames). |
+| `ROOT_REDIRECT_HOST` | Optional. The bare domain Caddy redirects to `https://www.opensourceeurope.org`, `opensourceeurope.org` when unset. A copy of this setup sets its own. |
 | `EXECUTIONS_DATA_PRUNE` | `true`. Without it n8n keeps the full payload of every execution forever. |
 | `EXECUTIONS_DATA_MAX_AGE` | Hours of execution history to keep: `336`, which is 14 days. Long enough to debug what happened to an applicant. |
 | `POSTGRES_PASSWORD` | Password for the `n8n` role in the bundled Postgres, from `openssl rand -hex 24`. |
@@ -2197,8 +2198,8 @@ in this repository. Put the account credentials in the shared vault.
 - `.env` stays out of git. `automation/.env.example` lists the application
   variables, and [the variables table](#variables-this-compose-file-needs)
   lists the infra ones.
-- Caddy issues and renews the certificates for `N8N_HOST` and `APPLY_HOST`
-  itself, which works once DNS for each name resolves to this box. Caddy sees
+- Caddy issues and renews the certificates for `N8N_HOST`, `APPLY_HOST` and
+  `ROOT_REDIRECT_HOST` itself, which works once DNS for each name resolves to this box. Caddy sees
   the two names only because the `caddy` service passes them in its own
   `environment:` block. Compose's `${VAR}` interpolation of the YAML does not
   put a variable inside a container by itself.
