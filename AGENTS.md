@@ -47,11 +47,11 @@ under the Open Source Europe (OSE) umbrella. Content is CC-BY-4.0, except
 - **Confirm by effect, not by echo**, for example `docker compose up -d`
   printing `Recreated` rather than `Running`.
 - **A secret must never be tracked by git.** That is the hard rule. `.env`,
-  `.env.*` and `ovh.conf` are gitignored, and `.env.example` holds names only.
+  `.env.*` and `*.tfstate` are gitignored, and `.env.example` holds names only.
 - **Acceptable homes** are `.env` on the host (mode 600), n8n's credential
   store, the shared password vault, or a mode-600 file on the machine that uses
-  it: `~/.ovh.conf`, `~/.n8n-api-key` or a gitignored `.env` in a local
-  checkout. Anything handling a whole repo tree sees a gitignored file in it,
+  it: `~/.config/scw/config.yaml`, `~/.n8n-api-key` or a gitignored `.env` in a
+  local checkout. Anything handling a whole repo tree sees a gitignored file in it,
   which `$HOME` avoids.
 - **Never put a credential in the compose `.env` unless the container needs
   it.** Every variable there reaches n8n's environment.
@@ -388,7 +388,19 @@ The OSE-specific invariants on top of that skill:
   `ose-inactive-workflows.timer` posts to Slack while one waits, so tell the
   user a new workflow has landed rather than assume they saw it.
 
-## Infra on the VPS (`automation/infra/`)
+## Infra on the box (`automation/infra/`)
+
+The box is one Scaleway instance, built by `tofu/scaleway-box/` and installed
+by `bootstrap.sh`. A copy of this setup elsewhere follows the same path, as
+the `new-instance` skill in `.claude/skills/` describes.
+
+- **The operator runs every command on the box.** An agent never logs into it
+  with `ssh` or `scp` and never asks for `ssh-add` so it can. It writes
+  one-shot `ssh debian@{VPS_HOST} '...'` commands for the operator's laptop,
+  says what output to expect, and waits for the pasted result. Never a block
+  to paste into an open session, and never one ending in `exit`: a passphrase
+  prompt swallows the paste, the rest runs on the laptop, and `exit` closes
+  the operator's terminal.
 
 - **A merge to `main` changes production infra, not only workflows.** With
   `ose-deploy.timer` installed, `deploy.sh` applies a changed
@@ -438,17 +450,26 @@ The OSE-specific invariants on top of that skill:
   serves the form paths and 404s the rest. The admin host leaves `/webhook/*`,
   `/form/*`, `/form-waiting/*`, `/api/v1/*` and `/healthz` open and puts
   everything else, editor and login included, behind the gate in
-  `editor-auth.caddy`. Opening a path changes the Caddyfile and
+  `editor-auth.caddy`. The bare domain only redirects to the website and
+  reaches nothing. Opening a path changes the Caddyfile and
   `automation/test/caddy-routes.sh` in the same pull request, never a catch-all
   `handle`. Caddy matches the cleaned path but forwards the raw one, so
   `clean_path_only` refuses dot segments and encoded separators before any rule
   runs. Keep it first in both sites. The gate's password is
   only in the vault and its bcrypt hash in git. An agent never sees the
   password: the operator generates it and hands over the hash.
-- **`tofu/vps/` is a template and is never applied to the production box.**
-  Applying it orders and bills a new VPS, and destroying it terminates one.
-  `tofu/backup-storage/` is applied from the operator's laptop. State for both
-  stays local and gitignored.
+- **Nothing that costs money is created without a yes to its price.**
+  `tofu/backup-storage/` and `tofu/scaleway-box/` are applied from the
+  operator's laptop, and only after the operator says yes to the named
+  resources and their monthly price. Choosing a direction is not that yes.
+  `tofu/scaleway-box/` creates billed resources and a protected instance.
+  State for each stays local and gitignored. Keep a copy of the production
+  state outside any worktree, because removing a worktree deletes it.
+- **Scaleway blocks outbound SMTP until the Organization is verified.** n8n
+  sends every email through the relay on port 587, so a box in an
+  unverified Organization sends nothing. The apply then stops at the security
+  group with `your account is not trusted`, after the addresses exist and
+  bill. Verify the Organization (identity verification, KYC) before ordering.
 
 ## Writing Docs
 

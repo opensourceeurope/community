@@ -1,4 +1,4 @@
-# Checks what runs on the VPS rather than inside n8n: the deploy, backup,
+# Checks what runs on the box rather than inside n8n: the deploy, backup,
 # alert and bootstrap scripts, and the two OpenTofu modules. The script tests
 # replace docker, sudo, curl and systemd with stubs, and the bootstrap test runs
 # in a throwaway Debian 13 container, so nothing here reaches the box, Slack or
@@ -70,7 +70,7 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        module: [vps, backup-storage]
+        module: [scaleway-box, backup-storage]
     defaults:
       run:
         working-directory: automation/infra/tofu/${{ matrix.module }}

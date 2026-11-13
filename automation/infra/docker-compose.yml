@@ -110,6 +110,8 @@ services:
       # container's environment, not merely interpolated by Compose.
       N8N_HOST: ${N8N_HOST}
       APPLY_HOST: ${APPLY_HOST}
+      # Defaulted so a box whose .env predates it keeps deploying.
+      ROOT_REDIRECT_HOST: ${ROOT_REDIRECT_HOST:-opensourceeurope.org}
     ports:
       - "80:80"
       - "443:443"

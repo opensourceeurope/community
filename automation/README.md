@@ -63,10 +63,16 @@ read that sentence as the real boundary.
 
 ## Running it
 
-The deployment lives on one VPS: n8n on Postgres behind Caddy.
+The deployment lives on one Scaleway instance: n8n on Postgres behind Caddy.
 [`infra/README.md`](infra/README.md) is the operator runbook. It covers
 installation from a fresh box, SSH recovery, backups, restore, upgrades, and
 a troubleshooting table of failures already hit in practice.
+
+To build your own copy of this setup, point Claude Code at this repository
+and ask for a new instance. The `new-instance` skill in
+[`.claude/skills/`](../.claude/skills/new-instance/SKILL.md) walks through it
+in order, from the Scaleway instance to the first dry run, and asks before
+anything that costs money.
 
 A merge to `main` reaches that instance on its own. The box pulls the commit
 every 10 minutes, applies what changed in `automation/infra/`, and syncs the

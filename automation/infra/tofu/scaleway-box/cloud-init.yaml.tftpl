@@ -1,0 +1,13 @@
+#cloud-config
+users:
+  - name: debian
+    shell: /bin/bash
+    groups: [sudo]
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+disable_root: true
+package_update: true
+packages:
+  - git
