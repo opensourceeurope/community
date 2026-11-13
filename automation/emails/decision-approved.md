@@ -10,7 +10,7 @@ https://docs.opencollective.com/open-source-europe
 We would also be happy to schedule a short onboarding call to get to know each other a
 little better and go through some practical details together. If that would be useful,
 please feel free to select a time here:
-https://calendly.com/ivan-oce/onboarding-call
+https://calendar.proton.me/bookings#kHiv_NWjo3Mzopa8aNdcHkOYyBE0G61L1lxyCdDIGHY=
 
 Best regards,
 The OSE Team
