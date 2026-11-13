@@ -1829,8 +1829,9 @@ stopped, so going back is a DNS change and nothing more.
    ```bash
    timeout 5 bash -c '</dev/tcp/smtp.protonmail.ch/587' && echo open || echo blocked
    ```
-8. A day ahead, lower the TTL of the `A` and `AAAA` records of both hostnames
-   to 300 seconds.
+8. Lower the TTL of the `A` and `AAAA` records of both hostnames to 300
+   seconds, then wait at least the old TTL before the move, so no resolver
+   still holds the old address with the old lifetime.
 
 ### The move, with downtime
 
@@ -1887,14 +1888,25 @@ sweep, and every timer catches up from its timestamps. Pick a quiet hour.
 4. Point the `A` records of both hostnames at the new IPv4 address and the
    `AAAA` records at the new IPv6 address. The downtime ends as the old
    records expire.
-5. From your own machine, copy the files the timers need, then switch the
-   timers on:
+5. The timers call n8n by its hostname, so switch them on only once the new
+   box resolves both names to itself. `getent` prints each address once per
+   socket type, so each count must be above `0`, usually `3`:
 
    ```bash
-   ssh debian@{NEW_IP} 'mkdir -p ~/.config/ose-backup && chmod 700 ~/.config/ose-backup'
+   ssh debian@{NEW_IP} 'getent ahostsv4 {ADMIN_HOSTNAME} | grep -c {NEW_IP}; getent ahostsv4 {APPLY_HOSTNAME} | grep -c {NEW_IP}'
+   ```
+
+   Then, from your own machine, copy the files the timers need, with the
+   state the failure alert and the recovery check keep, and switch the timers
+   on. A state directory the old box never created is reported missing, which
+   is harmless:
+
+   ```bash
+   ssh debian@{NEW_IP} 'mkdir -p ~/.config/ose-backup ~/.local/state && chmod 700 ~/.config/ose-backup'
    scp -3 debian@{OLD_IP}:.n8n-api-key debian@{NEW_IP}:.n8n-api-key
    scp -3 debian@{OLD_IP}:.slack-bot-token debian@{NEW_IP}:.slack-bot-token
    scp -3 debian@{OLD_IP}:.config/ose-backup/backup.env debian@{NEW_IP}:.config/ose-backup/backup.env
+   scp -3 -r debian@{OLD_IP}:.local/state/ose-workflow-recovery debian@{OLD_IP}:.local/state/ose-alert debian@{NEW_IP}:.local/state/
    ssh debian@{NEW_IP} 'chmod 600 ~/.n8n-api-key ~/.slack-bot-token ~/.config/ose-backup/backup.env && ~/community/automation/infra/bootstrap.sh units'
    ```
 
