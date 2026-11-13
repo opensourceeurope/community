@@ -958,7 +958,8 @@ box has local changes, and they need a look before going on.
 
 Most variables in `automation/.env.example` are not secrets: `DRY_RUN`,
 `DRY_RUN_RECIPIENT`, the two `*_AFTER_MINUTES` timers, `SWEEP_CRON`,
-`FORM_URL_OSE`, `AI_MODEL`, `AI_BASE_URL`, `SMTP_FROM` and `SLACK_CHANNEL`.
+`FORM_URL_OSE`, `AI_MODEL`, `AI_BASE_URL`, `SMTP_FROM`, `SLACK_CHANNEL` and
+`SLACK_DECIDERS`.
 Any of them can be set over `ssh` directly. Replace `{VAR}`
 with the variable name and `{VALUE}` with the value:
 
