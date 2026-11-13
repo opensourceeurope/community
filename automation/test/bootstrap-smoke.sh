@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs automation/infra/bootstrap.sh twice inside a Debian 13 container, as a
-# `debian` user with passwordless sudo, the way OVH's image provisions one and the
-# Scaleway module's cloud-init creates one.
+# `debian` user with passwordless sudo, the way the Scaleway module's cloud-init
+# creates one.
 # Packages, the clone, the .env and the unit files are real. systemd, ufw,
 # sshd and the Docker engine cannot run in a container, so those are stubs that
 # record their calls.
