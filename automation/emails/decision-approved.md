@@ -5,7 +5,7 @@ Hi,
 Welcome on board! We have approved your application to {{ org_name }}.
 
 You can find our hosting documentation here:
-https://docs.opencollective.com/open-source-europe
+https://www.opensourceeurope.org/docs/
 
 We would also be happy to schedule a short onboarding call to get to know each other a
 little better and go through some practical details together. If that would be useful,
