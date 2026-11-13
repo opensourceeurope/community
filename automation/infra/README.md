@@ -1407,9 +1407,12 @@ person's id is in their Slack profile, behind the three dots, as
 Do this after apply 6 is active, and not before: until then n8n answers the
 webhook with an error and every click fails.
 
-1. On api.slack.com/apps, open the app, then **Interactivity & Shortcuts**.
-2. Switch **Interactivity** on and set **Request URL** to
-   `https://{N8N_HOST}/webhook/slack-interactions`. Save.
+1. On api.slack.com/apps, open the app. If **Settings**, **Socket Mode** is on,
+   switch it off. Socket Mode delivers clicks over a connection the app holds
+   open, which n8n never does, and it hides the Request URL field. Nothing else
+   here needs it, because every workflow only posts.
+2. Open **Interactivity & Shortcuts**, switch **Interactivity** on and set
+   **Request URL** to `https://{N8N_HOST}/webhook/slack-interactions`. Save.
 
 No new scope is needed. Opening a dialog with `views.open` needs none, and the
 bot already posts the buttons with `chat:write`.
