@@ -134,7 +134,7 @@ the workflow list reads in pipeline order. The export files use short names.
 | `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | A `collective.apply` event carries no application, so new applications are read from the API. An approve or reject event names the collective, so only that application is checked, with one API call that confirms the decision before anything is recorded. The webhook has no authentication, which is why the payload alone is never trusted. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
 | `apply 1b — catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
 | `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`, and posts it in the application's Slack thread, followed by the collective's admins with their public profile links. |
-| `apply 3 — follow-up` | `followup.json` | A direct call from apply 2 for the invitation, and `SWEEP_CRON` for all three branches | Sends the form invitation for every reviewed row still pending on Open Collective, and posts in the thread instead when a decision got there first. The verdict picks the email, and it asks for legal names now when an admin has none on Open Collective. Also sends the one reminder and the Slack escalation, both derived from timestamps. The escalation carries the Approve and Reject buttons, so a person can close a silent application from the thread. |
+| `apply 3 — follow-up` | `followup.json` | `FOLLOWUP_CRON`, every 5 minutes, for all three branches, and a direct call from apply 2 | Sends the form invitation for every reviewed row still pending on Open Collective, and posts in the thread instead when a decision got there first. The verdict picks the email, and it asks for legal names now when an admin has none on Open Collective. Also sends the one reminder and the Slack escalation, both derived from timestamps. The escalation carries the Approve and Reject buttons, so a person can close a silent application from the thread. |
 | `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. It also tells the applicant what is automated, where a Mistral model on Scaleway reads the application and what it writes, that a person makes every decision, and that its answers are kept on the Open Collective application where only OSE's admins and the collective's own admins can read them, with links to this code and the AI policy. Page 3 asks whether the project is already a legal entity, which decides whether page 4 opens by asking what kind and where. After page 4, a page built from the collective's admin list asks whether every admin is at least 18 and where each one lives. Page 5 also asks, optionally, for a second admin's name and email. Page 6 shows the whole application back for correction and ends with an optional question about the form itself. Answers persist after every page, and a submission puts them in the application's Slack thread. |
 | `apply 5 — application summary` | `summary.json` | A direct call from apply 4, and `SUMMARY_CRON` as the catch-up | Reads a submitted form and the project's README, then posts a verdict, a confidence and a one paragraph description into the thread. It is advisory, like the review, and it recommends no decision. It asks no questions of its own, because which answers to follow up is the reviewer's call. |
 | `apply 6 — decision from Slack: approve or reject an application from its thread` | `decide-from-slack.json` | `POST /webhook/slack-interactions`, Slack's interactivity requests | Answers the Approve and Reject buttons apply 4 posts in the thread when the form arrives, and apply 3 posts with an escalation. Every request must carry Slack's signature, made less than five minutes ago, and come from a Slack user listed in `SLACK_DECIDERS`. A click opens a dialog with the closing email prefilled from the template and a field for a private note, then a view showing both for confirmation. Confirm claims the row, saves the edited email on it, asks Open Collective to approve or reject with no message of its own, saves the applicant's form answers on the application as `customData`, one readable text under `applicationForm`, posts the note as a comment only host admins see, and replies in the thread. The collective's admins can read `customData`, so it holds only what the applicant wrote, never the AI review or a reviewer's words. It sends no email and records no decision: apply 1a or 1b does both, as for a decision made on Open Collective, and uses the edited email instead of the template. |
@@ -166,7 +166,10 @@ starts the AI review as soon as the row has its Slack thread anchor, the
 review starts the follow-up as soon as it has written the verdict. The
 invitation is the one stage that waits on purpose: apply 3 holds it until the
 application is `INVITE_AFTER_MINUTES` old, 5 when unset, so a decision made
-straight after applying lands first, and a later sweep sends it.
+straight after applying lands first. The call from apply 2 always arrives
+inside that wait, so the invitation is sent by apply 3's own schedule,
+`FOLLOWUP_CRON`. That runs every 5 minutes rather than hourly like the other
+sweeps, so an applicant gets the form 5 to 10 minutes after applying.
 
 The schedules are what make that safe rather than fragile. Every stage keeps
 the cron it always had and still selects the rows its own stage owns, so a
@@ -509,10 +512,10 @@ an application marked `form_invited` during a test never receives a real
 invitation afterwards. Clear the timestamps of any row a test touched, or
 delete the row.
 
-One more thing about timers: they only fire when the sweep runs. A 5 minute
-reminder threshold on an hourly sweep still takes an hour to fire. Shorten
-`SWEEP_CRON` together with the thresholds, or click Execute on the sweep
-workflow in the n8n UI.
+One more thing about timers: they only fire when apply 3 runs, on
+`FOLLOWUP_CRON`. A threshold shorter than that interval still waits for the
+next run. Shorten `FOLLOWUP_CRON` together with the thresholds, or click
+Execute on apply 3 in the n8n UI.
 
 ## Checking the pull request description
 
