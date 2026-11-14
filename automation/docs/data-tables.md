@@ -53,7 +53,7 @@ with one of the four types.
 | `form_invite_claimed_at` | Date | follow-up | When apply 3 took this row to work on. A claim, not a result. See "The claim columns" below. |
 | `form_invite_skipped_at` | Date | follow-up | When apply 3 found the application already decided on Open Collective and sent no invitation. It only stops apply 3 from claiming the row again. The stage stays where it was until the decision branch records the decision, and because `form_invited_at` is empty that sends no closing email. |
 | `form_invited_at` | Date | follow-up | When the invitation email was sent. The template varies by verdict, and every reviewed application still pending on Open Collective is invited. Empty at decision time means the applicant never heard from the pipeline, so the decision is recorded without a closing email. On a rejection, this column and `form_submitted_at` choose the closing email: invited and never submitted gets the no-response rejection. |
-| `form_reminded_at` | Date | follow-up | When the `reminder` email was sent, after silence following the invite. Driven by `REMINDER_AFTER_MINUTES` and `SWEEP_CRON`. |
+| `form_reminded_at` | Date | follow-up | When the `reminder` email was sent, after silence following the invite. Driven by `REMINDER_AFTER_MINUTES` and `FOLLOWUP_CRON`. |
 | `form_page` | Number | form workflow | Which page of the multi page form the applicant has reached. Answers persist per page. |
 | `answers` | String (JSON) | form workflow | Form responses so far. Shape below. |
 | `form_submitted_at` | Date | form workflow | When the final form page was submitted. On a rejection, see `form_invited_at`. |
@@ -117,7 +117,8 @@ remains the record of where the application actually is.
 Every reviewed application is invited to the form unless Open Collective
 already shows a decision when apply 3 reaches it. apply 3 waits until the
 application is `INVITE_AFTER_MINUTES` old, 5 when unset, so a decision made
-straight after applying has time to land. The AI verdict changes
+straight after applying has time to land. apply 3 runs every 5 minutes, on
+`FOLLOWUP_CRON`, so the invitation follows the wait within minutes. The AI verdict changes
 only which email carries the invitation, never whether it is sent. An
 `unclear` or adverse first read is a hint in the email, not a gate. The form
 is where a thin Open Collective description gets filled out.

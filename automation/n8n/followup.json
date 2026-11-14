@@ -4,7 +4,7 @@
     {
       "id": "f1a2b3c4-d5e6-4f7a-8b9c-1d2e3f4a5b6c",
       "name": "Follow-up schedule",
-      "notes": "All timers are derived from stage + timestamps on the sweep cadence, never from Wait nodes, so a restart cannot drop a pending reminder. Shortening REMINDER_AFTER_MINUTES / ESCALATE_AFTER_MINUTES does nothing unless SWEEP_CRON shortens with them.",
+      "notes": "Runs on FOLLOWUP_CRON, every 5 minutes when unset, and not on the hourly SWEEP_CRON the other stages use. The reason is the invitation wait. Claimable for the invitation? holds a row until it is INVITE_AFTER_MINUTES old, and the direct call from apply 2 arrives seconds after the application, so that call always finds the row too young and does nothing. The invitation is sent by the first scheduled run after the wait. On an hourly schedule that meant waiting up to an hour instead of 5 minutes. A run with nothing due only reads the data table, because Open Collective is asked only after a row is claimed, so running every 5 minutes is cheap. All timers are derived from stage + timestamps on this cadence, never from Wait nodes, so a restart cannot drop a pending reminder. Shortening REMINDER_AFTER_MINUTES / ESCALATE_AFTER_MINUTES does nothing unless FOLLOWUP_CRON is at least as frequent.",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.4,
       "position": [
@@ -16,7 +16,7 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "={{ $env.SWEEP_CRON }}"
+              "expression": "={{ $env.FOLLOWUP_CRON || '*/5 * * * *' }}"
             }
           ]
         }
@@ -619,7 +619,7 @@
         },
         "options": {}
       },
-      "notes": "A row another run is already working is skipped. A claim older than STALE_CLAIM_MINUTES (30 when unset) is treated as abandoned, so a run that died cannot strand an application forever. A row whose invitation was skipped because Open Collective had already decided is never claimed again. A row younger than INVITE_AFTER_MINUTES (5 when unset) waits for a later sweep, so a decision made straight after applying, such as a pre-agreed move from another host, lands before the invitation would."
+      "notes": "A row another run is already working is skipped. A claim older than STALE_CLAIM_MINUTES (30 when unset) is treated as abandoned, so a run that died cannot strand an application forever. A row whose invitation was skipped because Open Collective had already decided is never claimed again. A row younger than INVITE_AFTER_MINUTES (5 when unset) waits for a later run, so a decision made straight after applying, such as a pre-agreed move from another host, lands before the invitation would. The call from apply 2 always lands inside that wait and is filtered out here, so the invitation is sent by the first FOLLOWUP_CRON run after it. That is why FOLLOWUP_CRON runs every 5 minutes: on the hourly SWEEP_CRON an applicant waited up to an hour."
     },
     {
       "id": "5b587c68-7aba-4080-97b6-732f0680e34a",

@@ -84,6 +84,13 @@ services:
       ESCALATE_AFTER_MINUTES: ${ESCALATE_AFTER_MINUTES}
       SWEEP_CRON: ${SWEEP_CRON}
       SUMMARY_CRON: ${SUMMARY_CRON}
+      # apply 3's own schedule. It is separate from SWEEP_CRON because the
+      # invitation waits INVITE_AFTER_MINUTES after an application arrives, and
+      # only a scheduled run can send it once that wait is over: the direct call
+      # from apply 2 always comes too early. Every 5 minutes keeps the wait close
+      # to 5 minutes instead of up to an hour. Defaulted here so a box whose .env
+      # predates it keeps deploying.
+      FOLLOWUP_CRON: "${FOLLOWUP_CRON:-*/5 * * * *}"
       STALE_CLAIM_MINUTES: ${STALE_CLAIM_MINUTES}
       # Defaulted here so a box whose .env predates it keeps deploying.
       INVITE_AFTER_MINUTES: ${INVITE_AFTER_MINUTES:-5}

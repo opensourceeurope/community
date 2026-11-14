@@ -364,7 +364,7 @@
           "waitForSubWorkflow": false
         }
       },
-      "notes": "Fire and forget. It never waits and it never fails this workflow, so a verdict is written and posted whatever happens downstream. apply 3 reads the rows itself, so nothing is passed. Its own schedule still covers a hand-off that is lost.",
+      "notes": "Fire and forget. It never waits and it never fails this workflow, so a verdict is written and posted whatever happens downstream. apply 3 reads the rows itself, so nothing is passed. Its own schedule still covers a hand-off that is lost. While INVITE_AFTER_MINUTES is above zero this call finds the row too young to invite and does nothing, and apply 3's 5-minute FOLLOWUP_CRON sends the invitation once the wait is over. The call is kept so that setting INVITE_AFTER_MINUTES to 0 makes the invitation immediate again with no workflow change.",
       "onError": "continueRegularOutput"
     },
     {
