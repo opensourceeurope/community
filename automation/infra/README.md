@@ -721,7 +721,9 @@ public API to answer, with the deploy key, before it syncs the workflows. A
 recreated n8n takes 30 to 60 seconds to boot, and until then Caddy answers 502.
 It waits for the API rather than `/healthz` because n8n answers `/healthz` a few
 seconds before it mounts `/api/v1`, and a sync started in that gap fails with
-`Cannot GET /api/v1/workflows`.
+`Cannot GET /api/v1/workflows`. It also waits for the data table route, which
+right after a restart can answer 200 with a body that is not JSON while the
+workflow route already works, so the run checks both routes for a JSON answer.
 
 Before it syncs the workflows, every run adds any column that
 [`automation/docs/data-tables.md`](../docs/data-tables.md) lists and the

@@ -26,6 +26,7 @@ DOCUMENTED = module.documented_columns(module.DOC)
 class Fake(http.server.BaseHTTPRequestHandler):
     tables = []      # [{"id", "name", "columns": [...]}]
     writes = []      # (method, path, body)
+    html = False     # answer every GET with HTML, as n8n can right after a restart
 
     def log_message(self, *args):
         pass
@@ -40,6 +41,12 @@ class Fake(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         if self.headers.get("X-N8N-API-KEY") != "test-key":
             return self.reply(401, {"message": "unauthorized"})
+        if Fake.html:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"<!DOCTYPE html><html><head></head></html>")
+            return
         if self.path.startswith("/api/v1/data-tables?"):
             return self.reply(200, {"data": [{"id": t["id"], "name": t["name"]} for t in Fake.tables]})
         for table in Fake.tables:
@@ -75,6 +82,17 @@ case = "no table: the dry run sends nothing"
 Fake.tables, Fake.writes = [], []
 result = run("--dry-run")
 check(case, result.returncode == 0, "exit %d: %s" % (result.returncode, result.stderr))
+check(case, Fake.writes == [], "sent %s" % Fake.writes)
+
+case = "an HTML answer fails with a message, not a traceback"
+Fake.tables, Fake.writes, Fake.html = [], [], True
+try:
+    result = run()
+finally:
+    Fake.html = False
+check(case, result.returncode == 1, "exit %d" % result.returncode)
+check(case, "not JSON" in result.stderr, "stderr: %s" % result.stderr)
+check(case, "Traceback" not in result.stderr, "stderr: %s" % result.stderr)
 check(case, Fake.writes == [], "sent %s" % Fake.writes)
 
 case = "no table: the whole table is created from the document"

@@ -204,19 +204,28 @@ running_image() {
 # before it mounts /api/v1, and a sync started in that gap fails with "Cannot
 # GET /api/v1/workflows". So this waits for the API itself, with the same key
 # the sync uses. The key reaches curl on stdin, never as an argument.
+# Right after a restart the data table route can still answer 200 with a body
+# that is not JSON while the workflow route already works, and the column step
+# then fails. So both routes must answer 200 with JSON.
 api_answers() {
   local key="${N8N_API_KEY:-}"
   [ -n "$key" ] || key=$(tr -d '[:space:]' < "$N8N_API_KEY_FILE")
   printf 'header = "X-N8N-API-KEY: %s"\n' "$key" \
-    | curl -s -o /dev/null -w '%{http_code}' --max-time 5 -K - "$N8N_API_URL/api/v1/workflows?limit=1" \
+    | curl -s -o /dev/null -w '%{http_code} %{content_type}' --max-time 5 -K - "$N8N_API_URL/api/v1/$1" \
     || true
 }
 
+answers_json() {
+  case "$(api_answers "$1")" in
+    "200 application/json"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 wait_for_n8n() {
-  local try code
+  local try
   for ((try = 1; try <= HEALTH_TRIES; try++)); do
-    code=$(api_answers)
-    if [ "$code" = 200 ]; then
+    if answers_json "workflows?limit=1" && answers_json "data-tables?limit=1"; then
       say "n8n is up and its API answers"
       return 0
     fi
@@ -381,7 +390,7 @@ else
     say "infra applied at ${target:0:8}"
   fi
   if [ "$compose_changed" = true ] || [ "$caddy_changed" = true ]; then
-    wait_for_n8n || die "the n8n API at $N8N_API_URL did not answer after the restart. The infra is applied, and the next run syncs the workflows"
+    wait_for_n8n || die "the n8n API at $N8N_API_URL did not answer after the restart, on /api/v1/workflows and /api/v1/data-tables with JSON. The deploy key needs the workflow:list and dataTable:read scopes. The infra is applied, and the next run syncs the workflows"
   fi
 fi
 
