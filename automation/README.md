@@ -105,7 +105,7 @@ different job, described in [`infra/README.md`](infra/README.md).
 carry the application pipeline and coordinate through one Data table
 (`ose_applications`, keyed by collective slug). The `ops` workflows sit
 outside the pipeline: one posts to Slack when a workflow fails, the other posts
-a weekly digest of the applications still open. The row is the record: a workflow
+a digest of the applications still open, on Wednesday and Friday mornings. The row is the record: a workflow
 reads state from it and writes state back, rather than handing work to
 another workflow and trusting it to arrive.
 A workflow does start the next one directly, four times over, but the call
