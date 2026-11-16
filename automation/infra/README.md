@@ -526,7 +526,7 @@ The script ends with the steps it cannot do for you. Do them in this order:
     apply 2 and apply 4, then apply 1a and apply 1b. Activate
     `ops — alert Slack when any apply workflow fails` as well, or no failure
     reaches Slack, and `ops — weekly digest of open applications in Slack` if
-    reviewers want the Friday overview.
+    reviewers want the Wednesday and Friday overview.
 11. [Register the Open Collective webhook](#registering-the-open-collective-webhook).
 12. Set up [the copy off the box](#the-copy-off-the-box) and
     [the external uptime monitor](#the-external-uptime-monitor).
