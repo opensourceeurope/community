@@ -52,13 +52,23 @@ if [ "${1:-}" = is-enabled ]; then
 fi
 exit 0
 EOF
-# The n8n API answers 502 for the first STUB_HEALTH_FAILS calls, then 200.
+# The n8n API answers 502 for the first STUB_HEALTH_FAILS calls, then 200 with
+# JSON. The data table route answers 200 with HTML for its first
+# STUB_TABLES_HTML calls, as n8n can right after a restart.
 cat > "$BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo "curl $*" >> "$STUB_LOG"
 n=$(cat "$STUB_LOG.health" 2>/dev/null || echo 0)
 echo $((n + 1)) > "$STUB_LOG.health"
-if [ "$n" -lt "${STUB_HEALTH_FAILS:-0}" ]; then printf 502; else printf 200; fi
+if [ "$n" -lt "${STUB_HEALTH_FAILS:-0}" ]; then printf '502 text/html'; exit 0; fi
+case "$*" in
+  */api/v1/data-tables*)
+    t=$(cat "$STUB_LOG.tables" 2>/dev/null || echo 0)
+    echo $((t + 1)) > "$STUB_LOG.tables"
+    if [ "$t" -lt "${STUB_TABLES_HTML:-0}" ]; then printf '200 text/html; charset=utf-8'; exit 0; fi
+    ;;
+esac
+printf '200 application/json; charset=utf-8'
 EOF
 chmod +x "$BIN/docker" "$BIN/sudo" "$BIN/curl" "$BIN/systemctl"
 
@@ -162,7 +172,7 @@ trap 'rc=$?; [ $rc -eq 0 ] || [ "$finished" = true ] || echo "deploy-infra: the 
 run() {  # run <case name> [deploy.sh arguments]
   case_name="$1"; shift
   : > "$STUB_LOG"
-  rm -f "$STUB_LOG.health"
+  rm -f "$STUB_LOG.health" "$STUB_LOG.tables"
   rc=0
   "$DEPLOY" "$@" > "$WORK/out.log" 2>&1 || rc=$?
 }
@@ -361,6 +371,19 @@ before '/api/v1/workflows' '^sync '
 [ "$(count '/api/v1/workflows')" -eq 3 ] || fail "expected two failed API checks and one good one"
 not_ran 'curl .*stub'
 not_ran '/healthz' 
+
+change automation/infra/docker-compose.yml "services: {h2: {}}"
+STUB_TABLES_HTML=2 run "the sync waits until the data table route answers JSON"
+exit_ok
+[ "$(count '/api/v1/data-tables')" -eq 3 ] || fail "expected two HTML answers and one JSON answer from the data table route"
+before '/api/v1/data-tables' '^sync '
+
+change automation/infra/docker-compose.yml "services: {h3: {}}"
+STUB_TABLES_HTML=9 run "a data table route that never answers JSON stops before the sync"
+exit_failed
+not_ran '^sync '
+marker_is HEAD
+[ "$(grep -c 'data-tables' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not name the data table route"
 
 change automation/infra/docker-compose.yml "services: {i: {}}"
 STUB_HEALTH_FAILS=9 run "an n8n that never comes back stops before the sync, with the infra recorded"

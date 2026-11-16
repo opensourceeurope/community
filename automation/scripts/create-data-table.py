@@ -84,12 +84,19 @@ def call(base, key, method, path, body=None):
     try:
         with urllib.request.urlopen(request, data, timeout=60) as response:
             text = response.read().decode("utf-8")
-            return json.loads(text) if text else None
     except urllib.error.HTTPError as error:
         detail = error.read().decode("utf-8", "replace")[:300]
         raise ApiError("HTTP %d on %s %s: %s" % (error.code, method, path, detail))
     except urllib.error.URLError as error:
         raise ApiError("cannot reach %s: %s" % (base, error.reason))
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except ValueError:
+        # Right after a restart n8n can answer 200 with a body that is not JSON.
+        raise ApiError("%s %s answered with something that is not JSON: %r"
+                       % (method, path, text[:80]))
 
 
 def items(response):
