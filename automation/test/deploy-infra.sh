@@ -393,9 +393,21 @@ marker_is HEAD
 [ "$(grep -c 'did not answer' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not say n8n did not answer"
 
 change automation/infra/public/og_image.png "png3"
-run "a change that restarts nothing does not wait for n8n"
+run "a change that restarts nothing checks the API once and goes on"
 exit_ok
-not_ran '/api/v1/workflows'
+[ "$(count '/api/v1/workflows')" -eq 1 ] || fail "expected one API check on a run that restarted nothing"
+not_ran ' up -d'
+
+STUB_HEALTH_FAILS=2 run "a run that changed nothing waits for an n8n that Docker restarted under it"
+exit_ok
+not_ran ' up -d'
+[ "$(count '/api/v1/workflows')" -eq 3 ] || fail "expected two failed API checks and one good one"
+before '/api/v1/data-tables' '^sync '
+
+STUB_HEALTH_FAILS=9 run "a run that changed nothing stops before the sync while n8n stays down"
+exit_failed
+not_ran '^sync '
+[ "$(grep -c 'did not answer' "$WORK/out.log" || true)" -gt 0 ] || fail "the error does not say n8n did not answer"
 
 change automation/infra/apt/52ose-unattended-upgrades 'Unattended-Upgrade::Automatic-Reboot-Time "04:30";'
 run "an apt setting change installs that file only, and makes sure the package is there"

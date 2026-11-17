@@ -2,8 +2,10 @@
 Description=Deploy origin/main on this box: infra changes, then the n8n workflow exports
 Documentation=https://github.com/opensourceeurope/community/blob/main/automation/infra/README.md
 After=docker.service network-online.target
-Requires=docker.service
-Wants=network-online.target
+# Wants, not Requires: with Requires, systemd stops a running deploy whenever
+# Docker restarts, as it does when unattended-upgrades updates Docker's
+# packages. The deploy waits for n8n to come back instead.
+Wants=docker.service network-online.target
 OnFailure=ose-alert@%n.service
 
 [Service]
