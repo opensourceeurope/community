@@ -389,9 +389,6 @@ else
   else
     say "infra applied at ${target:0:8}"
   fi
-  if [ "$compose_changed" = true ] || [ "$caddy_changed" = true ]; then
-    wait_for_n8n || die "the n8n API at $N8N_API_URL did not answer after the restart, on /api/v1/workflows and /api/v1/data-tables with JSON. The deploy key needs the workflow:list and dataTable:read scopes. The infra is applied, and the next run syncs the workflows"
-  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -403,6 +400,20 @@ if [ -f "$CHECK" ]; then
   python3 "$CHECK" "$dir"
 else
   echo "WARNING: no $CHECK, so the export checks did not run" >&2
+fi
+
+# ---------------------------------------------------------------------------
+# n8n must answer before anything reads it, on every run and not only after
+# this run restarted it. unattended-upgrades restarts Docker when it updates
+# Docker's packages, and every container with it, so a run that starts in the
+# minute after that meets a 502 from Caddy although it changed nothing itself.
+# When n8n already answers, this costs two requests.
+# ---------------------------------------------------------------------------
+n8n_down="the n8n API at $N8N_API_URL did not answer on /api/v1/workflows and /api/v1/data-tables with JSON. The deploy key needs the workflow:list and dataTable:read scopes"
+if [ "$dry_run" = true ]; then
+  wait_for_n8n || die "$n8n_down"
+else
+  wait_for_n8n || die "$n8n_down. Any infra change is applied, and the next run syncs the workflows"
 fi
 
 # ---------------------------------------------------------------------------
