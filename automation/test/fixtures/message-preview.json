@@ -194,7 +194,8 @@
           "advisory_note_included": false,
           "legal_name_check": "checked",
           "legal_name_check_reason": "",
-          "admins_without_legal_name": []
+          "admins_without_legal_name": [],
+          "one_admin_note_included": true
         },
         {
           "slug": "quiet-garden",
@@ -204,21 +205,24 @@
           "admins_without_legal_name": [
             "Anna Example",
             "<!channel> New Admin"
-          ]
+          ],
+          "one_admin_note_included": false
         },
         {
           "slug": "scopeless",
           "advisory_note_included": false,
           "legal_name_check": "no_scope",
           "legal_name_check_reason": "",
-          "admins_without_legal_name": []
+          "admins_without_legal_name": [],
+          "one_admin_note_included": false
         },
         {
           "slug": "failed-check",
           "advisory_note_included": true,
           "legal_name_check": "failed",
           "legal_name_check_reason": "Something went wrong <here>",
-          "admins_without_legal_name": []
+          "admins_without_legal_name": [],
+          "one_admin_note_included": true
         }
       ],
       "Mark form_invited": [
@@ -431,7 +435,8 @@
           "ai_applicant_message": "",
           "legal_name_check": "checked",
           "legal_name_check_reason": "",
-          "admins_without_legal_name": []
+          "admins_without_legal_name": [],
+          "one_admin": true
         },
         {
           "org": "OSE",
@@ -446,7 +451,8 @@
           "legal_name_check_reason": "",
           "admins_without_legal_name": [
             "Anna Example"
-          ]
+          ],
+          "one_admin": true
         },
         {
           "org": "OSE",
@@ -462,7 +468,8 @@
             "Anna Example",
             "New Admin",
             "Sam Sample"
-          ]
+          ],
+          "one_admin": false
         },
         {
           "org": "OSE",
@@ -474,7 +481,8 @@
           "ai_applicant_message": "The page has a name and no description, so it is not clear what the collective does.",
           "legal_name_check": "no_scope",
           "legal_name_check_reason": "",
-          "admins_without_legal_name": []
+          "admins_without_legal_name": [],
+          "one_admin": false
         }
       ]
     }

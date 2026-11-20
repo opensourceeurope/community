@@ -268,6 +268,11 @@ Not every `{{ placeholder }}` used in `automation/emails/*.md` and
   name is asked for firmly but never a condition, so a failed lookup or a token
   without the `account` scope leaves the paragraph out and says so in the
   Slack thread.
+- `one_admin_note`: a paragraph in the form invitation, filled only when
+  `oc_admins` lists exactly one admin, and empty otherwise. It says one admin is
+  fine, but a second is needed before an admin invoices the collective for paid
+  work. An empty `oc_admins` leaves it out, since the count may just be unread.
+  The Slack thread reply says when the email carried it.
 - `collective_name`, `ai_applicant_message` and the rest of the template
   placeholders come straight from the columns above.
 
