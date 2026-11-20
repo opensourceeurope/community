@@ -210,7 +210,8 @@ applicant type. An applicant who answered `Yes` is asked
 a page that does not carry the question at all, so on that branch
 `legal_entity_detail` is stored empty. Both branches then ask
 `fundraising_to_date`, `fundraising_goal`, `funding_sources`,
-`expected_expenses` and `payee_countries`.
+`expected_expenses`, `commercial_ties`, `commercial_payments` and
+`payee_countries`.
 
 The admin page follows page 4 on every path. It asks `admins_adult`, whether
 all admins of the collective are at least 18. A `No` is recorded and shown to
