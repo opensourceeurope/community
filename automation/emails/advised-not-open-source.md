@@ -28,6 +28,8 @@ asks you for neither.
 
 Questions or disagreement? Reply to this email and a reviewer will read it.
 
+{{ one_admin_note }}
+
 {{ legal_name_note }}
 
 — {{ org_name }}
