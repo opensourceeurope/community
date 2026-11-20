@@ -353,8 +353,10 @@ Slack's Block Kit Builder, which renders it the way Slack does for anyone signed
 in to Slack. A message whose render node also returns `blocks`, such as the
 Approve and Reject buttons, opens in Builder with those blocks, so the buttons
 show too. The same links, one per Slack message, go into
-`builder-links.txt` beside the page, so a preview of Slack messages alone opens
-straight in Builder with `xargs -n 1 open < /tmp/message-preview/builder-links.txt`. CI renders every message with `--all`, so a new one needs a fixture
+`builder-links.txt` beside the page. Share a Slack message, before and after
+alike, as its Builder link, opened with
+`xargs -n 1 open < /tmp/message-preview/builder-links.txt`, and keep the page for
+emails. CI renders every message with `--all`, so a new one needs a fixture
 entry in the same pull request. It needs docker.
 
 ## Testing the admin nodes

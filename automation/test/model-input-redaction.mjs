@@ -72,6 +72,8 @@ const answers = {
   activities: freeText,
   notes: freeText,
   expected_expenses: freeText,
+  commercial_ties: freeText,
+  commercial_payments: freeText,
 }
 
 const summaryRow = {
