@@ -28,6 +28,17 @@ is the whole of what we asked them for.
 Where the applicant's own answers contradict each other, say so in the paragraph, in the
 same plain words as the rest of it.
 
+The form asked whether a company owns the code or the project name, or sells paid services
+around the project, and whether any collective money would go to that company or to people
+who work for it. Money given to the collective is a donation and must stay separate from
+what a company sells. When there is such a company, say in the paragraph who owns the code
+and the name, what is sold and by whom, and whether collective money would go to the
+company or its people, and for what. When an expected funder sounds like a customer of that
+company, say so. When the README or the public description offers a paid, hosted or
+proprietary edition, or names a company selling around the project, and the answers say
+there is none, say that too. A company around the project is common and is no reason to
+change the verdict. When there is no company and nothing is sold, say nothing about it.
+
 Do not praise the applicant. Do not call them promising, impressive, strong or
 well-organised. Say what they do, in plain words.
 
