@@ -39,10 +39,10 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
   operator's laptop, never a block to paste into an open session and never one
   ending in `exit`. Say what output to expect, and wait for it.
 - **Secrets never pass through you.** The operator types each one into the
-  file on the machine that reads it, or copies it box to box with `scp -3`.
-  Check a copy by its size or by effect, never by printing it.
+  file on the machine that reads it. Check it by its size or by effect, never by printing it.
 - **Never two n8n on the same data.** Both would run every sweep and send
-  every email twice. A rehearsal restores into a scratch database only.
+  every email twice. When the lost OSE box is rebuilt from a dump, the old
+  one must be gone first.
 - **Nothing is activated without asking**, and `DRY_RUN` stays `true` until
   the operator decides to go live. Then walk "Going live" in the runbook
   first: rows handled in a dry run never mailed their applicant.
@@ -56,7 +56,7 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
    machine" in the runbook, plus Node.js and `jq` from "What you need on your
    machine" in `automation/README.md`. Run `tofu version`, `scw version`,
    `age --version`, `docker info`, `ssh-add -l`, `gh auth status`,
-   `shellcheck --version`, `python3 --version`, `node --version` and `jq --version`. Name each one
+   `shellcheck --version`, `git --version`, `python3 --version`, `node --version` and `jq --version`. Name each one
    that fails with its install command from those tables, and stop until the
    operator has installed it. A tool found missing later costs a half-built
    box that already bills.
@@ -87,9 +87,8 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
    It also sets `ROOT_REDIRECT_HOST` in `.env` to its own bare domain and
    points the redirect in the Caddyfile at its own website. Otherwise its
    Caddy keeps asking for a certificate for opensourceeurope.org.
-6. **Verify.** "Verify the install" in the runbook. Then the checks of
-   "Check it" under "Moving to a new box". Email out on port 587 must answer
-   `open`.
+6. **Verify.** "Verify the install" in the runbook, which ends with the
+   relay check on port 587. It must answer `open`.
 
 ## What a copy changes
 
@@ -104,6 +103,10 @@ Some places cannot carry a comment. Change them too, through the
 
 - The Open Collective host slug `europe`, in **Hosts to sync** and in
   `ORG_BY_HOST` in **Extract new applications**, in both apply 1a and apply 1b.
+- The organisation's name in the `ORG_NAMES` map and in fixed wording such as
+  "OSE's admins", in the render nodes that build Slack messages, dialogs and
+  emails. `grep -lE "ORG_NAMES|Open Source Europe|OSE's" automation/n8n/*.json`
+  lists the workflows to walk.
 - The emails in `automation/emails/` and the render nodes that embed them,
   changed together, which check 10 enforces. They name OSE and link its
   documentation.

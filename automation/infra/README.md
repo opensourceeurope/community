@@ -418,7 +418,7 @@ already bills.
 | Docker, running | hashing the editor gate password, and every preview and node test | Docker Desktop, or Docker Engine on Linux |
 | An SSH key pair, loaded in `ssh-agent` | the bootstrap logs into the box with it, and every command on the box runs over it | `ssh-keygen -t ed25519`, then `ssh-add` |
 | Git and the `gh` CLI, signed in | the repository the box deploys from, and every change after | `brew install git gh`, then `gh auth login` |
-| Python 3.9 or newer | creating the data table with `create-data-table.py` after the script, and the checks. The standard library is enough | preinstalled on macOS and Debian, or `brew install python` |
+| Python 3.9 or newer | creating the data table with `create-data-table.py` after the script, and the checks. The standard library is enough | preinstalled on Debian. On macOS, `brew install python`, or the Xcode Command Line Tools |
 | `shellcheck` | checking a changed script before you push, as CI does | `brew install shellcheck` or `sudo apt-get install shellcheck` |
 
 Changing the workflows needs a few more, listed in
@@ -455,11 +455,12 @@ sudo apt-get update -qq && sudo apt-get install -y -qq git
 ```
 
 The following commands clone the repository and run the script. Pass the two
-hostnames the box serves:
+hostnames the box serves. `{REPO_URL}` is the public repository the box
+deploys from, OSE's or a copy's own, and the script needs it again:
 
 ```bash
-git clone https://github.com/opensourceeurope/community.git ~/community
-~/community/automation/infra/bootstrap.sh all --n8n-host {ADMIN_HOSTNAME} --apply-host {APPLY_HOSTNAME}
+git clone {REPO_URL} ~/community
+~/community/automation/infra/bootstrap.sh all --n8n-host {ADMIN_HOSTNAME} --apply-host {APPLY_HOSTNAME} --repo-url {REPO_URL}
 ```
 
 Each step checks first and skips work that is already done. A second run
@@ -587,6 +588,14 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://{APPLY_HOSTNAME}/
 A 404 on the applicant hostname is correct until the form workflow is active.
 Caddy rewrites `/` to `/form/apply-ose`, and n8n answers 404 while no active
 workflow serves that path. An n8n-rendered 404 page proves the rewrite works.
+
+Then prove the box can reach the mail relay. Scaleway blocks outbound SMTP
+until the Organization is verified. On the box, with your relay's host in
+place of Proton's, the answer must be `open`:
+
+```bash
+timeout 5 bash -c '</dev/tcp/smtp.protonmail.ch/587' && echo open || echo blocked
+```
 
 If the owner account was created with the wrong email, change it under
 **Settings → Personal** in n8n. If that field is unavailable without SMTP,
