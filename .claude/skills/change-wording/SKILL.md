@@ -1,13 +1,13 @@
 ---
 name: change-wording
-description: Use when someone asks to change, reword, shorten, translate or add a sentence to anything the application pipeline says to people - an email to applicants, a Slack message reviewers read, or the text of the application form - especially when the person asking does not work in n8n or code and expects to see the result before it goes live.
+description: Use when someone asks to change, reword, shorten, translate, or add a sentence to anything the application pipeline says to people, such as an email to applicants, a Slack message reviewers read, or the text of the application form. Use it especially when the person asking does not work in n8n or code and expects to see the result before it goes live.
 ---
 
 # Changing what the pipeline says
 
 The person asking usually knows the wording they want and nothing about n8n. Your
-job is to find every place the text lives, change them together, show them the
-result, and ship it through a pull request. They never open n8n, and neither do
+job is to find every place the text lives, change every copy together, show the
+person the result, and ship it through a pull request. They never open n8n, and neither do
 you: the live instance is changed only by merging to `main`.
 
 The previews need Docker running and Python 3.9 or newer. If either is missing,
@@ -26,20 +26,20 @@ we will help" or "within two days", ask whether OSE will really do it.
 
 | They mean | It lives in | Notes |
 |---|---|---|
-| An email to applicants | `automation/emails/<name>.md` **and** the same text in the render node that sends it | The README "Email templates" tables map the invitations and closing emails to files. For the rest, search for a phrase. Check 10 fails if the two copies differ. |
+| An email to applicants | `automation/emails/<name>.md` and the same text in the render node that sends it | The README "Email templates" tables map the invitations and closing emails to files. For the rest, search for a phrase. Check 10 fails if the two copies differ. |
 | A Slack message | The `Render ...` Code node feeding that Slack node | `message-preview.py --all` lists every message with its node name. |
-| Form wording | `automation/n8n/form-ose.json` | Page titles, descriptions and Custom HTML are wording. A field's label is not, see below. |
+| Form wording | `automation/n8n/form-ose.json` | Page titles, descriptions and Custom HTML are wording. A field's label is not wording, as the following list explains. |
 
 Find the node by searching the exports for a phrase from the current text.
 
 These are not wording changes. Say so, and handle them under the AGENTS.md rules
 rather than this skill:
 
-- **Renaming a form field's label**: the label is the key the answer is stored
-  under, and the invitation email's prefill link uses one of them.
-- **A new placeholder** in an email: the render node must supply its value.
-- **Changing who gets an email, or when**: that is the pipeline's logic.
-- **Model prompts** in `automation/prompts/`: they need the model tests.
+- Renaming a form field's label. The label is the key the answer is stored
+  under, and the invitation email's prefill link uses one of the labels.
+- Adding a new placeholder to an email. The render node must supply its value.
+- Changing who gets an email, or when. That is the pipeline's logic.
+- Editing the model prompts in `automation/prompts/`. They need the model tests.
 
 ## 2. Edit
 
@@ -62,8 +62,8 @@ rather than this skill:
 
 ## 3. Show it, and repeat until they are happy
 
-- Emails and Slack: **REQUIRED SUB-SKILL:** `message-preview`.
-- Form pages: **REQUIRED SUB-SKILL:** `form-preview`.
+- For emails and Slack messages, you must use the `message-preview` skill.
+- For form pages, you must use the `form-preview` skill.
 
 Ask whether it reads right. Change and preview again until they say yes.
 
@@ -106,5 +106,5 @@ within half an hour is a good sign, not proof.
   other. Check 10 catches both, but only if you run it.
 - Showing the person a code diff instead of the preview.
 - Touching `DRY_RUN` or any setting. Wording never needs it.
-- Putting a real collective, person or address in the preview samples. The
+- Putting a real Collective, person, or address in the preview samples. The
   repository is public.

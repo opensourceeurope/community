@@ -1,7 +1,7 @@
 # Backup storage: the off-box bucket
 
-This OpenTofu module creates where `backup.sh` sends its encrypted dumps. It
-creates four things in an existing Scaleway Organization:
+This OpenTofu module creates the storage for the encrypted dumps that
+`backup.sh` sends. It creates four things in an existing Scaleway Organization:
 
 - A project, `ose-n8n-backups`, that holds only the bucket. Scaleway scopes an
   IAM policy to a project, not to a bucket, so a key limited to this project
@@ -60,9 +60,11 @@ answer `Y` when it asks to override the `default` profile.
 ## Then
 
 Follow [The copy off the box](../../README.md#the-copy-off-the-box) to create
-the upload key, the age key pair and the settings file on the box.
+the upload key, the age key pair, and the settings file on the box.
 
 ## Variables
+
+The following table lists the module's variables:
 
 | Variable | Default | What it is |
 |---|---|---|
