@@ -4,10 +4,10 @@ This OpenTofu module creates a Scaleway instance that
 [`bootstrap.sh`](../../bootstrap.sh) can turn into the box running the OSE
 application automation. It creates:
 
-- A `DEV1-S` instance (2 vCPU, 2 GB) in `pl-waw-1`, on Debian 13, with a 20 GB
-  local SSD.
+- A `DEV1-S` instance (two vCPUs and two GB of memory) in `pl-waw-1`, on
+  Debian 13, with a 20 GB local SSD.
 - One routed IPv4 address and one routed IPv6 prefix.
-- A security group that drops every inbound connection but SSH, HTTP, HTTPS
+- A security group that drops every inbound connection but SSH, HTTP, HTTPS,
   and ICMP, over IPv4 and IPv6. It lets outbound SMTP through, which Scaleway
   blocks by default, because n8n sends mail through the relay on port 587.
 
@@ -18,12 +18,12 @@ because Scaleway's image logs in as `root` and the units in
 
 It has two uses:
 
-- **A fresh install**, a copy of this setup under your own names. With
+- A fresh install, a copy of this setup under your own names. With
   `dns_zone` set it also creates the `A` records in your Scaleway DNS zone,
   and with `run_bootstrap = true` it runs `bootstrap.sh all` over SSH. That
   leaves a running stack on an empty database, and the steps in
   [After the script](../../README.md#after-the-script) to finish.
-- **A move** of an existing stack. Leave `run_bootstrap` off, because `.env`
+- A move of an existing stack. Leave `run_bootstrap` off, because `.env`
   must be copied in before n8n first starts, as
   [Moving to a new box](../../README.md#moving-to-a-new-box) describes.
 
@@ -49,7 +49,7 @@ You need:
 Write the values in a `terraform.tfvars` file next to the module. Git does not
 ignore it, so it must hold no secret, and none of these variables is one.
 
-A fresh install under your own names:
+The following settings make a fresh install under your own names:
 
 ```hcl
 ssh_public_key = "ssh-ed25519 AAAA... you@laptop"
@@ -62,6 +62,8 @@ The DNS zone must be hosted in Scaleway Domains and DNS. For a zone elsewhere,
 leave `dns_zone` unset, create the records by hand from the `ipv4` output, and
 run `bootstrap.sh` yourself as
 [Install the box](../../README.md#install-the-box) describes.
+
+The following table lists the module's variables:
 
 | Variable | Default | What it is |
 |---|---|---|
@@ -79,12 +81,13 @@ run `bootstrap.sh` yourself as
 | `repo_url` | the OSE repository | Repository the box clones and deploys from |
 | `branch` | `main` | Branch the box deploys |
 
-Scaleway lets only a verified Organization (identity verification, KYC)
-unblock SMTP. Until then the apply stops at the security group with `your
-account is not trusted, you cannot disable default security rules`, after the
-addresses already exist. Verification is per Organization, so an older
-account of yours elsewhere does not count. Verify the Organization that owns
-the project first.
+Scaleway lets only a verified Organization unblock SMTP. Verification means
+identity verification, also called know your customer (KYC). Until then the
+apply stops at the security group with
+`your account is not trusted, you cannot disable default security rules`, after
+the addresses already exist. Scaleway verifies each Organization on its own, so
+an older account of yours elsewhere does not count. Verify the Organization
+that owns the project first.
 
 ## Create it
 
@@ -99,14 +102,15 @@ tofu plan
 
 > [!CAUTION]
 > `tofu apply` creates billed resources. Scaleway charges the instance, the
-> disk and the IPv4 address by the hour until they are deleted. Read the plan
+> disk, and the IPv4 address by the hour until they are deleted. Read the plan
 > before you confirm it.
 
-The plan must add the IPv4 address, the IPv6 prefix, the security group and
+The plan must add the IPv4 address, the IPv6 prefix, the security group, and
 the instance, plus the records and the bootstrap when you set them, and change
-or destroy nothing. The following command creates them. Run it yourself, in your own terminal,
-with your SSH key loaded (`ssh-add -l` lists it). With `run_bootstrap = true`
-it logs into the new box over SSH, which an agent never does:
+or destroy nothing. The following command creates them. Run it yourself, in
+your own terminal, with your SSH key loaded (`ssh-add -l` lists it). With
+`run_bootstrap = true` it logs into the new box over SSH, which an agent never
+does:
 
 ```bash
 tofu apply

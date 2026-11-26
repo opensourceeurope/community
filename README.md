@@ -2,9 +2,9 @@ All things community for [Open Source Europe (OSE)](https://opensourceeurope.org
 
 ## About
 
-Open Source Europe is a European nonprofit that gives open source projects a shared fiscal and legal home. Instead of every project setting up its own legal entity, OSE provides a common nonprofit structure so maintainers can receive donations, manage expenses, and operate transparently — while staying fully autonomous.
+Open Source Europe is a European nonprofit that gives open source projects a shared fiscal and legal structure. No project needs to set up its own legal entity. Through that shared structure, maintainers can receive donations, manage expenses, and operate transparently. Each project stays fully autonomous.
 
-This repository is the home for community-related discussions, governance, processes, and shared resources for projects under the OSE umbrella.
+This repository holds community discussions, governance, processes, and shared resources for projects within OSE.
 
 ## How an application works
 
@@ -22,9 +22,9 @@ flowchart TD
     SUM --> DEC["A person approves or rejects<br>with the buttons in the Slack thread"]
     DEC -->|"decision, answers<br>and a private note"| OCD["Open Collective<br>records the decision"]
     OCD --> MAIL(["Applicant receives<br>the decision by email"])
-    SUM --> MOVE(["Or the collective moves<br>to another fiscal host,<br>and no email is sent"])
+    SUM --> MOVE(["Or the Collective moves<br>to another fiscal host,<br>and no email is sent"])
 
-    FORM -->|"no answer<br>after 7 days"| REM["Reminder email"]
+    FORM -->|"no answer<br>after seven days"| REM["Reminder email"]
     REM -->|"back to the form"| FORM
     REM -->|"7 more days<br>of silence"| ESC["A person is asked<br>to pick it up"]
     ESC --> DEC
@@ -42,46 +42,49 @@ flowchart TD
 ```
 
 An application starts and ends on Open Collective. Open Collective calls OSE a
-fiscal host, and a collective applies to a host from that host's page. Once the
+fiscal host, and a Collective applies to a host from that host's page. Once the
 form is in, a person approves or rejects with the Approve and Reject buttons in
 the application's Slack thread. They can edit the email the applicant will get
 and add a note for OSE's admins, and they confirm both before anything is sent.
-Their confirmation records the decision on that same application on Open
-Collective, stores the applicant's form answers with it, where only OSE's admins
-and the collective's own admins can read them, and adds the note, which only
-OSE's admins see. Open Collective holds the decision, and no automated step
-makes it, per the
-[AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
-The applicant then receives an email with the outcome. A collective that moves
+Their confirmation does the following on Open Collective:
+
+- Records the decision on that same application
+- Stores the applicant's form answers with the decision, where only OSE's admins
+  and the Collective's own admins can read them
+- Adds the note, which only OSE's admins see
+
+Open Collective holds the decision, and no automated step makes it, according
+to the [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md).
+The applicant then receives an email with the outcome. A Collective that moves
 to another fiscal host instead ends the application without one, because OSE
 decided nothing.
 
 The OSE application form is step 2. An application on Open Collective carries
-the collective's description, its links and a short message. The form collects
-the detail OSE needs on top of that:
+the Collective's description, its links, and a short message. The form collects
+the following details that OSE needs in addition:
 
-- what the project does, and where its work happens in the open
-- which licence it uses, which must be OSI approved, or for data and content
-  approved by the Open Definition
-- whether it is already a legal entity
-- what it expects to raise and to spend
+- What the project does, and where its work happens in the open
+- Which license the project uses, which must be approved by the Open Source
+  Initiative (OSI), or for data and content be on the Open Definition's list
+- Whether the project is already a legal entity
+- How much money the project expects to raise and to spend
 
 The link to the form arrives by email after step 1. An applicant who has not
 applied on Open Collective cannot get past the first page of the form.
 
 The automation connects the two forms. It picks up each new application and
-emails the invitation to the form. After 7 days of silence it sends one
-reminder. After 7 more days it asks in the Slack thread for a person to pick the
-application up. When that person rejects an application whose form never came
+emails the invitation to the form. After seven days of silence it sends one
+reminder. After seven more days it asks in the Slack thread for a person to pick
+the application up. When that person rejects an application whose form never came
 back, the email tells the applicant it was closed for lack of a response.
 
-A model hosted in the EU reads each application twice, and each read returns a
-verdict rather than a description. The first one reads the public project
-material and gives a verdict with its reasoning. The four verdicts are: the
-project fits, it belongs with another host, it is not open source, or the
-evidence is unclear. That verdict picks which invitation email the applicant
-receives, and the review itself goes into the Slack thread. The second read runs
-after a submission. It reads the answers and the project's README, then posts
+A model hosted in the European Union reads each application twice, and each read
+returns a verdict rather than a description. The first read covers the public
+project material and gives a verdict with its reasoning. The possible verdicts
+are: the project fits, it belongs with another host, it is not open source, or
+the evidence is unclear. The first verdict sets which invitation email the
+applicant receives, and the review itself goes into the Slack thread. The second
+read runs after a submission. It reads the answers and the project's README, then posts
 one paragraph and a verdict of its own.
 
 Both reads are advisory. Neither one recommends an approval or a rejection, and
@@ -90,10 +93,19 @@ a person makes the decision. The workflows run on
 
 Every update about every application appears in one Slack channel. The first
 message about an application starts a thread. Every later step replies in that
-thread: the review, the invitation, the reminder, the escalation, the
-answers, the summary, the Approve and Reject buttons, who decided, and the
-outcome. Reactions on the first message show the current
-stage. To follow one application, read its thread. To see all of them, read the
+thread with one of the following:
+
+- The review
+- The invitation
+- The reminder
+- The escalation
+- The answers
+- The summary
+- The Approve and Reject buttons
+- Who decided
+- The outcome
+
+Reactions on the first message show the current stage. To follow one application, read its thread. To see all of them, read the
 channel.
 
 [`automation/`](automation/) holds the workflows that run this, the email
@@ -101,11 +113,12 @@ templates they send, and the operator runbook.
 
 ## License
 
-This repository carries two licences:
+This repository carries two licenses:
 
-- Everything **except** `automation/` — governance, process, and other
-  content — is licensed under [CC-BY-4.0](LICENSE).
+- Everything except `automation/` is licensed under [CC-BY-4.0](LICENSE).
+  This content includes governance, process, and other documents.
 - Everything under [`automation/`](automation/) is software and is licensed
   under the [MIT License](automation/LICENSE).
 
-Contributions are accepted under the licence covering the path they touch.
+This repository accepts contributions under the license that covers the path
+they touch.

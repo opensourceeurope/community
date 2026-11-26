@@ -1,65 +1,67 @@
 # Automation
 
-Software that automates OSE community operations, starting with the new
-collective application process.
+Software that automates community operations for Open Source Europe (OSE),
+starting with the application process for new Collectives.
 
 Everything under `automation/` is licensed under the [MIT License](LICENSE).
 The rest of this repository is covered by CC-BY-4.0.
 
 ## Human decisions
 
-The AI review is advisory. It never approves, rejects or closes an
+The AI review is advisory. It never approves, rejects, or closes an
 application. A person approves or rejects, with the Approve and Reject
 buttons in the application's Slack thread. Those buttons are the way to
-decide: a decision made directly in the Open Collective dashboard is still
-recorded and still gets the template email, but it saves no form answers on
+decide. A decision made directly in the Open Collective dashboard is still
+recorded and still gets the template email. It saves no form answers on
 Open Collective and leaves no private note. A button
 opens a dialog where that person edits the closing email and writes an
 optional private note, and asks them to confirm both before anything is sent.
 Only that confirmation calls Open Collective, and nothing else in the
-automation ever does. The rest of the automation only listens for the result. The org
+automation ever does. The rest of the automation only listens for the result.
+OSE's
 [AI policy](https://github.com/opensourceeurope/.github/blob/main/AI-POLICY.md)
 lists "casting governance votes or approvals" as human-only.
 
 Two reads go to the model, and they see different things.
 
-The intake review sees public project material only: the collective's
+The intake review sees public project material only: the Collective's
 description, the application message, and the linked repository and website.
 
-The summary that runs after the form sees more, because a thin Open
-Collective page is the problem it exists to solve. It sees the applicant's
-form answers and the project's README. For a project it is also told whether
-the licence answer is on the Open Source Initiative's list of approved
-licences, or, for data and content, on the Open Definition's list. apply 5
-fetches both, from opensource.org and opendefinition.org, and matches in code
-rather than leaving the model to remember them. The form tells applicants the
-same rule under the licence question. The model is also told which licence
-file GitHub, GitLab or a Gitea host found in the repository, and which list
-that one is on. Forgejo, and so Codeberg, does not report a licence, so there the line is
-left out. GitHub allows an address without a token sixty API calls an hour, and
-the intake review and the summary share the box's one address. A busy hour
-runs out, and the README and licence then read as not found rather than
-failing.
+The summary that runs after the form sees more, because the summary exists to
+make up for a thin Open Collective page. It sees the applicant's form answers
+and the project's README. For a project, the model also receives whether the
+license answer is on the Open Source Initiative (OSI) list of approved
+licenses. For data and content, it receives whether the answer is on the Open
+Definition's list. apply 5 fetches both lists, from opensource.org and opendefinition.org, and matches in
+code rather than leaving the model to remember them. The form tells applicants
+the same rule under the license question. The model also receives which license
+file GitHub, GitLab, or a Gitea host found in the repository, and which list
+that license is on. Forgejo, and so Codeberg, does not report a license, so
+for those hosts the line is left out. GitHub allows 60 API calls an hour from
+an address without a token, and the intake review and the summary share the
+box's one address. A busy hour runs out of calls. The README and license then
+read as not found, and nothing fails.
 
 Neither read is given the fields where the form asks for a person: the
 contact email, and the name and email of a second admin. The pipeline stores
 those on the row, outside the answers, and no render step reads those
-columns, so sending one takes a deliberate edit rather than an oversight.
+columns. Sending one to the model takes a deliberate edit, not an oversight.
 
-Free text is the other way in. The form has free text boxes, and a README or
-a public description is whatever its authors wrote. So both render steps
-replace email addresses in the message with `[email address removed]` before
-it goes to the model. That covers an address written with `@`, a fullwidth
-`＠`, `%40` or `&#64;`, with letters from any script, and the bracketed forms
-READMEs and imprint pages use, such as `name(at)example.de` and
-`name [at] example [dot] org`. A `git@host:` clone URL is left alone.
+Free text is the other way an address can reach the model. The form has free
+text boxes, and a README or a public description is whatever its authors
+wrote. Both render steps therefore replace email addresses in the message with
+`[email address removed]` before it goes to the model. That covers an address
+written with `@`, a fullwidth `＠`, `%40`, or `&#64;`, with letters from any
+script. It also covers the bracketed forms that READMEs and imprint pages use,
+such as `name(at)example.de` and `name [at] example [dot] org`. A `git@host:`
+clone URL is left alone.
 
-Two forms still get through: `name at example dot org` written as bare words,
-which looks too much like ordinary prose to remove safely, and an address
-broken across a line. Nor does any of this cover other personal details. A
-name, a phone number or a street address written into a free text answer
-still reaches the model. Anyone assessing what this pipeline discloses should
-read that sentence as the real boundary.
+Two forms still get through. The first is `name at example dot org` written as
+bare words, which looks too much like ordinary prose to remove safely. The
+second is an address broken across a line. Nor does any of this cover other
+personal details. A name, a phone number, or a street address written into a
+free text answer still reaches the model. Anyone assessing what this pipeline
+discloses should read that sentence as the real boundary.
 
 ## Running it
 
@@ -75,26 +77,26 @@ in order, from the Scaleway instance to the first dry run, and asks before
 anything that costs money.
 
 A merge to `main` reaches that instance on its own. The box pulls the commit
-every 10 minutes, applies what changed in `automation/infra/`, and syncs the
-exports in `automation/n8n/` into the running n8n, updating each workflow in
-place and leaving its active state alone. See
+every ten minutes and applies what changed in `automation/infra/`. It then
+syncs the exports in `automation/n8n/` into the running n8n. It updates each
+workflow in place and leaves its active state alone. See
 [Deploying on merge](infra/README.md#deploying-on-merge).
 
 ### What you need on your machine
 
-Changing the pipeline, whether by hand or by asking an agent through the
-`change-wording` skill, needs no n8n of your own and no access to the box.
-It needs:
+You can change the pipeline by hand, or ask an agent to change it through the
+`change-wording` skill. Either way, you need no n8n of your own and no access
+to the box. The following table lists the tools you need:
 
 | Tool | What for |
 |---|---|
-| Git and a GitHub account that can open pull requests here, with the `gh` CLI signed in | every change is a pull request, and merging it is what deploys |
-| Python 3.9 or newer | the checks and the previews. They use the standard library only, so there is nothing to install |
-| Docker, running | the previews and the node tests start the n8n version production runs in a throwaway container. The first run pulls the image, and the form preview also pulls a browser image, which takes a few minutes |
-| Node.js 18 or newer, with `npx` | the `n8n-skills` Claude Code plugin starts its n8n MCP server with `npx`, and AGENTS.md requires that plugin before an agent touches a workflow. Without Node its tools never appear. The redaction test and the review eval need it too. Install it with `brew install node` or from nodejs.org |
-| `jq` | the Claude Code hooks in `.claude/hooks/` read their input with it. Without it the branch guard refuses every edit. macOS 15 and later ship it, elsewhere install it with `brew install jq` or `sudo apt-get install jq` |
-| A Slack account in the reviewers' workspace | opening a Slack message preview in Block Kit Builder |
-| The n8n API key, optional | confirming after a merge that the live instance runs what was merged, as [Providing the n8n API key to Claude Code](#providing-the-n8n-api-key-to-claude-code) describes |
+| Git and a GitHub account that can open pull requests here, with the `gh` CLI signed in | Every change is a pull request, and merging it is what deploys |
+| Python 3.9 or newer | The checks and the previews. They use the standard library only, so there is nothing to install |
+| Docker, running | The previews and the node tests start the n8n version production runs in a throwaway container. The first run pulls the image, and the form preview also pulls a browser image, which takes a few minutes |
+| Node.js 18 or newer, with `npx` | The `n8n-skills` Claude Code plugin starts its n8n MCP server with `npx`, and AGENTS.md requires that plugin before an agent touches a workflow. Without Node its tools never appear. The redaction test and the review eval need it too. Install it with `brew install node` or from nodejs.org |
+| `jq` | The Claude Code hooks in `.claude/hooks/` read their input with it. Without it the branch guard refuses every edit. macOS 15 and later ship it. Elsewhere, install it with `brew install jq` or `sudo apt-get install jq` |
+| A Slack account in the reviewers' workspace | Opening a Slack message preview in Block Kit Builder |
+| The n8n API key, optional | Confirming after a merge that the live instance runs what was merged, as [Providing the n8n API key to Claude Code](#providing-the-n8n-api-key-to-claude-code) describes |
 
 Running the box itself is a different job, with its own tools, listed in
 [Tools on your machine](infra/README.md#tools-on-your-machine).
@@ -102,44 +104,46 @@ Running the box itself is a different job, with its own tools, listed in
 ## The workflows
 
 `automation/n8n/` holds the export of every workflow. The `apply` workflows
-carry the application pipeline and coordinate through one Data table
-(`ose_applications`, keyed by collective slug). The `ops` workflows sit
-outside the pipeline: one posts to Slack when a workflow fails, the other posts
-a digest of the applications still open, on Wednesday and Friday mornings. The row is the record: a workflow
-reads state from it and writes state back, rather than handing work to
-another workflow and trusting it to arrive.
-A workflow does start the next one directly, four times over, but the call
-carries no data and the caller never waits for it. It only saves the
-application a wait for the next tick, and every stage keeps its own schedule
-to recover a call that is lost. Each workflow sends its own emails and Slack
-messages, and every applicant-facing email checks `DRY_RUN` first.
+carry the application pipeline and coordinate through one data table
+(`ose_applications`, keyed by Collective slug). The `ops` workflows sit
+outside the pipeline. One posts to Slack when a workflow fails. Another posts
+a digest of the applications still open, on Wednesday and Friday mornings.
 
-The automation serves Open Source Europe only. Open Collective Europe appears
-in one place: the AI review may suggest that a project fits OCE better.
+The row is the record. A workflow reads state from the row and writes state
+back, rather than handing work to another workflow and trusting it to arrive.
+In some places a workflow does start the next one directly, but the call
+carries no data and the caller never waits for it. The call only saves the
+application a wait for the next scheduled run, and every stage keeps its own
+schedule to recover a call that is lost. Each workflow sends its own emails and
+Slack messages, and every applicant-facing email checks `DRY_RUN` first.
 
-What OSE hosts is read broadly, and the review is written to match. Software
-projects, and equally the communities, meetups, conferences, events, archives
-and educational work that grow open source and the people doing it. A group
-that maintains no repository of its own belongs here just as much as a library
-does, which is why the form asks what kind of applicant someone is rather than
-assuming a codebase. The review may only suggest OCE when the work has no
-connection to open source at all, and it is told to answer `unclear` rather
-than redirect whenever it is weighing the two.
+The automation serves OSE only. Open Collective Europe (OCE) appears in one
+place: the AI review may suggest that a project fits OCE better.
 
-On the instance the workflows are named `apply <step>` plus a description, so
+What OSE hosts is read broadly, and the review is written to match. OSE hosts
+software projects. It equally hosts the communities, meetups, conferences,
+events, archives, and educational work that grow open source and the people
+doing it. A group that maintains no repository of its own belongs here as much
+as a library does. That is why the form asks what kind of applicant someone is,
+rather than assuming a codebase. The review may only suggest OCE when the work
+has no connection to open source at all. When the review is weighing OSE
+against OCE, the prompt tells it to answer `unclear` rather than redirect.
+
+On the instance, the workflows are named `apply <step>` plus a description, so
 the workflow list reads in pipeline order. The export files use short names.
+The following table lists each workflow:
 
 | Workflow on the instance | Export | Trigger | What it does |
 |---|---|---|---|
-| `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | A `collective.apply` event carries no application, so new applications are read from the API. An approve or reject event names the collective, so only that application is checked, with one API call that confirms the decision before anything is recorded. The webhook has no authentication, which is why the payload alone is never trusted. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
+| `apply 1a — intake` | `oc-events-intake.json` | `POST /webhook/oc-events` | A `collective.apply` event carries no application, so new applications are read from the API. An approve or reject event names the Collective, so only that application is checked. One API call confirms the decision before anything is recorded. The webhook has no authentication, which is why the payload alone is never trusted. A new application gets a row. An approve or reject decision gets recorded, and the applicant gets the closing email. |
 | `apply 1b — catch-up` | `intake-sweep.json` | `SWEEP_CRON` | Fetches applications and decisions the webhook missed. |
-| `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`, and posts it in the application's Slack thread, followed by the collective's admins with their public profile links. |
-| `apply 3 — follow-up` | `followup.json` | `FOLLOWUP_CRON`, every 5 minutes, for all three branches, and a direct call from apply 2 | Sends the form invitation for every reviewed row still pending on Open Collective, and posts in the thread instead when a decision got there first. The verdict picks the email, and it asks for legal names now when an admin has none on Open Collective. A collective with a single admin hears that a second is needed before an admin invoices paid work. Also sends the one reminder and the Slack escalation, both derived from timestamps. The escalation carries the Approve and Reject buttons, so a person can close a silent application from the thread. |
-| `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table and asks what the applicant is, which decides whether page 2 asks about a repository or about a community. It also tells the applicant what is automated, where a Mistral model on Scaleway reads the application and what it writes, that a person makes every decision, and that its answers are kept on the Open Collective application where only OSE's admins and the collective's own admins can read them, with links to this code and the AI policy. Page 3 asks whether the project is already a legal entity, which decides whether page 4 opens by asking what kind and where. After page 4, a page built from the collective's admin list asks whether every admin is at least 18 and where each one lives. Page 5 also asks, optionally, for a second admin's name and email. Page 6 shows the whole application back for correction and ends with an optional question about the form itself. Answers persist after every page, and a submission puts them in the application's Slack thread. |
-| `apply 5 — application summary` | `summary.json` | A direct call from apply 4, and `SUMMARY_CRON` as the catch-up | Reads a submitted form and the project's README, then posts a verdict, a confidence and a one paragraph description into the thread. It is advisory, like the review, and it recommends no decision. It asks no questions of its own, because which answers to follow up is the reviewer's call. |
-| `apply 6 — decision from Slack: approve or reject an application from its thread` | `decide-from-slack.json` | `POST /webhook/slack-interactions`, Slack's interactivity requests | Answers the Approve and Reject buttons apply 4 posts in the thread when the form arrives, and apply 3 posts with an escalation. Every request must carry Slack's signature, made less than five minutes ago, and come from a Slack user listed in `SLACK_DECIDERS`. A click opens a dialog with the closing email prefilled from the template and a field for a private note, then a view showing both for confirmation. Confirm claims the row, saves the edited email on it, asks Open Collective to approve or reject with no message of its own, saves the applicant's form answers on the application as `customData`, one readable text under `applicationForm`, posts the note as a comment only host admins see, and replies in the thread. The collective's admins can read `customData`, so it holds only what the applicant wrote, never the AI review or a reviewer's words. It sends no email and records no decision: apply 1a or 1b does both, as for a decision made on Open Collective, and uses the edited email instead of the template. |
-| `ops — alert Slack when any apply workflow fails` | `ops-alert-on-failure.json` | An unhandled error in any other workflow, through its `Error Workflow` setting | Posts the workflow that failed, the node that threw and the error text to `SLACK_CHANNEL`, with links to the execution and the editor. Outside the pipeline, so it holds no application state. |
-| `ops — weekly digest of open applications in Slack` | `ops-weekly-digest.json` | `DIGEST_CRON`, Wednesdays and Fridays at 09:00 | Posts one message to `SLACK_CHANNEL` listing every application not yet approved, rejected or resigned, grouped by who has the next move: OSE, the applicant, or the pipeline itself. Each line says how long the application has waited and links to its thread, and one that has waited on OSE longer than `DIGEST_STALE_DAYS` is marked. When nothing is open it posts nothing. It reads the table and changes nothing. |
+| `apply 2 — AI review` | `review.json` | A direct call from apply 1a or 1b, and `SWEEP_CRON` as the catch-up | Writes an advisory verdict on every row at stage `applied`, and posts it in the application's Slack thread. The Collective's admins and their public profile links follow it. |
+| `apply 3 — follow-up` | `followup.json` | `FOLLOWUP_CRON`, every five minutes, for all three branches, and a direct call from apply 2 | Sends the form invitation for every reviewed row still pending on Open Collective. When a decision got there first, it posts in the thread instead. The verdict picks the email. The email asks for legal names now when an admin has none on Open Collective. A Collective with a single admin hears that a second admin is needed before an admin invoices paid work. It also sends the one reminder and the Slack escalation, both derived from timestamps. The escalation carries the Approve and Reject buttons, so a person can close a silent application from the thread. |
+| `apply 4 — application form` | `form-ose.json` | `/form/apply-ose` | The step 2 form. Page 1 checks the state table and asks what the applicant is. The answer sets whether page 2 asks about a repository or about a community. Page 1 also tells the applicant what is automated, and where a Mistral model on Scaleway reads the application and what it writes. It says that a person makes every decision. It says that the answers are kept on the Open Collective application, where only OSE's admins and the Collective's own admins can read them. It links to this code and the AI policy. Page 3 asks whether the project is already a legal entity. The answer sets whether page 4 opens by asking what kind and where. After page 4, a page built from the Collective's admin list asks whether every admin is at least 18 and where each one lives. Page 5 also asks, optionally, for a second admin's name and email. Page 6 shows the whole application back for correction and ends with an optional question about the form itself. Answers persist after every page, and a submission puts them in the application's Slack thread. |
+| `apply 5 — application summary` | `summary.json` | A direct call from apply 4, and `SUMMARY_CRON` as the catch-up | Reads a submitted form and the project's README. It then posts a verdict, a confidence, and a one-paragraph description into the thread. It is advisory, like the review, and it recommends no decision. It asks no questions of its own, because the reviewer chooses which answers to follow up. |
+| `apply 6 — decision from Slack: approve or reject an application from its thread` | `decide-from-slack.json` | `POST /webhook/slack-interactions`, Slack's interactivity requests | Answers the Approve and Reject buttons in the thread. apply 4 posts them when the form arrives, and apply 3 posts them with an escalation. Every request must carry Slack's signature, made less than five minutes ago, and come from a Slack user listed in `SLACK_DECIDERS`. A click opens a dialog with the closing email prefilled from the template and a field for a private note. A view then shows both for confirmation. Confirm claims the row and saves the edited email on it. It asks Open Collective to approve or reject, with no message of its own. It saves the applicant's form answers on the application as `customData`, one readable text under `applicationForm`. It posts the note as a comment only host admins see, and replies in the thread. The Collective's admins can read `customData`, so it holds only what the applicant wrote, never the AI review or a reviewer's words. apply 6 sends no email and records no decision. apply 1a or 1b does both, as for a decision made on Open Collective, and uses the edited email instead of the template. |
+| `ops — alert Slack when any apply workflow fails` | `ops-alert-on-failure.json` | An unhandled error in any other workflow, through its `Error Workflow` setting | Posts the workflow that failed, the node that threw, and the error text to `SLACK_CHANNEL`, with links to the execution and the editor. It sits outside the pipeline, so it holds no application state. |
+| `ops — weekly digest of open applications in Slack` | `ops-weekly-digest.json` | `DIGEST_CRON`, Wednesdays and Fridays at 09:00 | Posts one message to `SLACK_CHANNEL` listing every application not yet approved, rejected, or resigned. The list is grouped by who has the next move: OSE, the applicant, or the pipeline itself. Each line says how long the application has waited and links to its thread. A line for an application that has waited on OSE longer than `DIGEST_STALE_DAYS` is marked. When nothing is open, it posts nothing. It reads the table and changes nothing. |
 
 One application flows through the workflows in this order:
 
@@ -147,14 +151,14 @@ One application flows through the workflows in this order:
 flowchart TD
     START(["Applicant applies to OSE<br>on Open Collective"])
     START -->|"webhook"| A1a["apply 1a — intake<br>creates the application row"]
-    A1b["apply 1b — catch-up<br>asks the OC API for anything<br>the webhook missed"]
+    A1b["apply 1b — catch-up<br>asks the Open Collective API for anything<br>the webhook missed"]
     A1a --> A2["apply 2 — AI review<br>writes the advisory verdict"]
     A1b --> A2
     A2 --> A3["apply 3 — follow-up<br>emails the form invitation<br>(reminds and escalates if it stays quiet)"]
     A3 --> A4["apply 4 — application form<br>the applicant answers,<br>their answers go to the Slack thread"]
-    A4 --> A5s["apply 5 — application summary<br>reads the answers and the README,<br>summarises them in the thread"]
+    A4 --> A5s["apply 5 — application summary<br>reads the answers and the README,<br>summarizes them in the thread"]
     A5s --> HUMAN(["A human approves or rejects<br>with the buttons in the<br>Slack thread (apply 6)"])
-    A5s --> GONE(["Or the collective moves<br>to another fiscal host,<br>or is deleted"])
+    A5s --> GONE(["Or the Collective moves<br>to another fiscal host,<br>or is deleted"])
     HUMAN --> A5["apply 1a or 1b, decision branch<br>records the outcome"]
     GONE --> A5
     A5 -->|"approved, rejected"| END(["Applicant receives<br>the closing email"])
@@ -162,109 +166,112 @@ flowchart TD
 ```
 
 An application moves through in one pass. Whichever intake creates the row
-starts the AI review as soon as the row has its Slack thread anchor, the
+starts the AI review as soon as the row has its Slack thread anchor. The
 review starts the follow-up as soon as it has written the verdict. The
-invitation is the one stage that waits on purpose: apply 3 holds it until the
-application is `INVITE_AFTER_MINUTES` old, 5 when unset, so a decision made
+invitation is the one stage that waits on purpose. apply 3 holds it until the
+application is `INVITE_AFTER_MINUTES` old, `5` when unset, so a decision made
 straight after applying lands first. The call from apply 2 always arrives
-inside that wait, so the invitation is sent by apply 3's own schedule,
-`FOLLOWUP_CRON`. That runs every 5 minutes rather than hourly like the other
-sweeps, so an applicant gets the form 5 to 10 minutes after applying.
+inside that wait, so apply 3's own schedule, `FOLLOWUP_CRON`, sends the
+invitation. That schedule runs every five minutes, not hourly like the other
+sweeps, so an applicant gets the form five to ten minutes after applying.
 
-The schedules are what make that safe rather than fragile. Every stage keeps
-the cron it always had and still selects the rows its own stage owns, so a
-hand-off that never lands costs one sweep interval and nothing more. No stage
-waits for the stage it started, and a hand-off that fails is not an error for
-the caller.
+The schedules make the direct hand-offs safe. Every stage keeps the cron it always had
+and still selects the rows its own stage owns. A hand-off that never lands
+costs one sweep interval and nothing more. No stage waits for the stage it
+started, and a hand-off that fails is not an error for the caller.
 
-Sweeps landing together is also why every stage claims its row before working
-it. Three schedules on one cron means three runs over the same rows at the
-same moment, which is how one application got two summaries in its thread. A
-stage now stamps its claim column with a conditional update that only one run
-can win, and the runs that lose skip the row in silence. See "The claim
+Sweeps that land together are also why every stage claims its row before
+working on it. Three schedules on one cron means three runs over the same rows
+at the same moment, which is how one application got two summaries in its
+thread. A stage now stamps its claim column with a conditional update that only
+one run can win, and the runs that lose skip the row in silence. See "The claim
 columns" in [`docs/data-tables.md`](docs/data-tables.md).
 
 `apply 1b — catch-up` exists because Open Collective delivers each
 webhook event only once. If the server is unreachable at that moment, the
-event is lost and the application would never enter the pipeline. The
-catch-up asks the Open Collective API for pending applications, and for the
-current status of every application still open in the data table, and
-processes anything the webhook missed. A lost event then means the applicant
-hears from us one sweep later, not never.
+event is lost, and without the catch-up the application never enters the
+pipeline. The catch-up asks the Open Collective API for pending applications.
+It also asks for the current status of every application still open in the
+data table, and processes anything the webhook missed. A lost event then means
+the applicant hears from OSE one sweep later, not never.
 Caddy's access log of `/webhook/*` shows whether a missed event ever reached
 the box. See "Day to day" in [`infra/README.md`](infra/README.md).
 
 ## Checking the exports
 
 [`scripts/check-workflows.py`](scripts/check-workflows.py) reads the exports in
-`automation/n8n/` and enforces some of the invariants in `AGENTS.md`. Each one
-exists because that defect reached main at least once, and the list is kept
-short on purpose. A check that flags style rather than breakage gets switched off,
-and takes the real ones with it.
+`automation/n8n/` and enforces some of the invariants in `AGENTS.md`. Each
+check exists because its defect reached main at least once, and the list is
+kept short on purpose. A check that flags style rather than breakage gets
+switched off, and the real checks get switched off with it.
 
-1. **No disabled nodes.** An export taken while nodes were switched off for a
+1. No node is disabled. An export taken while nodes were switched off for a
    test is not the record of truth.
-2. **No truncated expressions.** n8n ends a `{{ }}` expression at the first
+2. No expression is truncated. n8n ends a `{{ }}` expression at the first
    `}}`, so a nested object literal has to space its closing braces as `} }`.
    Inside a `{{ }}` segment, more `{` than `}` means the rest of the
    expression was swallowed. `validate_workflow` does not catch this.
-3. **Every applicant-facing email is gated.** The node feeding each email send
+3. Every applicant-facing email is gated. The node feeding each email send
    must be a Code node that reads `DRY_RUN`.
-4. **Form answers reach the reviewer.** Every key of the `responses` object
-   built by `Record submission` must appear in the label list of
-   `Render submission thread reply`, of `Render summary request` and of
-   `Choose the pending application`, which saves the answers on Open
-   Collective. A key
-   missing from a label list is dropped in silence, so an answer the applicant
+4. Form answers reach the reviewer. Every key of the `responses` object
+   built by `Record submission` must appear in each of the following label
+   lists:
+   - `Render submission thread reply`
+   - `Render summary request`
+   - `Choose the pending application`, which saves the answers on Open
+     Collective
+
+   A key missing from a label list is dropped in silence, so an answer the applicant
    gave never reaches the people deciding. `form_feedback` is the exception,
-   because it asks about the form and not about the application: the Slack
-   list carries it so that a person reads it, and the summary list is checked
-   for its absence, because that one is a model prompt.
-5. **The data table is referenced the same way everywhere.** Every data table
+   because it asks about the form and not about the application. The Slack
+   list carries it so that a person reads it. The summary list is checked
+   for its absence, because that list is a model prompt.
+5. The data table is referenced the same way everywhere. Every data table
    node points at `ose_applications` in name mode.
-6. **Every workflow pins its timezone.** A workflow with no timezone in its
+6. Every workflow pins its timezone. A workflow with no timezone in its
    settings inherits `GENERIC_TIMEZONE` and drifts away from the others when
    that changes.
-7. **The form's labels still match what reads them.** n8n keys an answer on the
+7. The form's labels still match what reads them. n8n keys an answer on the
    field's label, so rewording a label or a dropdown option in the editor
    breaks three things without an error. An expression reading
    `$('Form page N').item.json['label']` returns `undefined`. A Switch
    comparing an answer to an option string stops matching, and every applicant
    takes the fallback branch, so a community gets asked the project questions.
    The prefill link the apply 3 emails build stops filling the field, and the
-   form still loads, just empty.
-8. **Every variable a workflow reads reaches n8n.** A `$env` read must name a
+   form still loads, but empty.
+8. Every variable a workflow reads reaches n8n. A `$env` read must name a
    variable that `infra/docker-compose.yml` passes to the n8n container and
    `.env.example` documents. A variable the compose file does not pass is
-   simply absent inside n8n, and the expression reads `undefined` with no
+   absent inside n8n, and the expression reads `undefined` with no
    error. A `$env` use the check cannot name, such as destructuring, fails too,
    so read each variable as `$env.NAME`.
-9. **No email address reaches a model.** Every HTTP node that calls a model
+9. No email address reaches a model. Every HTTP node that calls a model
    is traced back to the Code node that builds its request. There, each user
-   message must be exactly one `redactAddresses(...)` call, the helper must
-   match the copy in the other node, and the node must not name
-   `contact_email`, `applicant_email`, either `alternative_admin_*` column,
-   `oc_admins` or `admin_countries`, or read the row whole. [`test/model-input-redaction.mjs`](test/model-input-redaction.mjs)
+   message must be exactly one `redactAddresses(...)` call, and the helper must
+   match the copy in the other node. The node must not name an address column
+   or read the row whole. The address columns are `contact_email`,
+   `applicant_email`, both `alternative_admin_*` columns, `oc_admins`, and
+   `admin_countries`. [`test/model-input-redaction.mjs`](test/model-input-redaction.mjs)
    runs both nodes on text full of addresses and checks that none comes out.
-10. **The email copy in git is what goes out.** Every `Subject: ` template in a
+10. The email copy in git is what goes out. Every `Subject: ` template in a
    Code node that feeds an email send must equal a file in `emails/`, and every
-   file there must be sent by such a node. Editing only one of the two fails, and
-   so does a template the check cannot read, such as one with a backtick in it or
-   a subject line joined on with `+`.
+   file there must be sent by such a node. Editing only one of the two fails.
+   So does a template the check cannot read, such as one with a backtick in it
+   or a subject line joined on with `+`.
 
-Run it from the repository root. It needs no arguments, no dependencies, no
-network and no API key, and it never touches the live instance.
+The check needs no arguments, no dependencies, no network, and no API key, and
+it never touches the live instance. Run it from the repository root:
 
 ```bash
 python3 automation/scripts/check-workflows.py
 ```
 
-It prints one line per problem, naming the export, the node and what is wrong,
-and exits non-zero if anything failed. `--help` lists the checks. Pass a path
+It prints one line per problem, naming the export, the node, and what is wrong.
+It exits non-zero if anything failed. `--help` lists the checks. Pass a path
 to check a single export or a directory of them.
 
 [`.github/workflows/check-workflows.yml`](../.github/workflows/check-workflows.yml)
-runs the same command on every pull request and on pushes to main, so refresh
+runs the same command on every pull request and on pushes to main. For that reason, refresh
 the exports with `scripts/export-workflows.py` in the same pull request as any
 workflow change.
 
@@ -277,8 +284,8 @@ passes every file check, then opens in the editor as an unresolved node with
 its parameters gone.
 
 [`test/n8n-import-check.sh`](test/n8n-import-check.sh) boots that n8n version in
-Docker and imports every export into it. It needs Docker, `python3` and
-`curl`, and it runs `scripts/check-workflows.py` first, so one command covers
+Docker and imports every export into it. It needs Docker, `python3`, and
+`curl`. It runs `scripts/check-workflows.py` first, so one command covers
 both.
 
 Run it from the repository root:
@@ -287,9 +294,13 @@ Run it from the repository root:
 automation/test/n8n-import-check.sh
 ```
 
-It fails on an export n8n rejects, on a node type the build does not register,
-on a `typeVersion` the node does not offer, and on a workflow that the import
-reported as successful but that `n8n list:workflow` does not show afterwards.
+It fails on any of the following:
+
+- An export n8n rejects.
+- A node type the build does not register.
+- A `typeVersion` the node does not offer.
+- A workflow that the import reported as successful, but that `n8n list:workflow` does not show afterwards.
+
 Each file goes in on its own, so the message names the file.
 
 The image tag comes from [`infra/docker-compose.yml`](infra/docker-compose.yml)
@@ -306,16 +317,19 @@ runs the same command on every pull request and on pushes to main.
 ## Previewing form pages
 
 [`scripts/form-preview.py`](scripts/form-preview.py) screenshots pages of the
-application form as an applicant sees them. The form is rendered in the browser
-and n8n filters its custom HTML and CSS, so neither the export nor a fetch of
-the live form shows what an applicant gets. The script starts the n8n image
-production runs in a throwaway container, imports one preview workflow per page,
-and takes each screenshot from a headless browser in a second container.
+application form as an applicant sees them. The form is rendered in the
+browser, and n8n filters its custom HTML and CSS. As a result, neither the export nor a
+fetch of the live form shows what an applicant gets. The script starts the n8n
+image production runs in a throwaway container and imports one preview workflow
+per page. It takes each screenshot from a headless browser in a second
+container.
 
 A page that reads other nodes by name, such as `Form page 6`, gets a stub node
 of that name returning sample data from
 [`test/fixtures/form-preview.json`](test/fixtures/form-preview.json). That data
 is invented, and stays invented because this repository is public.
+
+The following commands preview one page, or every page of an edited export:
 
 ```bash
 python3 automation/scripts/form-preview.py --page "Form page 5" --out /tmp/form-preview
@@ -326,7 +340,7 @@ Each run also writes an `index.html` into `--out` that shows every PNG there.
 `--serve 8765` serves it on `127.0.0.1:8765` after the run, and `--serve-only`
 serves an existing folder without a new run.
 
-It needs docker and a network, and it never touches the live instance. The
+It needs Docker and a network, and it never touches the live instance. The
 start page, `Form page 1`, cannot be previewed this way.
 
 ## Previewing Slack messages and emails
@@ -334,10 +348,12 @@ start page, `Form page 1`, cannot be previewed this way.
 [`scripts/message-preview.py`](scripts/message-preview.py) shows the Slack
 messages and emails the workflows send. Each one is built by a Code node, so the
 export holds the code and not the message. The script runs every node that feeds
-a Slack post or an email send in the n8n image production runs, with stand-in
-upstream nodes returning the invented rows in
+a Slack post or an email send in the n8n image production runs. Stand-in
+upstream nodes return the invented rows in
 [`test/fixtures/message-preview.json`](test/fixtures/message-preview.json), and
-sends nothing.
+the script sends nothing.
+
+The following commands render the changed messages, or every message:
 
 ```bash
 python3 automation/scripts/message-preview.py --out /tmp/message-preview
@@ -349,33 +365,36 @@ before and after, with before taken from where the branch left `origin/main`. It
 writes an `index.html`. An email shows the subject and body the applicant gets,
 rendered as if `DRY_RUN` were `false`, which is safe because nothing after the
 render node runs. A Slack message shows its raw text and a link that opens it in
-Slack's Block Kit Builder, which renders it the way Slack does for anyone signed
-in to Slack. A message whose render node also returns `blocks`, such as the
-Approve and Reject buttons, opens in Builder with those blocks, so the buttons
-show too. The same links, one per Slack message, go into
+Slack's Block Kit Builder. Builder renders it the way Slack does for anyone
+signed in to Slack. A message whose render node also returns `blocks`, such as
+the Approve and Reject buttons, opens in Builder with those blocks, so the
+buttons show too. The same links, one per Slack message, go into
 `builder-links.txt` beside the page. Share a Slack message, before and after
 alike, as its Builder link, opened with
 `xargs -n 1 open < /tmp/message-preview/builder-links.txt`, and keep the page for
 emails. CI renders every message with `--all`, so a new one needs a fixture
-entry in the same pull request. It needs docker.
+entry in the same pull request. It needs Docker.
 
 ## Testing the admin nodes
 
 [`test/admin-details.py`](test/admin-details.py) runs the nodes that carry a
-collective's admins through the pipeline, inside the n8n image production runs:
-`Extract new applications` in intake, `Render admin details thread reply` in
-apply 2, `Collect admin countries` and `Render submission thread reply` in the
-form, and `Render summary request` in apply 5. It reads every node out of the
-exports. The form's admin page builds its labels from the row, so a typo in one
-is invisible to `check-workflows.py`, and this test is what catches it. It also
-checks that admin names and countries never reach the summary model's request,
-and that Slack escapes what admins wrote on their profiles.
+Collective's admins through the pipeline, inside the n8n image production runs.
+The nodes are `Extract new applications` in intake,
+`Render admin details thread reply` in apply 2, `Collect admin countries` and
+`Render submission thread reply` in the form, and `Render summary request` in
+apply 5. The test reads every node out of the exports. The form's admin page
+builds its labels from the row, so a typo in one label is invisible to
+`check-workflows.py`, and this test is what catches it. It also checks that
+admin names and countries never reach the summary model's request, and that
+Slack escapes what admins wrote on their profiles.
+
+Run it with the following command:
 
 ```bash
 python3 automation/test/admin-details.py
 ```
 
-It needs docker and no network beyond pulling the image. CI runs it after the
+It needs Docker and no network beyond pulling the image. CI runs it after the
 import check.
 
 ## Testing the README fetch
@@ -384,44 +403,50 @@ import check.
 apply 5, `Choose the repository URL` and `Fetch the README`, inside a real n8n
 Code node sandbox and checks what they bring back.
 
-The sandbox is the point. A Code node has no `URL` global, so `new URL()` throws
-a `ReferenceError` there while the same line parses correctly under plain
-`node`. The parser caught that alongside a genuinely malformed URL and refused
-the repository either way, so no README was ever fetched and nothing failed
-anywhere to say so. Only a test that runs the code where n8n runs it sees that.
+The test needs that sandbox. A Code node has no `URL` global, so `new URL()`
+throws a `ReferenceError` there, while the same line parses correctly under
+plain `node`. The parser caught that error together with a malformed URL and
+refused the repository either way. No README was ever fetched, and nothing
+failed anywhere to say so. Only a test that runs the code where n8n runs it
+sees that.
 
 It reads both node bodies out of `n8n/summary.json` rather than keeping a copy,
 so it tests what is committed and cannot drift from it. Some fixtures reach
-GitHub, GitLab and Codeberg over the network on purpose: a candidate URL that no
-longer matches a repository host's API is the other half of what this catches.
-The rest must come back empty. Most of those are refusals: `http`, a port, a userinfo prefix, an IP literal, `localhost`, a
-`.local` and an `.internal` name, an encoded slash and a `..` segment. Others name
-no repository at all: an owner with no repository after it, an empty answer set,
-and answers that are not json. The last is a community whose link is a website
+GitHub, GitLab, and Codeberg over the network on purpose. A candidate URL that
+no longer matches a repository host's API is the other half of what this test
+catches. The rest must come back empty. Most of those are refusals: `http`, a
+port, a userinfo prefix, an IP literal, `localhost`, a `.local` and an
+`.internal` name, an encoded slash, and a `..` segment. Others name no
+repository at all: an owner with no repository after it, an empty answer set,
+and answers that are not JSON. The last is a community whose link is a website
 rather than a repository, which is followed no further.
+
+Run it with the following command:
 
 ```bash
 python3 automation/test/readme-fetch.py
 ```
 
-It needs docker and a network, and it never touches the live instance. It prints
-one line per case and exits non-zero if any case failed. CI does not run it: it
-would call three repository hosts on every pull request.
+It needs Docker and a network, and it never touches the live instance. It prints
+one line per case and exits non-zero if any case failed. CI does not run it,
+because each run calls three repository hosts.
 
-[`test/licence-check.py`](test/licence-check.py) does the same for the licence
+[`test/licence-check.py`](test/licence-check.py) does the same for the license
 check. It runs `Check the licence against the OSI and Open Definition lists` and
 `Render summary request` in the same kind of container, against the live lists
-at opensource.org and opendefinition.org, and checks both what each licence
-answer matched and the line the model is shown, for the form answer and for the
-licence the repository host reported. A changed API turns every answer into
-"the list could not be read", and this is where that shows.
+at opensource.org and opendefinition.org. It checks what each license answer
+matched, and the line the model is shown. It does so for the form answer and
+for the license the repository host reported. A changed API turns every answer
+into "the list could not be read", and this test is where that shows.
 
 The two lists mark approval differently. The OSI list's own `approved` field is
-not used. It reads `false` for MIT and Apache-2.0, so the node treats being on
-the list as being approved, which is how the API behaves: a licence OSI never
-approved returns "License not found". The Open Definition list carries rejected
-licences too, CC BY-NC among them, so there an entry counts only when its
+not used. It reads `false` for MIT and Apache-2.0. The node therefore treats
+being on the list as being approved. That matches how the API behaves: a license
+OSI never approved returns "License not found". The Open Definition list carries rejected
+licenses too, CC BY-NC among them. On that list, an entry therefore counts only when its
 `od_conformance` reads `approved`.
+
+Run it with the following command:
 
 ```bash
 python3 automation/test/licence-check.py
@@ -433,31 +458,32 @@ python3 automation/test/licence-check.py
 default and the value to use while testing. Copy it to `.env`, fill it in,
 and keep it gitignored. The repository `.gitignore` already excludes `.env`.
 
-SMTP, Slack and Open Collective credentials are deliberately not in there.
+SMTP, Slack, and Open Collective credentials are deliberately not in there.
 They live in n8n's own credential store, referenced by name from the nodes,
 so they are never in a file and never in git. The runbook covers generating
 and storing
 [the Open Collective token](infra/README.md#the-open-collective-host-admin-credential),
-[the Slack bot token](infra/README.md#the-slack-credential) and
+[the Slack bot token](infra/README.md#the-slack-credential), and
 [the SMTP relay](infra/README.md#the-smtp-credential).
 
 ### Providing the n8n API key to Claude Code
 
 The repository enables the `n8n-skills` Claude Code plugin. Its MCP server
 configuration passes `N8N_API_URL` and `N8N_API_KEY` to the n8n MCP server
-as `${N8N_API_URL}` and `${N8N_API_KEY}`, and Claude Code expands those from
+as `${N8N_API_URL}` and `${N8N_API_KEY}`. Claude Code expands those from
 the environment of its own process when it launches the server. Without
 them the server still starts and offers the read-only node and documentation
 tools, but not the `n8n_*` workflow management tools.
 
-**An `env` block in a settings file does not work for this.** Values from
+An `env` block in a settings file does not work for this. Values from
 `.claude/settings.local.json` reach the Bash tool and hooks, but not the
-launch of the MCP server, which then receives the literal text
-`${N8N_API_URL}`, fails its URL check, and hides the management tools. This
-was verified by reading the environment of the running server process.
+launch of the MCP server. The server then receives the literal text
+`${N8N_API_URL}`, fails its URL check, and hides the management tools. Reading
+the environment of the running server process confirmed this failure.
 
-What works is exporting both variables in the shell Claude Code starts from.
-Keep the key itself in a mode-600 file and read it from there:
+Export both variables in the shell that Claude Code starts from instead. Keep
+the key itself in a mode-600 file and read it from there. The following
+commands create that file:
 
 ```bash
 # once: create the empty file with the right permissions (both commands are silent)
@@ -479,8 +505,8 @@ The `tail` shows the two lines as written. They name the file, not the key.
 
 Then quit and restart the client. The terminal `claude` picks the values up
 from the shell it runs in. The VS Code extension gets them because VS Code
-runs a login shell at startup to collect the environment, so VS Code itself
-must be quit fully and reopened, not just the window.
+runs a login shell at startup to collect the environment. For that reason, quit VS Code
+itself fully and reopen it, not only the window.
 
 Confirm by effect: in the new session, ask Claude Code to run the n8n
 `n8n_health_check` tool. If it reports the tool does not exist, the
@@ -489,47 +515,47 @@ the same thing as a `Missing environment variable` warning next to the
 server.
 
 The URL is the instance base URL, without `/api/v1`. The key grants create,
-modify and execute on an instance that sends applicant email, so treat it
-like the other secrets in this repository and revoke it in the n8n UI when
-the workflows no longer need programmatic changes.
+modify, and execute on an instance that sends applicant email. Treat it like
+the other secrets in this repository, and revoke it in the n8n UI when the
+workflows no longer need programmatic changes.
 
 ### Testing safely
 
 `DRY_RUN` protects real applicants during any test, and it fails safe. Every
-email node is fed by a render step that reads `DRY_RUN`, and applicant email is
+email node is fed by a render step that reads `DRY_RUN`. Applicant email is
 suppressed unless the variable is explicitly and exactly `false`, after
 trimming and lowercasing. A suppressed message goes to `DRY_RUN_RECIPIENT`
 instead, with the intended recipient named in the subject, and the row is
-marked `dry_run`. Unset, empty, `1`, `yes` and `true ` with a trailing space all
-suppress, so a dropped or mistyped line in `.env` cannot quietly start mailing
-real applicants. Going live is the deliberate act of writing `DRY_RUN=false`.
+marked `dry_run`. Unset, empty, `1`, `yes`, and `true ` with a trailing space
+all suppress. As a result, a dropped or mistyped line in `.env` cannot quietly start
+mailing real applicants. Going live is the deliberate act of writing
+`DRY_RUN=false`.
 
-Slack is not redirected. Its messages are internal, they carry no applicant
-address, and a rehearsal is only worth watching if the thread it produces is
-the thread a reviewer would really see, so they post to `SLACK_CHANNEL` in a
-dry run as well.
+Slack is not redirected. Its messages are internal, and they carry no applicant
+address. A rehearsal is only worth watching if its thread is the thread a
+reviewer would really see. Slack messages therefore post to `SLACK_CHANNEL` in a dry
+run as well.
 
 `DRY_RUN` is not a control on state. A test run still advances real rows, so
 an application marked `form_invited` during a test never receives a real
 invitation afterwards. Clear the timestamps of any row a test touched, or
 delete the row.
 
-One more thing about timers: they only fire when apply 3 runs, on
-`FOLLOWUP_CRON`. A threshold shorter than that interval still waits for the
-next run. Shorten `FOLLOWUP_CRON` together with the thresholds, or click
-Execute on apply 3 in the n8n UI.
+Timers fire only when apply 3 runs, on `FOLLOWUP_CRON`. A threshold shorter
+than that interval still waits for the next run. Shorten `FOLLOWUP_CRON`
+together with the thresholds, or click Execute on apply 3 in the n8n UI.
 
 ## Checking the pull request description
 
 [`.github/scripts/check-pr-body.py`](../.github/scripts/check-pr-body.py) fails a
 pull request whose description is missing or over 350 prose words. It runs on
-edit as well as open, so trimming clears it without pushing again.
+edit as well as open, so a shorter description clears it without a new push.
 
-It counts prose only. Fenced code blocks, tables, headings, URLs and the AI
-disclosure line are all excluded, so putting detail into a table or a code block
-costs nothing and is the intended way to keep a long change readable. The limit
-was calibrated against every description in this repository: it passes the ones
-that were useful and fails the three that sprawled.
+It counts prose only. Fenced code blocks, tables, headings, URLs, and the AI
+disclosure line are all excluded. Putting detail into a table or a code block
+therefore costs nothing, and is the intended way to keep a long change readable.
+The limit was calibrated against every description in this repository. It
+passes the ones that were useful and fails the three that sprawled.
 
 Run it locally with the body in a file:
 
@@ -545,15 +571,16 @@ line, the rest of the file is the body.
 
 Subject and body support `{{ placeholder }}` interpolation. The available
 placeholders are `collective_name`, `collective_url`, `org_name`, `form_url`,
-`ai_applicant_message`, `one_admin_note` and `legal_name_note`.
+`ai_applicant_message`, `one_admin_note`, and `legal_name_note`.
 `ai_applicant_message` arrives already quoted, each line prefixed with `> `, so
-an applicant can see where our words stop and the automated read begins.
+an applicant can see where OSE's words stop and the automated read begins.
 `one_admin_note` and `legal_name_note` are the placeholders that may be empty,
 and an empty one's line goes with it. The invitations fill `one_admin_note`
-when the collective has a single admin, saying a second is needed before an
-admin invoices paid work, and `legal_name_note` with a request, naming the
-admins who have no legal name on Open Collective. See "Filling the email and prompt templates" in
-[`docs/data-tables.md`](docs/data-tables.md) for where each value comes from.
+when the Collective has a single admin, saying a second admin is needed before
+an admin invoices paid work. They fill `legal_name_note` with a request that
+names the admins who have no legal name on Open Collective. See "Filling the
+email and prompt templates" in [`docs/data-tables.md`](docs/data-tables.md) for
+where each value comes from.
 
 Which invitation an applicant receives depends on the verdict, and the mapping
 is not one template per verdict:
@@ -566,11 +593,11 @@ is not one template per verdict:
 | `unclear` | `advised-unclear.md` | yes |
 
 A `fits` verdict still
-produces an `ai_applicant_message`, but nothing sends it: that template exists
+produces an `ai_applicant_message`, but nothing sends it. That template exists
 to get the applicant to the form without a machine's opinion in the way.
 
 The closing email follows the decision on Open Collective. Open Collective
-reports every rejection the same way, so the row decides which rejection the
+reports every rejection the same way, so the row sets which rejection email the
 applicant reads:
 
 | Decision | Row | Template |
@@ -582,22 +609,22 @@ applicant reads:
 
 The no-response email is for an applicant who was invited to the form and never
 sent it back. The pipeline never rejects anything itself. A person rejects on
-Open Collective, usually after the escalation in Slack, and the email then
-tells the applicant that we closed the application for lack of a response. A
+Open Collective, usually after the escalation in Slack. The email then tells
+the applicant that OSE closed the application for lack of a response. A
 decision before any invitation sends no email at all. The pipeline never wrote
-to that applicant, and Open Collective tells the collective about the decision
-itself. The usual case is a collective moving from another host, agreed with
+to that applicant, and Open Collective tells the Collective about the decision
+itself. The usual case is a Collective moving from another host, agreed with
 OSE in advance and approved within a minute of applying. apply 3 checks Open
 Collective once more right before it invites, so such an applicant is not asked
 to fill in the form either. The Slack reply in the application's thread says
 which email went out, or that none did.
 
 The rule reads only the row. An applicant who answered by replying to an email
-instead of using the form still looks silent to it, so a reviewer who rejects
-such an application should expect the no-response email to go out.
+instead of using the form still looks silent to it. A reviewer who rejects such an application
+should therefore expect the no-response email to go out.
 
 These files are the source of truth. The workflow that sends each message
-embeds it verbatim, so an edit here also means updating that workflow and its
+embeds it verbatim. An edit here also means updating that workflow and its
 export, and check 10 fails a pull request that changes only one of them.
 `scripts/message-preview.py` shows the email as the applicant gets it, with
 the placeholders filled.
