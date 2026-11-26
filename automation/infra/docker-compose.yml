@@ -118,6 +118,7 @@ services:
       N8N_HOST: ${N8N_HOST}
       APPLY_HOST: ${APPLY_HOST}
       # Defaulted so a box whose .env predates it keeps deploying.
+      # COPYING: the default is OSE's domain. A copy sets its own in .env.
       ROOT_REDIRECT_HOST: ${ROOT_REDIRECT_HOST:-opensourceeurope.org}
     ports:
       - "80:80"

@@ -15,6 +15,9 @@
 set -euo pipefail
 
 REPO="${REPO:-$HOME/community}"
+# COPYING: OSE's repository. A copy passes --repo-url, or sets repo_url in
+# tofu/scaleway-box. It must be public, because the box clones and fetches
+# it with no credentials.
 REPO_URL="https://github.com/opensourceeurope/community.git"
 BRANCH="main"
 N8N_HOST=""

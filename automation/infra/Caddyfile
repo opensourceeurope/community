@@ -136,6 +136,8 @@
 # .env sets ROOT_REDIRECT_HOST, which a copy of this setup does. The fallback
 # is here as well as in compose, because an empty site address stops Caddy
 # from loading any site at all.
+# COPYING: the www.opensourceeurope.org target below is OSE's website. A copy
+# points it at its own, and sets ROOT_REDIRECT_HOST in .env.
 {$ROOT_REDIRECT_HOST:opensourceeurope.org} {
 	redir https://www.opensourceeurope.org{uri} 301
 }

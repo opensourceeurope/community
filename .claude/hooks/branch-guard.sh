@@ -11,6 +11,14 @@
 set -u
 
 payload=$(cat)
+
+# Without jq the path below reads as empty and every edit passes unchecked,
+# so refuse instead. The reply is fixed text, written without jq.
+if ! command -v jq >/dev/null 2>&1; then
+  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"The branch guard needs jq and cannot find it, so it refuses every edit, in any folder, rather than let one through unchecked. Install jq (brew install jq, or sudo apt-get install jq) and retry. See \"What you need on your machine\" in automation/README.md."}}'
+  exit 0
+fi
+
 file=$(printf '%s' "$payload" | jq -r '.tool_input.file_path // .tool_input.notebook_path // ""')
 [ -z "$file" ] && exit 0
 
