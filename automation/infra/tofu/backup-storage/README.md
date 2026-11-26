@@ -1,7 +1,7 @@
 # Backup storage: the off-box bucket
 
 This OpenTofu module creates the storage for the encrypted dumps that
-`backup.sh` sends. It creates four things in an existing Scaleway Organization:
+`backup.sh` sends. It creates the following in an existing Scaleway Organization:
 
 - A project, `ose-n8n-backups`, that holds only the bucket. Scaleway scopes an
   IAM policy to a project, not to a bucket, so a key limited to this project
@@ -39,7 +39,7 @@ tofu init
 tofu plan
 ```
 
-The plan must show four resources to add and nothing to change or destroy. The
+The plan must show the resources in the previous list to add and nothing to change or destroy. The
 following command creates them:
 
 ```bash

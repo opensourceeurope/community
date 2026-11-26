@@ -70,7 +70,7 @@ The following table lists the columns of `ose_applications`:
 | `slack_thread_ts` | String | intake | The parent message's timestamp, which is the thread anchor. A Slack identifier, not a number: stored as a number it rounds and every reply fails. |
 | `ai_summary_claimed_at` | Date | apply 5 | When apply 5 took this row to work on. A claim, not a result. See "The claim columns". |
 | `ai_summary` | String | apply 5 | The summary posted to the thread: the verdict line, then the description. Empty means apply 5 has not succeeded for this row, which is what makes its sweep idempotent. |
-| `ai_summary_verdict` | String | apply 5 | One of `fits`, `wrong_host`, `not_open_source`, `unclear`, the same four values as `ai_verdict`. apply 2 reads the public Open Collective page and apply 5 reads the answered form, so the two can differ. It is advisory, and nothing acts on it. |
+| `ai_summary_verdict` | String | apply 5 | One of `fits`, `wrong_host`, `not_open_source`, `unclear`, the same values as `ai_verdict`. apply 2 reads the public Open Collective page and apply 5 reads the answered form, so the two can differ. It is advisory, and nothing acts on it. |
 | `ai_summary_confidence` | Number | apply 5 | 0 to 1, how sure the model is of `ai_summary_verdict`. |
 | `ai_summary_model` | String | apply 5 | The model that produced it, so a summary stays traceable across a model change. |
 | `ai_summarised_at` | Date | apply 5 | When the summary was written. |
@@ -121,7 +121,8 @@ record of where the application is.
 Every reviewed application is invited to the form unless Open Collective
 already shows a decision when apply 3 reaches it. apply 3 waits until the
 application is `INVITE_AFTER_MINUTES` old, five when unset, so a decision made
-right after the application is already recorded when apply 3 checks. apply 3
+right after the application has time to reach Open Collective before apply 3
+checks. apply 3
 runs every five minutes, on `FOLLOWUP_CRON`, so the invitation follows the
 wait within minutes. The AI verdict changes only which email carries the
 invitation, never whether it is sent. An `unclear` or adverse first read gives
@@ -160,7 +161,7 @@ but one ends the application:
 | the row's `host_slug` | `true` | `approved` |
 | `null` | any | `rejected` |
 | any other host | any | `resigned` |
-| no Collective with that slug | none | `resigned` |
+| no Collective with that slug | no account | `resigned` |
 
 `resigned` is never emailed to the applicant. `approved` and `rejected` each
 send the applicant an email when `form_invited_at` is set, because OSE made a

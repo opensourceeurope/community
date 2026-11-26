@@ -31,7 +31,8 @@ The summary that runs after the form sees more, because the summary exists to
 make up for a thin Open Collective page. It sees the applicant's form answers
 and the project's README. For a project, the model also learns whether the
 license answer is on the Open Source Initiative (OSI) list of approved
-licenses, or, for data and content, on the Open Definition's list. apply 5
+licenses. For data and content, it learns whether the answer is on the Open
+Definition's list. apply 5
 fetches both lists, from opensource.org and opendefinition.org, and matches in
 code rather than leaving the model to remember them. The form tells applicants
 the same rule under the license question. The model also learns which license
@@ -156,7 +157,7 @@ flowchart TD
     A1b --> A2
     A2 --> A3["apply 3 — follow-up<br>emails the form invitation<br>(reminds and escalates if it stays quiet)"]
     A3 --> A4["apply 4 — application form<br>the applicant answers,<br>their answers go to the Slack thread"]
-    A4 --> A5s["apply 5 — application summary<br>reads the answers and the README,<br>summarises them in the thread"]
+    A4 --> A5s["apply 5 — application summary<br>reads the answers and the README,<br>summarizes them in the thread"]
     A5s --> HUMAN(["A human approves or rejects<br>with the buttons in the<br>Slack thread (apply 6)"])
     A5s --> GONE(["Or the collective moves<br>to another fiscal host,<br>or is deleted"])
     HUMAN --> A5["apply 1a or 1b, decision branch<br>records the outcome"]

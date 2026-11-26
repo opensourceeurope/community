@@ -58,7 +58,7 @@ A Scaleway `DEV1-S`: two shared vCPUs, 2 GB of RAM, a 20 GB local SSD, in Warsaw
 (`pl-waw-1`), running Debian 13, with a 2 GB swap file. OpenTofu describes it
 in [`tofu/scaleway-box/`](tofu/scaleway-box/).
 
-The stack needs about 750 MB: n8n 450 to 600 MB, Postgres about 180 MB and Caddy
+The stack needs about 750 MB: n8n 450 to 600 MB, Postgres about 180 MB, and Caddy
 about 40 MB, for a few workflow executions a day. n8n grows past 1 GB for a
 moment during a busy run, and the swap file takes that peak. CPU stays near 1%.
 What fills the disk is execution history, not load, and
@@ -95,8 +95,8 @@ The compose file reads two sets of variables from one `.env` in this
 directory:
 
 - Infra variables, in the following table. They belong to this directory, not to
-  the workflows. `bootstrap.sh` writes all six.
-- Application variables (`DRY_RUN`, `AI_API_KEY`, `FORM_URL_OSE` and so on),
+  the workflows. `bootstrap.sh` writes all of them.
+- Application variables (`DRY_RUN`, `AI_API_KEY`, `FORM_URL_OSE`, and the rest),
   documented in [`automation/.env.example`](../.env.example) and not repeated
   here, so the two lists cannot drift apart.
 
@@ -480,8 +480,8 @@ Each step checks first and skips work that is already done. A second run
 changes nothing, and the script never edits an existing `.env`. In order, it:
 
 1. Installs `git`, `ufw`, `unattended-upgrades`, `ca-certificates`, `curl`,
-   `openssl`, `python3` and `age`.
-2. Allows ports 22, 80 and 443 in `ufw`, then enables the firewall. Postgres is
+   `openssl`, `python3`, and `age`.
+2. Allows ports 22, 80, and 443 in `ufw`, then enables the firewall. Postgres is
    never published to the host. Only the compose network reaches it.
 3. Turns off password login for SSH. It skips this step and warns you when
    `~/.ssh/authorized_keys` holds no key, because turning passwords off without
@@ -533,7 +533,7 @@ The script ends with the steps it cannot do for you. Do them in this order:
 5. Create the n8n credentials `oc-host-admin`, `slack-bot`,
    `slack-signing-secret` and `smtp-proton`, as the credential sections below
    describe. The workflows find them by those names.
-6. Set `AI_API_KEY`, `SLACK_CHANNEL`, `SMTP_FROM` and `DRY_RUN_RECIPIENT` in
+6. Set `AI_API_KEY`, `SLACK_CHANNEL`, `SMTP_FROM`, and `DRY_RUN_RECIPIENT` in
    `.env`, as in
    [Setting the credentials that are not generated here](#setting-the-credentials-that-are-not-generated-here).
    The deploy refuses to run while any of them is empty. Leave `DRY_RUN` alone,
@@ -546,7 +546,7 @@ The script ends with the steps it cannot do for you. Do them in this order:
    [An export the instance does not have](#an-export-the-instance-does-not-have).
 9. Point the workflows at each other. The exports carry no workflow id, so the
    new instance gave every workflow a new one, and the exports still name the
-   old ids in three places. Nothing reports an error for them, apart from a
+   old ids in the following places. Nothing reports an error for them, apart from a
    warning for the first:
    - Each Execute Workflow node's target, which is the workflow it hands off to
    - Every `apply` workflow's and the weekly digest's `errorWorkflow` setting,
@@ -656,7 +656,7 @@ the container with its old environment, and only a recreated container reads
 docker compose up -d n8n           # recreates with the new .env values
 ```
 
-Change `docker-compose.yml`, the `Caddyfile` and the units in git, never on the
+Change `docker-compose.yml`, the `Caddyfile`, and the units in git, never on the
 box. The deploy stops when the checkout has local changes, and it applies the
 merged version within ten minutes.
 
@@ -793,7 +793,7 @@ Before it syncs the workflows, every run adds any column that
 that adds a column ships the workflow that writes it, and that workflow would
 fail on every row it touched against a table without the column. So a run
 that cannot add a column stops before the workflows change, and posts an
-alert. The script only adds. It never removes, renames or retypes a column,
+alert. The script only adds. It never removes, renames, or retypes a column,
 and it does not create a missing table: that is step 4 of the rebuild, with
 your own key.
 
@@ -879,7 +879,7 @@ the first real deploy.
 
 5. Send a test alert, as in [Test the alert](#test-the-alert).
 
-`units` installs `python3`, `curl` and `age`, adds `debian` to
+`units` installs `python3`, `curl`, and `age`, adds `debian` to
 `systemd-journal`, copies every file in [`systemd/`](systemd/) into
 `/etc/systemd/system/`, and enables the backup timer. It enables the deploy
 timer only when `~/.n8n-api-key` exists, which is why step 4 stops it. The
@@ -1230,7 +1230,7 @@ authenticates fine and then every fetch fails with an authorization error.
      leaves out the legal name request, and the Slack thread says the check
      did not run.
 
-   The admin role in the previous step is what controls access to
+   The host admin role, described at the start of this section, controls access to
    application data, so additional scopes add exposure without adding
    capability.
 4. An expiration date is optional. If you set one, put a reminder on it: an
@@ -1443,11 +1443,11 @@ internal to the team and carries no applicant address. So every message and
 reaction posts to `SLACK_CHANNEL` for real, in a dry-run rehearsal too. That
 makes the rehearsal the test. Let one application through intake and watch the channel: a
 parent message appears, and each stage that follows replies in its thread and
-marks the parent with a reaction. That proves the token, both scopes and the
+marks the parent with a reaction. That proves the token, both scopes, and the
 channel membership together.
 
 Watch for the silent case. Every Slack node carries
-`onError: continueRegularOutput`, so a missing credential, a revoked token or a
+`onError: continueRegularOutput`, so a missing credential, a revoked token, or a
 channel the bot was never invited to fails without failing the run. The
 execution is green and the channel is empty. An application that reached a
 stage with no message in Slack shows this problem. Open the execution: the
@@ -1566,7 +1566,7 @@ Collective's application to the host, never on a real one.
    seconds, or Slack refused the token.
 2. Press **Continue**, then **Approve**. The thread gets a reply naming you, and
    the application shows as approved on Open Collective with the private note
-   on it. That proves the signing secret, `SLACK_DECIDERS` and the decision
+   on it. That proves the signing secret, `SLACK_DECIDERS`, and the decision
    token together.
 3. A warning reply carries Open Collective's reason. A refused lookup usually
    means the token lacks a scope or its owner is not a host admin. After a
@@ -1795,7 +1795,7 @@ readable. The private key exists only in the password vault, as
 The upload key can create objects and cannot delete them. Writing over an
 existing name would also delete the old object, so the bucket keeps every
 version. A lifecycle rule deletes dumps after 90 days, and replaced versions 90
-days after that. The bucket, its project, the rule and the key's permissions
+days after that. The bucket, its project, the rule, and the key's permissions
 are in [`tofu/backup-storage/`](tofu/backup-storage/).
 
 To set it up, follow the steps in order:
@@ -1830,7 +1830,7 @@ To set it up, follow the steps in order:
    nano ~/.config/ose-backup/backup.env
    ```
 
-   The file holds these four settings. `BACKUP_S3_REGION` is optional and
+   The file holds these settings. `BACKUP_S3_REGION` is optional and
    defaults to `pl-waw`:
 
    ```bash
@@ -1997,7 +1997,7 @@ but unreadable.
 
 ## Moving to a new box
 
-A move keeps the database, the encryption key and both hostnames. Only the
+A move keeps the database, the encryption key, and both hostnames. Only the
 machine and its addresses change. The old box stays as it is, with n8n
 stopped, so going back is a DNS change and nothing more.
 
@@ -2320,7 +2320,7 @@ unhandled error: every `apply` workflow, and the weekly digest.
 Without it a failure is silent. The execution turns red in a list nobody
 watches, and the pipeline looks healthy from the outside while it does nothing.
 
-The handler has three nodes. An Error Trigger receives the failure, a Code
+In the handler, an Error Trigger receives the failure, a Code
 node builds the message, and a Slack node posts it. The alert names the
 workflow that failed, the node inside it that threw, and the error text, then
 links to both the failed execution and the editor.
@@ -2384,7 +2384,7 @@ nothing, so installing it never replays old failures. The check keeps its state
 in `~/.local/state/ose-workflow-recovery/state.json`. Deleting the file costs at
 most the recovery message of a failure open at that moment.
 
-When n8n does not answer, answers too slowly or answers 5xx, as it can during
+When n8n does not answer, answers too slowly, or answers 5xx, as it can during
 an upgrade, the check skips the run and reads the same history next time.
 
 The unit fails when the check cannot do one of the following:

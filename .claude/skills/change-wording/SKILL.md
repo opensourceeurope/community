@@ -28,7 +28,7 @@ we will help" or "within two days", ask whether OSE will really do it.
 |---|---|---|
 | An email to applicants | `automation/emails/<name>.md` and the same text in the render node that sends it | The README "Email templates" tables map the invitations and closing emails to files. For the rest, search for a phrase. Check 10 fails if the two copies differ. |
 | A Slack message | The `Render ...` Code node feeding that Slack node | `message-preview.py --all` lists every message with its node name. |
-| Form wording | `automation/n8n/form-ose.json` | Page titles, descriptions and Custom HTML are wording. A field's label is not wording, as the following list explains. |
+| Form wording | `automation/n8n/form-ose.json` | Page titles, descriptions, and Custom HTML are wording. A field's label is not wording, as the following list explains. |
 
 Find the node by searching the exports for a phrase from the current text.
 
@@ -73,7 +73,7 @@ Ask whether it reads right. Change and preview again until they say yes.
 python3 automation/scripts/check-workflows.py
 ```
 
-It must pass. Then commit, push and open a pull request with a short description:
+It must pass. Then commit, push, and open a pull request with a short description:
 why, and what text changed, quoted before and after, plus the `Generated-by` line
 from AGENTS.md. Wait for CI, which renders every message again.
 

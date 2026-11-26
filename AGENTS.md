@@ -1,7 +1,7 @@
 # OSE community repository: agent instructions
 
 This repository holds community discussions, governance processes, and shared
-resources for projects that Open Source Europe (OSE) hosts. Content is
+resources for projects within Open Source Europe (OSE). Content is
 CC-BY-4.0, except `automation/`, which is MIT-licensed software.
 
 ## Authorship rules
@@ -326,8 +326,8 @@ The following rules are specific to OSE and add to that skill:
   and `rejected` email the applicant, who is owed the answer, but only once the
   pipeline has invited them to the form. A decision that lands before the
   invitation, such as a move from another host approved on the spot, sends
-  neither the invitation nor a closing email: apply 3 checks Open Collective
-  just before inviting, and the decision branch routes a never-invited row to a
+  neither the invitation nor a closing email. apply 3 checks Open Collective
+  just before inviting. The decision branch routes a never-invited row to a
   record with no email node. `resigned` is not
   a decision, so its branch ends at the data table and Slack thread with no
   email node, and a misread host costs only a row edit. Keep any future outcome
@@ -375,13 +375,19 @@ The following rules are specific to OSE and add to that skill:
   public documentation and the AI and tooling policy, kept accurate.
 - CI enforces some of these rules. The rest are your responsibility.
   `automation/scripts/check-workflows.py` runs on every pull request and fails
-  disabled nodes, truncated expressions, an email render step not reading
-  `DRY_RUN`, an answer key missing from a label list, a data table not
-  referenced by name, a workflow with no timezone, a stale form label or
-  dropdown option, a `$env` read missing from `docker-compose.yml` or
-  `automation/.env.example`, a model request that skips redaction or reads an
-  address column, and email copy that differs from `automation/emails`. Refresh
-  the exports, which is all it reads, and run it locally before you push.
+  on any of the following:
+  - A disabled node or a truncated expression.
+  - An email render step that does not read `DRY_RUN`.
+  - An answer key missing from a label list.
+  - A data table not referenced by name.
+  - A workflow with no timezone.
+  - A stale form label or dropdown option.
+  - A `$env` read missing from `docker-compose.yml` or `automation/.env.example`.
+  - A model request that skips redaction or reads an address column.
+  - Email copy that differs from `automation/emails`.
+
+  Refresh the exports, which is all it reads, and run it locally before you
+  push.
 - There is no staging. Editing an active workflow publishes it. The one n8n
   instance is production, so a save is live before its pull request exists. The
   pull request records the change but does not gate it. Never leave a workflow

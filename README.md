@@ -4,7 +4,7 @@ All things community for [Open Source Europe (OSE)](https://opensourceeurope.org
 
 Open Source Europe is a European nonprofit that gives open source projects a shared fiscal and legal structure. No project needs to set up its own legal entity. OSE provides a common nonprofit structure, so maintainers can receive donations, manage expenses, and operate transparently. Each project stays fully autonomous.
 
-This repository holds community discussions, governance, processes, and shared resources for projects that OSE hosts.
+This repository holds community discussions, governance, processes, and shared resources for projects within OSE.
 
 ## How an application works
 
@@ -22,7 +22,7 @@ flowchart TD
     SUM --> DEC["A person approves or rejects<br>with the buttons in the Slack thread"]
     DEC -->|"decision, answers<br>and a private note"| OCD["Open Collective<br>records the decision"]
     OCD --> MAIL(["Applicant receives<br>the decision by email"])
-    SUM --> MOVE(["Or the collective moves<br>to another fiscal host,<br>and no email is sent"])
+    SUM --> MOVE(["Or the Collective moves<br>to another fiscal host,<br>and no email is sent"])
 
     FORM -->|"no answer<br>after 7 days"| REM["Reminder email"]
     REM -->|"back to the form"| FORM
@@ -81,8 +81,8 @@ A model hosted in the European Union reads each application twice, and each read
 returns a verdict rather than a description. The first read covers the public
 project material and gives a verdict with its reasoning. The possible verdicts
 are: the project fits, it belongs with another host, it is not open source, or
-the evidence is unclear. The verdict sets which invitation email the applicant
-receives, and the review itself goes into the Slack thread. The second read runs
+the evidence is unclear. The first verdict sets which invitation email the
+applicant receives, and the review itself goes into the Slack thread. The second read runs
 after a submission. It reads the answers and the project's README, then posts
 one paragraph and a verdict of its own.
 
