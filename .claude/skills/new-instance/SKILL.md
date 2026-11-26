@@ -56,7 +56,7 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
    machine" in the runbook, plus Node.js and `jq` from "What you need on your
    machine" in `automation/README.md`. Run `tofu version`, `scw version`,
    `age --version`, `docker info`, `ssh-add -l`, `gh auth status`,
-   `shellcheck --version`, `node --version` and `jq --version`. Name each one
+   `shellcheck --version`, `python3 --version`, `node --version` and `jq --version`. Name each one
    that fails with its install command from those tables, and stop until the
    operator has installed it. A tool found missing later costs a half-built
    box that already bills.

@@ -418,6 +418,7 @@ already bills.
 | Docker, running | hashing the editor gate password, and every preview and node test | Docker Desktop, or Docker Engine on Linux |
 | An SSH key pair, loaded in `ssh-agent` | the bootstrap logs into the box with it, and every command on the box runs over it | `ssh-keygen -t ed25519`, then `ssh-add` |
 | Git and the `gh` CLI, signed in | the repository the box deploys from, and every change after | `brew install git gh`, then `gh auth login` |
+| Python 3.9 or newer | creating the data table with `create-data-table.py` after the script, and the checks. The standard library is enough | preinstalled on macOS and Debian, or `brew install python` |
 | `shellcheck` | checking a changed script before you push, as CI does | `brew install shellcheck` or `sudo apt-get install shellcheck` |
 
 Changing the workflows needs a few more, listed in
