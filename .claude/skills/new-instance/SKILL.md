@@ -1,6 +1,6 @@
 ---
 name: new-instance
-description: Use when someone wants their own copy of this n8n application automation (Postgres, n8n and Caddy on a Scaleway instance), wants to rebuild the box from nothing, or wants to move the running stack to a new box. Walks the operator through it in order, with the cost, secret and access gates this repository requires.
+description: Use when someone wants their own copy of this n8n application automation (Postgres, n8n and Caddy on a Scaleway instance), or wants to rebuild the box from nothing. Walks the operator through it in order, with the cost, secret and access gates this repository requires.
 ---
 
 # A new instance of the n8n application automation
@@ -19,7 +19,6 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
 |---|---|
 | A copy of this setup under someone else's names, with no data | "Fresh install" below |
 | The OSE box is lost and a dump exists | "Fresh install" with `run_bootstrap` off, then the last row of "Which backup to restore, when" in the runbook |
-| The running OSE stack moves to another machine | "Moving to a new box" in the runbook, nothing else |
 
 ## Gates that hold in every case
 
@@ -53,6 +52,14 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
 
 ## Fresh install
 
+0. **Tools.** Before anything else, check every tool in "Tools on your
+   machine" in the runbook, plus Node.js and `jq` from "What you need on your
+   machine" in `automation/README.md`. Run `tofu version`, `scw version`,
+   `age --version`, `docker info`, `ssh-add -l`, `gh auth status`,
+   `shellcheck --version`, `node --version` and `jq --version`. Name each one
+   that fails with its install command from those tables, and stop until the
+   operator has installed it. A tool found missing later costs a half-built
+   box that already bills.
 1. **Accounts.** The table in "Accounts you need first" in the runbook:
    Scaleway in a verified Organization, Open Collective host admin, a Slack app,
    an SMTP relay, a shared password vault, an uptime service. The workflows
@@ -61,7 +68,8 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
 2. **Backup bucket.** `tofu/backup-storage/`, with the operator's yes to its
    price. Bucket names are global, so pick new ones.
 3. **The box.** `tofu/scaleway-box/` with `dns_zone`, `run_bootstrap = true`
-   and the operator's own `repo_url` if they forked. Show the plan, name the
+   and the operator's own `repo_url`, which must be a public repository,
+   because the box clones and fetches it with no credentials. Show the plan, name the
    prices and wait for the yes. Then the operator runs `tofu apply` in their
    own terminal with their SSH key loaded, because the bootstrap logs into the
    box. The default is a `DEV1-S`, sized from measured use. Larger is fine but
@@ -82,6 +90,28 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
 6. **Verify.** "Verify the install" in the runbook. Then the checks of
    "Check it" under "Moving to a new box". Email out on port 587 must answer
    `open`.
+
+## What a copy changes
+
+The repository is written for OSE, and a copy keeps OSE's values until it
+changes them. Infra files mark each one with a `COPYING:` comment, so
+`git grep -n 'COPYING:'` lists them: the repository URL, instance and bucket
+names, the bare domain's redirect, the applicant hostname and the editor gate
+hash. Walk the operator through each.
+
+Some places cannot carry a comment. Change them too, through the
+`n8n-skills:n8n` skill for anything in `automation/n8n/`:
+
+- The Open Collective host slug `europe`, in **Hosts to sync** and in
+  `ORG_BY_HOST` in **Extract new applications**, in both apply 1a and apply 1b.
+- The emails in `automation/emails/` and the render nodes that embed them,
+  changed together, which check 10 enforces. They name OSE and link its
+  documentation.
+- The form in `automation/n8n/form-ose.json` (apply 4): its wording, its
+  wordmark and the links on its pages.
+- The model prompts in `automation/prompts/`, which describe what OSE hosts
+  and when it suggests OCE instead.
+- The link preview image, `automation/infra/public/static/og_image.png`.
 
 ## Done means
 

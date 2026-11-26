@@ -91,13 +91,13 @@ It needs:
 | Git and a GitHub account that can open pull requests here, with the `gh` CLI signed in | every change is a pull request, and merging it is what deploys |
 | Python 3.9 or newer | the checks and the previews. They use the standard library only, so there is nothing to install |
 | Docker, running | the previews and the node tests start the n8n version production runs in a throwaway container. The first run pulls the image, and the form preview also pulls a browser image, which takes a few minutes |
+| Node.js 18 or newer, with `npx` | the `n8n-skills` Claude Code plugin starts its n8n MCP server with `npx`, and AGENTS.md requires that plugin before an agent touches a workflow. Without Node its tools never appear. The redaction test and the review eval need it too |
+| `jq` | the Claude Code hooks in `.claude/hooks/` read their input with it. Without it the branch guard refuses every edit. macOS 15 and later ship it, elsewhere install it with `brew install jq` or `sudo apt-get install jq` |
 | A Slack account in the reviewers' workspace | opening a Slack message preview in Block Kit Builder |
 | The n8n API key, optional | confirming after a merge that the live instance runs what was merged, as [Providing the n8n API key to Claude Code](#providing-the-n8n-api-key-to-claude-code) describes |
 
-Changing a model prompt also needs Node.js, for
-[`test/model-input-redaction.mjs`](test/model-input-redaction.mjs) and
-[`test/review-eval.mjs`](test/review-eval.mjs). Running the box itself is a
-different job, described in [`infra/README.md`](infra/README.md).
+Running the box itself is a different job, with its own tools, listed in
+[Tools on your machine](infra/README.md#tools-on-your-machine).
 
 ## The workflows
 

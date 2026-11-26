@@ -404,6 +404,29 @@ dump brings back the workflows with their ids, the credentials, the data table
 and every application. The rest of this section builds an instance with none of
 that: a copy of this system somewhere else, or a rebuild with no dump.
 
+### Tools on your machine
+
+Install these on the machine you run the install from, before anything that
+costs money. A missing one otherwise turns up halfway, after the bucket
+already bills.
+
+| Tool | What for | Get it |
+|---|---|---|
+| OpenTofu 1.8 or later | creating the backup bucket and the box, from [`tofu/`](tofu/) | `brew install opentofu`, or the OpenTofu install guide |
+| The Scaleway CLI, `scw` | `scw init` writes the API key to `~/.config/scw/config.yaml`, which OpenTofu reads, and `scw config get default-project-id` names the project that is billed | `brew install scw`, or the Scaleway CLI documentation |
+| `age` | generating the backup key pair with `age-keygen` | `brew install age` or `sudo apt-get install age` |
+| Docker, running | hashing the editor gate password, and every preview and node test | Docker Desktop, or Docker Engine on Linux |
+| An SSH key pair, loaded in `ssh-agent` | the bootstrap logs into the box with it, and every command on the box runs over it | `ssh-keygen -t ed25519`, then `ssh-add` |
+| Git and the `gh` CLI, signed in | the repository the box deploys from, and every change after | `brew install git gh`, then `gh auth login` |
+| `shellcheck` | checking a changed script before you push, as CI does | `brew install shellcheck` or `sudo apt-get install shellcheck` |
+
+Changing the workflows needs a few more, listed in
+[What you need on your machine](../README.md#what-you-need-on-your-machine).
+
+The repository the box deploys from must be public. The bootstrap clones
+`repo_url` over HTTPS with no credentials, and the deploy fetches it the same
+way every 10 minutes, so a private one fails at the clone.
+
 ### Accounts you need first
 
 | Service | What it is for | Where its secret ends up |

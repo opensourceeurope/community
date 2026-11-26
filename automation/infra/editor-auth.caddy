@@ -1,3 +1,6 @@
+# COPYING: the hash below is OSE's. A copy replaces it with the hash of its
+# own password, or nobody reaches its editor.
+#
 # The editor gate the Caddyfile imports on the admin host. One user, `ose`,
 # and the bcrypt hash of a long random password. The password itself is in
 # the vault as "OSE automation — n8n editor gate" and nowhere else.

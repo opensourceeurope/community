@@ -1,3 +1,5 @@
+# COPYING: both defaults below are OSE's names. Bucket names are global across
+# Scaleway, so a copy sets its own in terraform.tfvars.
 variable "project_name" {
   description = "Scaleway project that holds only the backup bucket. IAM policies are scoped to a project, so the upload key reaches nothing else."
   type        = string

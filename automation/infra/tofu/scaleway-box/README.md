@@ -31,7 +31,10 @@ It has two uses:
 
 You need:
 
-- OpenTofu 1.8 or later.
+- OpenTofu 1.8 or later, and the rest of
+  [Tools on your machine](../../README.md#tools-on-your-machine).
+- A public repository for `repo_url`. The box clones and fetches it with no
+  credentials.
 - A Scaleway Organization that has passed identity verification. Scaleway
   blocks outbound SMTP for an unverified one, and the apply then stops at the
   security group, after the addresses already exist.

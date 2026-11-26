@@ -27,6 +27,7 @@ variable "disk_gb" {
   default     = 20
 }
 
+# COPYING: OSE's instance name. A copy sets its own in terraform.tfvars.
 variable "name" {
   description = "Name of the instance and the prefix of its security group, shown in the Scaleway console."
   type        = string
@@ -63,6 +64,8 @@ variable "run_bootstrap" {
   default     = false
 }
 
+# COPYING: OSE's repository. A copy sets its own, which must be public, because
+# the box clones and fetches it with no credentials.
 variable "repo_url" {
   description = "Repository the box clones and deploys from."
   type        = string
