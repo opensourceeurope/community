@@ -46,14 +46,14 @@ The following table lists the columns of `ose_applications`:
 | `ai_review_claimed_at` | Date | AI review | When apply 2 took this row to work on. A claim, not a result. See "The claim columns". |
 | `ai_verdict` | String | AI review | One of `fits`, `wrong_host`, `not_open_source`, `unclear`. See `automation/prompts/verdict.schema.json`. |
 | `ai_confidence` | Number | AI review | 0 to 1, from the verdict object. |
-| `ai_reasoning` | String | AI review | Reviewer facing explanation from the model. Never shown to the applicant. |
-| `ai_applicant_message` | String | AI review | Applicant facing text from the model. Used in the `advised-wrong-host` and `advised-not-open-source` email templates. Never presented as a decision. |
+| `ai_reasoning` | String | AI review | Reviewer-facing explanation from the model. Never shown to the applicant. |
+| `ai_applicant_message` | String | AI review | Applicant-facing text from the model. Used in the `advised-wrong-host` and `advised-not-open-source` email templates. Never presented as a decision. |
 | `ai_model` | String | AI review | The model identifier used for this review (`AI_MODEL`), so old verdicts stay traceable after a model or prompt change. |
 | `ai_reviewed_at` | Date | AI review | When the review ran. |
 | `contact_email` | String | form workflow | Given by the applicant on form page 1. Distinct from `applicant_email`. This is who the applicant says to contact, which may differ from the address the Open Collective application came from. Personal data. |
 | `alternative_admin_name` | String | form workflow | Optional, asked on form page 5 and shown again on page 6: someone else who could also administer the Collective. Empty when the applicant left it blank. Personal data. |
 | `alternative_admin_email` | String | form workflow | Optional, asked on form page 5 and shown again on page 6: that second admin's email address. Empty when the applicant left it blank. Personal data. |
-| `admin_countries` | String | form workflow | Where each admin lives, as the applicant answered on the admin page after page 4 and again on page 6. One line per admin, `Name (@slug): Country`, then `Other admins: ...` when the applicant named admins the list lacked. On a row whose `oc_admins` is empty it holds the applicant's free text answer instead. Posted in the Slack thread, never sent to the model. Personal data. |
+| `admin_countries` | String | form workflow | Where each admin lives, as the applicant answered on the admin page after page 4 and again on page 6. One line per admin, `Name (@slug): Country`, then `Other admins: ...` when the applicant named admins the list lacked. On a row whose `oc_admins` is empty it holds the applicant's free-text answer instead. Posted in the Slack thread, never sent to the model. Personal data. |
 | `form_invite_claimed_at` | Date | follow-up | When apply 3 took this row to work on. A claim, not a result. See "The claim columns". |
 | `form_invite_skipped_at` | Date | follow-up | When apply 3 found the application already decided on Open Collective and sent no invitation. It only stops apply 3 from claiming the row again. The stage stays where it was until the decision branch records the decision, and because `form_invited_at` is empty that sends no closing email. |
 | `form_invited_at` | Date | follow-up | When the invitation email was sent. The template varies by verdict, and every reviewed application still pending on Open Collective is invited. Empty at decision time means the applicant never heard from the pipeline, so the decision is recorded without a closing email. On a rejection, this column and `form_submitted_at` choose the closing email: invited and never submitted gets the no-response rejection. |
@@ -99,18 +99,21 @@ no other run changed the value first. Of several runs that start at the same
 moment, exactly one matches the row. The rest get an empty result back and
 skip that row. apply 2, 3, and 5 skip in silence. apply 6 tells the person in
 the thread that the application was already being decided. The claim stops
-two sweeps from paying for the same model call, two people from deciding the
-same application, and a second copy of the same message in a thread.
+the following:
+
+- Two sweeps paying for the same model call
+- Two people deciding the same application
+- A second copy of the same message in a thread
 
 A claim older than `STALE_CLAIM_MINUTES`, 30 minutes when the variable is
 unset, is treated as abandoned and may be claimed again. A run that stops
-partway through therefore delays its application by that time, and never
+partway through therefore delays its application by that window, and never
 leaves it unprocessed for good.
 
 Only one claim is ever cleared. When the lookup or the decision call to Open
-Collective fails, apply 6 clears `slack_decision_claimed_at`, filtered on the
-value that run stamped, so the person can try again at once and no run clears
-another's claim. The saved email stays, because a decision call that
+Collective fails, apply 6 clears `slack_decision_claimed_at`. The update is
+filtered on the value that run stamped, so no run clears another's claim. The
+person can then try again at once. The saved email stays, because a decision call that
 failed may still have taken effect, and `decision_email_for` keeps the email
 from going out with the other decision. Every other claim stays, so a row that
 has been through every stage keeps its timestamps, and `stage` remains the
@@ -167,8 +170,8 @@ but one ends the application:
 send the applicant an email when `form_invited_at` is set, because OSE made a
 decision and owes them the answer. With `form_invited_at` empty the pipeline
 never wrote to the applicant, Open Collective tells the Collective itself, and
-the decision is recorded with no email. A Collective hosted elsewhere already
-has another host, so the branch writes the row, replies in the Slack thread
+the decision is recorded with no email. A Collective hosted elsewhere has
+already moved to another host, so the branch writes the row, replies in the Slack thread
 with the host it found, and marks the parent message with an amber light.
 Nothing on that path can send mail, so a wrong reading costs one edit of the
 row and never sends a message to an applicant.
@@ -207,9 +210,9 @@ project, or a group of projects, is asked `repository_url`,
 events Collective is asked `community_home`, `community_open`, and
 `project_website` instead, because it has no codebase to name. Infrastructure
 or a service run for a community is asked `service_home`,
-`service_software`, `service_open`, and `project_website`, because it runs
-open source software rather than writing any, and OSE asks it for no
-repository and no license. A key the applicant was never asked is stored
+`service_software`, `service_open`, and `project_website`. These questions fit a
+service, which runs open source software rather than writing any. OSE asks it
+for no repository and no license. A key the applicant was never asked is stored
 empty. On a row written before its question existed, the key is missing
 altogether. Anything that reads `repository_url`, `licence`,
 `open_development`, `community_home`, `community_open`, `service_home`,
@@ -232,14 +235,14 @@ reviewers, and the application goes on. The page then asks where each admin
 lives. It has one required question for each admin in `oc_admins`, labeled
 with that admin's name and slug, and an optional question about any admin the
 list missed. A row with
-no `oc_admins` gets one required free text question instead. Those answers are
+no `oc_admins` gets one required free-text question instead. Those answers are
 stored as the column `admin_countries` rather than in `answers`, because they
 carry names. The page builds its fields from the row, so its labels differ
 from one applicant to the next, and `Collect admin countries` reads them back
 under the same computed labels.
 
-Page 5 has `activities`, `mission_fit`, and `notes`. It then suggests that the
-Collective has more than one admin, and says a second admin is needed before an
+Page 5 has `activities`, `mission_fit`, and `notes`. It then advises the
+Collective to have more than one admin, and says a second admin is needed before an
 admin can invoice the Collective for paid work. It also asks for a second
 admin's name and email, and both answers are optional. Those two are stored as
 the columns `alternative_admin_name` and `alternative_admin_email` rather than
@@ -289,9 +292,9 @@ Not every `{{ placeholder }}` used in `automation/emails/*.md` and
 - `collective_name`, `ai_applicant_message`, and the rest of the template
   placeholders come straight from the columns in the column table.
 
-A form submission is matched back to its row without a token in the URL: form
-page 1 asks the applicant for the Open Collective URL of their Collective, and
-the workflow derives the slug from it to look up the row keyed on `slug`.
+A form submission is matched back to its row without a token in the URL. Form
+page 1 asks the applicant for the Open Collective URL of their Collective. The
+workflow derives the slug from that URL and looks up the row keyed on `slug`.
 
 ## Personal data
 

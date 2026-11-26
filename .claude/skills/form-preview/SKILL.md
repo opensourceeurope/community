@@ -3,17 +3,20 @@ name: form-preview
 description: Use when a change touches the application form (form-ose.json, apply 4) and someone wants to see a page as an applicant would, or before calling a form change done. It takes screenshots of form pages in a local, throwaway n8n with a headless browser, without touching the production instance or opening a browser.
 ---
 
-# Previewing form pages
+# Preview form pages
 
 The form is client-rendered and n8n filters its custom HTML and CSS, so reading
 the export or fetching the live form proves nothing about what an applicant
 sees. `automation/scripts/form-preview.py` renders the pages in n8n itself. It
-starts the n8n image that production runs in a throwaway container and imports
-one preview workflow per page. A Playwright container then takes a screenshot of
-each page. The script removes both containers and their network afterwards. Nothing reaches the
-production instance.
+starts a throwaway container from the same n8n image that production runs, and
+imports one preview workflow per page. A Playwright container then takes a
+screenshot of each page. The script removes both containers and their network
+afterwards. Nothing reaches the production instance.
 
 ## Run it
+
+The following commands preview one page, every page, and one page from an
+edited export:
 
 ```bash
 python3 automation/scripts/form-preview.py --page "Form page 5" --out /path/to/out
@@ -56,16 +59,17 @@ The script reads the following inputs:
   `$('Some node')` gets a stub node of that name returning the fixture entry.
   The script stops and names any node the fixture lacks. To show a variant,
   such as a row with an empty column, copy the fixture and change that entry.
-- The fixture's data is invented. Never put a real Collective, person, or
-  address in it. This repository is public.
+
+The fixture's data is invented. Never put a real Collective, person, or address
+in it. This repository is public.
 
 ## What it does not cover
 
 The preview has the following limits:
 
 - `Form page 1` is the start page and cannot be previewed this way.
-- The script renders one page in isolation. It does not walk the branches, check that
-  answers are stored, or run the persist nodes. Those need their own tests.
+- The script renders one page in isolation. It does not walk the branches,
+  check that answers are stored, or run the persist nodes. Those need their own tests.
 - Fields come out empty unless the page itself sets `defaultValue`, as
   `Form page 6` does.
 
@@ -76,5 +80,5 @@ printed. The usual causes are an expression that does not parse, often
 adjacent `}}` inside the expression, and a fixture entry with the wrong shape,
 such as an `answers` column that is not a JSON string.
 
-The script needs Docker. The first run pulls the Playwright image, which takes a few
-minutes.
+The script needs Docker. The first run pulls the Playwright image, which takes
+a few minutes.

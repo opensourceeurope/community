@@ -3,14 +3,21 @@ name: message-preview
 description: Use when a change touches the text of a Slack message or an email the pipeline sends, such as a "Render ..." Code node that feeds a Slack or email node, a file in automation/emails, its wording, emoji, placeholders, or escaping, or when someone asks what a message or email looks like. Use it also before calling such a change done, because nobody can judge a message from the code that builds it.
 ---
 
-# Previewing Slack messages and emails
+# Preview Slack messages and emails
 
 Every Slack post and email in `automation/n8n/` is fed by a Code node that builds
-it. The export shows the template, never the message: placeholders, escaping,
-emoji, the prefilled form link, and the continuation of long replies appear only
-when the node runs. `automation/scripts/message-preview.py` runs the committed
-nodes in a throwaway container on the n8n image that production runs, with sample input
-from `automation/test/fixtures/message-preview.json`. Nothing is posted or sent.
+it. The export shows the template, never the message. The following appear only
+when the node runs:
+
+- Placeholders
+- Escaping
+- Emoji
+- The prefilled form link
+- The continuation of long replies
+
+`automation/scripts/message-preview.py` runs the committed nodes in a throwaway
+container on the n8n image that production runs, with sample input from
+`automation/test/fixtures/message-preview.json`. Nothing is posted or sent.
 
 ## Run it
 
@@ -35,9 +42,9 @@ the order it printed them. It exits 1 if a node threw or sent nothing for its sa
 1. Read the messages in `index.html` yourself and fix anything wrong first. The
    page does not highlight what changed, so compare before and after line by line.
 2. Show every Slack message as its Block Kit Builder link, before and after
-   alike: open them with `xargs -n 1 open < /path/to/out/builder-links.txt`
-   and put each link in your reply, labeled with the message and whether it
-   is before or after. Never hand the user `index.html` or any `file://` path
+   alike. Open them with `xargs -n 1 open < /path/to/out/builder-links.txt`.
+   Put each link in your reply, labeled with the message and whether it is
+   before or after. Never hand the user `index.html` or any `file://` path
    for a Slack message. Builder shows the message as Slack does, and the page
    does not.
    Quote the changed line in your reply when the change is easy to miss
@@ -47,17 +54,17 @@ the order it printed them. It exits 1 if a node threw or sent nothing for its sa
 4. Tell them which messages changed and what to look at, one line each. Builder
    needs them signed in to Slack and nothing more.
 
-## Changing the samples
+## Change the samples
 
 Follow these rules for the sample data:
 
 - A new message needs a fixture entry, or the script stops and names it. An entry
   lists its `feeds` in order: one per `$('...')` the node reads, and the last one
-  is the node's input. CI runs `--all`, so a missing entry fails the PR.
+  is the node's input. CI runs `--all`, so a missing entry fails the pull request.
 - To show a variant, such as another verdict or an empty description, add a row
   to that entry's input rather than a new entry. Each row renders as a message.
-- The data is invented and this repository is public. Never put a real Collective,
-  person or address in it. Keep the hostile samples such as `<!channel>`: they
+- The data is invented and this repository is public. Never put a real
+  Collective, person, or address in it. Keep the hostile samples such as `<!channel>`: they
   show that `escapeSlack` still works.
 
 ## What the preview does not show exactly

@@ -58,17 +58,18 @@ A Scaleway `DEV1-S`: two shared vCPUs, 2 GB of RAM, a 20 GB local SSD, in Warsaw
 (`pl-waw-1`), running Debian 13, with a 2 GB swap file. OpenTofu describes it
 in [`tofu/scaleway-box/`](tofu/scaleway-box/).
 
-The stack needs about 750 MB: n8n 450 to 600 MB, Postgres about 180 MB, and Caddy
-about 40 MB, for a few workflow executions a day. n8n grows past 1 GB for a
-moment during a busy run, and the swap file takes that peak. CPU stays near 1%.
-What fills the disk is execution history, not load, and
-`EXECUTIONS_DATA_PRUNE` below keeps it bounded.
+The stack needs about 750 MB: n8n 450 to 600 MB, Postgres about 180 MB, and
+Caddy about 40 MB, for a few workflow executions a day. n8n grows past 1 GB for
+a moment during a busy run, and the swap file takes that peak. CPU stays near
+1%. What fills the disk is execution history, not load, and
+`EXECUTIONS_DATA_PRUNE`, in the table under [Variables this compose file
+needs](#variables-this-compose-file-needs), keeps it bounded.
 
 ## Where each secret lives
 
 Each store holds its own secrets, and nothing crosses between them. People mix
-up the stores easily, and that has already caused a mistake. The following
-table lists each store:
+up the stores easily, and that mix-up has already caused a mistake. The
+following table lists each store:
 
 | Store | Where | Holds | Not this |
 |---|---|---|---|
@@ -271,7 +272,8 @@ Then register the webhooks:
 1. Log in to opencollective.com as an admin of the `europe` host account.
 2. Open the account's settings and go to **Webhooks**
    (`https://opencollective.com/dashboard/europe/webhooks`).
-3. Add one webhook with the URL above for the activity `collective.apply`,
+3. Add one webhook with the `oc-events` URL from the start of this section for
+   the activity `collective.apply`,
    and a second one with the same URL for `collective.approved`. Each
    webhook carries exactly one activity, and the picker shows display
    names, so match them to these types.
@@ -320,10 +322,14 @@ account is an Organization, and that type carries no `webhooks` field. An
 object that reads like zero webhooks.
 
 The response is noisy, and that is normal. The endpoint returns every
-notification subscription on the account, not only webhooks, so expect a
-`totalCount` far above three, rows with a null `webhookUrl` from email
-subscriptions, and an `errors` array about legacy activity names the v2
-enum cannot represent. Check that three rows carry the intake URL as their
+notification subscription on the account, not only webhooks. So expect the
+following:
+
+- A `totalCount` far above three.
+- Rows with a null `webhookUrl` from email subscriptions.
+- An `errors` array about legacy activity names the v2 enum cannot represent.
+
+ Check that three rows carry the intake URL as their
 `webhookUrl`, one per activity. A missing row means
 that webhook was created on another account: find it under that account's
 webhook settings, delete it there, and recreate it on `europe`.
@@ -496,8 +502,8 @@ changes nothing, and the script never edits an existing `.env`. In order, it:
 5. Clones the repository into `~/community`.
 6. Writes `.env` from `automation/.env.example`, with the hostnames you passed
    and a generated `POSTGRES_PASSWORD` and `N8N_ENCRYPTION_KEY`. The script
-   generates the secrets on the box, so they never leave it, and it never
-   prints them.
+   generates the secrets on the box, so they never leave the box, and the
+   script never prints them.
    `DRY_RUN` stays at its safe default.
 7. Checks that `docker compose config` reports no unset variable, then starts
    the stack.
@@ -531,8 +537,8 @@ The script ends with the steps it cannot do for you. Do them in this order:
    ```
 
 5. Create the n8n credentials `oc-host-admin`, `slack-bot`,
-   `slack-signing-secret` and `smtp-proton`, as the credential sections below
-   describe. The workflows find them by those names.
+   `slack-signing-secret`, and `smtp-proton`, as the credential sections later
+   in this README describe. The workflows find them by those names.
 6. Set `AI_API_KEY`, `SLACK_CHANNEL`, `SMTP_FROM`, and `DRY_RUN_RECIPIENT` in
    `.env`, as in
    [Setting the credentials that are not generated here](#setting-the-credentials-that-are-not-generated-here).
@@ -559,8 +565,8 @@ The script ends with the steps it cannot do for you. Do them in this order:
    again with `sudo systemctl start ose-deploy.timer`.
 10. Ask whoever owns the instance before you activate anything. Activate each
     callee before its caller, because n8n refuses to save an active workflow
-    whose callee has never been active: apply 5 and apply 3 first, then
-    apply 2 and apply 4, then apply 1a and apply 1b. Activate
+    whose callee has never been active. Activate apply 5 and apply 3 first,
+    then apply 2 and apply 4, then apply 1a and apply 1b. Activate
     `ops — alert Slack when any apply workflow fails` as well, or no failure
     reaches Slack, and `ops — weekly digest of open applications in Slack` if
     reviewers want the Wednesday and Friday overview.
@@ -684,7 +690,8 @@ anything. Before you switch, do the following:
 
 1. Check that every link in `automation/emails` points at your own pages: docs,
    terms, and the onboarding booking page.
-2. Count the rows by stage and `dry_run`, as above. Decided rows need nothing.
+2. Count the rows by stage and `dry_run`, as in
+   [Reading the data table from Postgres](#reading-the-data-table-from-postgres). Decided rows need nothing.
    A `form_invited` row never reached its applicant. It gets a real reminder,
    which carries the form link, only while `form_reminded_at` is empty, and
    after that only escalation. Delete such a row for a fresh invitation, which the
@@ -780,8 +787,8 @@ and every container with it when it updated Docker's packages. The deploy unit
 `Wants` Docker rather than `Requires` it, so a Docker restart does not kill a
 run in progress either.
 
-The run waits for the API rather than `/healthz`. n8n answers `/healthz` a few
-seconds before it mounts `/api/v1`, and a sync started in that gap fails with
+The run waits for the API rather than `/healthz`, because n8n answers `/healthz`
+a few seconds before it mounts `/api/v1`, and a sync started in that gap fails with
 `Cannot GET /api/v1/workflows`. The run also waits for the data table route.
 Right after a restart, that route can answer 200 with a body that is not JSON
 while the workflow route already works. So the run checks both routes for a
@@ -1095,8 +1102,8 @@ ssh debian@{VPS_IP} 'cd ~/community/automation/infra
   docker compose exec -T n8n printenv {VAR}'
 ```
 
-The first line appends an empty `{VAR}=` when the variable is missing.
-`sed` replaces only a line that exists, and otherwise does nothing without
+The first line appends an empty `{VAR}=` when the variable is missing,
+because `sed` replaces only a line that exists, and otherwise does nothing without
 saying so. The second `grep` must print the line as written.
 `docker compose up -d n8n` must print `Recreated`, not `Running`: the
 container reads `.env` only when it is created, and `Running` means the value
@@ -1115,12 +1122,12 @@ run exactly as written with a `# box: must match` line above them.
 hour. It compares each marked value with this `.env` and with the running n8n,
 which reads `.env` only when it is created. When one differs, the unit fails
 and `ose-alert@` posts which value and what git expects to the alerts channel,
-once. It posts recovered when they match again. A second value that drifts
+once. It posts "recovered" when they match again. A second value that drifts
 while the first alert is still open posts nothing new. So when you fix one
 value, run the check by hand to see whether it lists another.
 
 A value set in `.env` but not yet in n8n gets its own line in the alert, which
-means the `docker compose up -d n8n` step above was skipped or printed
+means the `docker compose up -d n8n` step in the previous command was skipped or printed
 `Running`. Shortening a marked timer for a test alerts too, until it is put
 back. `DRY_RUN`, `DRY_RUN_RECIPIENT`, `SMTP_FROM`, `SLACK_CHANNEL`, and the
 secrets are not marked, because each box sets its own value for them. Never mark a secret: the
@@ -1201,8 +1208,8 @@ every step reports success while the key is missing.
 ## The Open Collective host-admin credential
 
 The two intake workflows, `apply 1a — intake` and `apply 1b — catch-up`,
-read pending applications and decisions from the Open Collective GraphQL API,
-and `apply 6 — decision from Slack` approves or rejects through it. They
+read pending applications and decisions from the Open Collective GraphQL API.
+`apply 6 — decision from Slack` approves or rejects through the same API. They
 authenticate with a personal token, stored in n8n's credential store
 under the name `oc-host-admin`.
 
@@ -1237,7 +1244,7 @@ authenticates fine and then every fetch fails with an authorization error.
    expired token fails exactly like a revoked one, and every sweep run fails
    until the token is replaced.
 
-### Store it in n8n
+### Store the Open Collective token in n8n
 
 The token lives in n8n's credential store and nowhere else. You can re-issue
 it at any time from the same dashboard page, so it needs no vault entry.
@@ -1281,7 +1288,7 @@ the credential name in the **Name** field makes every API call anonymous.
    the name does not match. Fix the credential name rather than picking the
    credential by hand, or the next re-import breaks the same way.
 
-### Confirm by effect
+### Confirm the Open Collective token by effect
 
 Open `apply 1b — catch-up` in the editor and execute the
 **Fetch pending applications** node. Use `apply 1b` for this test, not
@@ -1295,7 +1302,7 @@ and a `totalCount` of zero is a valid answer. A missing, mis-scoped, or
 non-admin token returns an `errors` array instead, and the Code node that
 follows throws with the response text.
 
-### Rotate
+### Rotate the Open Collective token
 
 Create a new token on the same dashboard page, replace the **Value** in the
 existing `oc-host-admin` credential, and delete the old token on
@@ -1345,7 +1352,7 @@ Anyone who can install apps in the OSE Slack workspace can do this.
    membership fails with `not_in_channel`. The fix is to invite the app, not
    to add scopes.
 
-### Store it in n8n
+### Store the Slack token in n8n
 
 The token lives in n8n's credential store and in `~/.slack-bot-token` on the
 box. Any collaborator can re-issue it from the app's **OAuth & Permissions**
@@ -1362,19 +1369,19 @@ app already exists and does not create a second one.
    that Slack sends to n8n, and the pipeline never receives Slack events.
 4. Set **Allowed HTTP Request Domains** to **Specific domains** and enter
    `slack.com`. This setting limits where n8n may send the credential when an
-   HTTP Request or GraphQL node uses it. The weekly digest and apply 6 do
-   this to call Slack methods that the Slack node lacks. The list stops
+   HTTP Request or GraphQL node uses it. The weekly digest and apply 6 use
+   such nodes to call Slack methods that the Slack node lacks. The list stops
    an HTTP Request node with a wrong URL from sending this token to another
    host.
-   Do not choose **None**: n8n's own connection test runs through the same
-   path, so **None** fails the test with "This credential is configured to
-   prevent use within an HTTP Request node" even though the token is fine.
+   Do not choose **None**. n8n's own connection test runs through the same
+   path. With **None**, the test fails with "This credential is configured to
+   prevent use within an HTTP Request node", even though the token is fine.
    Save.
 5. n8n checks the token against Slack when the credential is saved and
    shows the result in the dialog. A failure here means the token was pasted
    incompletely or the app was not installed to the workspace. A success
    proves only that the token is valid. The scope and the channel are
-   proven in [Confirm by effect](#confirm-by-effect-1).
+   proven in [Confirm the Slack token by effect](#confirm-the-slack-token-by-effect).
 6. Attach the credential to every Slack node, and to the HTTP Request nodes
    that call Slack. They are the only places the workflows talk to Slack, and
    every one of them needs it:
@@ -1436,7 +1443,7 @@ instead, a string starting with `C` shown at the bottom of the channel's
 details pane in Slack. A bot cannot resolve a private channel's name, and the
 post fails with `channel_not_found`.
 
-### Confirm by effect
+### Confirm the Slack token by effect
 
 `DRY_RUN` does not hold back Slack. The thread is the reviewers' own log. It is
 internal to the team and carries no applicant address. So every message and
@@ -1465,7 +1472,7 @@ To test before an application exists, follow these steps:
 4. Delete the temporary workflow, so it never shows up in the workflow list as
    a real one.
 
-### Rotate
+### Rotate the Slack token
 
 On the app's **OAuth & Permissions** page choose **Revoke All OAuth
 Tokens**, then **Install to Workspace** again. Slack issues a new
@@ -1500,8 +1507,8 @@ and the signature keeps it safe. Before apply 6 reads anything else, it
 refuses every request whose `X-Slack-Signature` does not match the app's
 signing secret, or whose timestamp is more than five minutes old.
 
-Set up the following parts in this order. The Slack app should point at
-apply 6 only once apply 6 can check what Slack sends.
+Set up the following parts in this order, because the Slack app should point
+at apply 6 only once apply 6 can check what Slack sends.
 
 ### The signing secret credential
 
@@ -1554,7 +1561,7 @@ webhook with an error and every click fails.
 No new scope is needed. Opening a dialog with `views.open` needs none, and the
 bot already posts the buttons with `chat:write`.
 
-### Confirm by effect
+### Confirm Slack decisions by effect
 
 There is no dry run of a decision. `DRY_RUN` holds back the closing email, but
 the approval or rejection and the note are real. Rehearse on a test
@@ -1575,12 +1582,12 @@ Collective's application to the host, never on a real one.
 
 Delete the test application's row afterwards, as for any rehearsal.
 
-### Rotate
+### Rotate the signing secret
 
 Regenerate the signing secret on the app's **Basic Information** page and
 replace **Hmac Secret** in `slack-signing-secret` at once, because every click
 fails between the two. The Open Collective token rotates as in
-[Rotate](#rotate).
+[Rotate the Open Collective token](#rotate-the-open-collective-token).
 
 ## The SMTP credential
 
@@ -1613,7 +1620,7 @@ setup, even if a group with a similar purpose exists.
    the **SMTP tokens** page is missing, the account is on a plan without
    them. The options are to change the plan or to use a different relay.
 
-### Store it in n8n
+### Store the SMTP token in n8n
 
 The token lives in n8n's credential store and nowhere else. You can re-issue
 it at any time from the same Proton page, so it needs no vault entry.
@@ -1643,7 +1650,7 @@ for the next person to find it.
    shows the result in the dialog. A green result proves the host, port,
    STARTTLS setting, and token. It does not send anything, so the From
    address and actual delivery are proven in
-   [Confirm by effect](#confirm-by-effect-2).
+   [Confirm the SMTP credential by effect](#confirm-the-smtp-credential-by-effect).
 4. Attach the credential to every Send Email node in the following table.
    They are the only places the pipeline sends mail:
 
@@ -1671,9 +1678,9 @@ The address part must be the address the token was generated for. Proton
 issues one token per address and documents that a token sends as that
 address. A From header that names another address is not covered by the
 token. The send then fails or Proton rewrites the header. Proton does not
-silently accept it.
+silently accept such a header.
 
-### Confirm by effect
+### Confirm the SMTP credential by effect
 
 A dry run exercises SMTP for real: while applicant email is suppressed, which
 is any value of `DRY_RUN` other than `false`, every message still goes out, to
@@ -1686,13 +1693,13 @@ To test earlier, follow these steps:
 
 1. Create a temporary workflow with a **Manual Trigger** and one
    **Send Email** node that uses `smtp-proton`.
-2. Set From to the same value as `SMTP_FROM`, To to your own address, and any
-   subject.
+2. Set the **From Email** to the same value as `SMTP_FROM`. Set the
+   **To Email** to your own address, and enter any subject.
 3. Execute the workflow once, then delete it.
 4. Check the received message's headers. `spf=pass` and `dkim=pass` show that
    Proton signed it and that the domain's policy was met.
 
-### Rotate
+### Rotate the SMTP token
 
 Generate a new token on Proton's **SMTP tokens** page, replace the
 **Password** in the existing `smtp-proton` credential in n8n, save, and
@@ -1747,9 +1754,13 @@ backup. Before a risky change to the machine itself, take a snapshot of its
 volume in the console. Scaleway bills a snapshot by the GB until you delete it.
 
 [`backup.sh`](backup.sh) writes the dump and refuses to leave a useless file
-behind: it fails if the dump is under 10 KiB, fails the gzip integrity check, or
-contains no `CREATE TABLE`. It keeps 14 days of dumps on the box. To take one by
-hand:
+behind. It fails in any of the following cases:
+
+- The dump is under 10 KiB.
+- The dump fails the gzip integrity check.
+- The dump contains no `CREATE TABLE`.
+
+It keeps 14 days of dumps on the box. To take one by hand, run:
 
 ```bash
 ~/community/automation/infra/backup.sh
@@ -1780,7 +1791,7 @@ to be.
 ### The copy off the box
 
 A backup that exists only on the machine it protects does not survive that
-machine. After the checks above pass, `backup.sh` encrypts the dump with `age`
+machine. After the checks in [Backup](#backup) pass, `backup.sh` encrypts the dump with `age`
 and uploads it to a Scaleway Object Storage bucket in Warsaw (`pl-waw`), in a
 project of its own with a write-only key. It survives losing the box. It does
 not survive losing the Scaleway account or the whole region, because the box
@@ -1811,7 +1822,8 @@ To set it up, follow the steps in order:
    ```
 
    The command prints the public key, which starts with `age1` and is not a
-   secret. Store the whole content of the file in the vault entry named above:
+   secret. Store the whole content of the file in the vault entry
+   `OSE automation — backup decryption key`:
    the `# created`, the `# public key`, and the `AGE-SECRET-KEY-1` lines. On
    macOS, `pbcopy < ~/ose-backup.key` copies it without printing it. Keep the
    file until step 6 has proved a restore.
@@ -1903,7 +1915,7 @@ machine problem needs a volume snapshot, if you took one, or a rebuild.
 | The machine is broken (filesystem damage, a failed OS change) | A volume snapshot taken before the change, if there is one. Otherwise as in the next row | A snapshot comes back as a new volume, so build an instance on it in the console and point DNS at it. Then check the stack (`docker compose ps`), and run `backup.sh` once so a fresh dump exists |
 | The box is gone entirely: deleted, broken beyond repair, or an account problem | The latest dump from the bucket, plus this repository | Build a new box as in [Moving to a new box](#moving-to-a-new-box), with `.env` rebuilt around the vault's key. Then decrypt the dump and load it. This needs `N8N_ENCRYPTION_KEY` and the backup decryption key from the vault. The vault keeps them for this case |
 
-Two constraints that hold in every row:
+The following constraints hold in every row:
 
 - A dump only yields working credentials under the original
   `N8N_ENCRYPTION_KEY`. The snapshot keeps it in `.env` on the restored disk.
@@ -1952,14 +1964,14 @@ sudo systemctl start ose-deploy.timer ose-backup.timer
 ### What each secret means for a rebuild
 
 The dump contains database objects, not roles: it has no `CREATE ROLE` or
-`ALTER ROLE` statement. So the two secrets recover very differently, as the
-following table shows:
+`ALTER ROLE` statement. So a rebuild treats the two secrets very differently,
+as the following table shows:
 
 | Scenario | `POSTGRES_PASSWORD` | `N8N_ENCRYPTION_KEY` |
 |---|---|---|
 | Restart, reboot, `down` + `up -d`, n8n upgrade | unchanged, because the volumes persist | unchanged |
 | `docker compose down -v`, box rebuilt, new box | gone with the filesystem, so pick a new one freely | gone, and it must be the original or credentials are unreadable |
-| Deliberate rotation on a live box | see below | never rotate against an existing database |
+| Deliberate rotation on a live box | two steps, in the paragraph after this table | never rotate against an existing database |
 
 Rotating `POSTGRES_PASSWORD` takes two steps. The compose variable only
 initializes an empty data directory, so editing `.env` alone does not change the
@@ -2295,8 +2307,8 @@ needs a dump and restore, not a new tag.
 
 The box installs security updates daily, from Debian and from Docker's
 repository. Debian's default covers only Debian, so without the second origin
-the Docker engine, containerd, and runc never update. These are the parts that
-keep a container isolated. When an update needs a reboot, the box reboots at
+the Docker engine, containerd, and runc never update. The engine, containerd,
+and runc are the parts that keep a container isolated. When an update needs a reboot, the box reboots at
 04:30, after the backup, and every container starts again by itself.
 
 The settings are the files in [`apt/`](apt/). The deploy installs them into
@@ -2315,8 +2327,9 @@ sudo tail -n 30 /var/log/unattended-upgrades/unattended-upgrades.log
 ## Alerts when a workflow fails
 
 `ops — alert Slack when any apply workflow fails` posts to the reviewers'
-channel whenever a workflow that names it as its error workflow stops on an
-unhandled error: every `apply` workflow, and the weekly digest.
+channel whenever a workflow stops on an unhandled error. It covers each
+workflow that names it as its error workflow: every `apply` workflow, and the
+weekly digest.
 Without it a failure is silent. The execution turns red in a list nobody
 watches, and the pipeline looks healthy from the outside while it does nothing.
 
@@ -2387,7 +2400,7 @@ most the recovery message of a failure open at that moment.
 When n8n does not answer, answers too slowly, or answers 5xx, as it can during
 an upgrade, the check skips the run and reads the same history next time.
 
-The unit fails when the check cannot do one of the following:
+The unit fails when the check cannot do any of the following:
 
 - Read from n8n at all, such as with a key that lacks `execution:list`.
 - Save its state file.

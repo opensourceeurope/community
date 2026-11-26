@@ -15,6 +15,8 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
 
 ## Decide which case it is
 
+The following table gives the path for each case:
+
 | Case | Path |
 |---|---|
 | A copy of this setup under someone else's names, with no data | "Fresh install" in this skill |
@@ -22,7 +24,7 @@ the gates, and the runbook gives the commands. Read AGENTS.md first.
 
 ## Gates that hold in every case
 
-Stop at each of the following gates:
+The following gates hold in every case:
 
 - Before any `tofu apply`, name each resource the plan creates and its price
   per hour and per month. Get the operator's yes to exactly that. Read prices
@@ -65,28 +67,27 @@ Stop at each of the following gates:
    box that already bills.
 1. Set up the accounts in the table in "Accounts you need first" in the
    runbook:
-   - Scaleway in a verified Organization
-   - Open Collective host admin
+   - A Scaleway account in a verified Organization
+   - An Open Collective account that is a host admin
    - A Slack app
    - An SMTP relay
    - A shared password vault
    - An uptime service
 
-   The workflows
-   are written for the OSE host on Open Collective, so another host means
-   changing the host slug in the workflows that read it.
+   The workflows are written for the OSE host on Open Collective, so another
+   host means changing the host slug in the workflows that read it.
 2. Create the backup bucket with `tofu/backup-storage/`, after the
    operator's yes to its price. Bucket names are global, so pick new ones.
 3. Build the box with `tofu/scaleway-box/`, setting `dns_zone`,
    `run_bootstrap = true`, and the operator's own `repo_url`. The `repo_url`
    must be a public repository, because the box clones and fetches it with no
-   credentials. Show the plan, name the prices, and wait for the yes. Then the operator runs `tofu apply` in their
-   own terminal with their SSH key loaded, because the bootstrap logs into the
-   box. The default is a `DEV1-S`, sized from measured use. Larger is fine but
-   not needed. For a DNS zone outside Scaleway, leave `dns_zone` and
-   `run_bootstrap` unset, create the records by hand from the `ipv4` output,
-   and have the operator run `bootstrap.sh` as "Install the box" in the
-   runbook describes.
+   credentials. Show the plan, name the prices, and wait for the yes. Then the
+   operator runs `tofu apply` in their own terminal with their SSH key loaded,
+   because the bootstrap logs into the box. The default is a `DEV1-S`, sized
+   from measured use. Larger is fine but not needed. For a DNS zone outside
+   Scaleway, leave `dns_zone` and `run_bootstrap` unset. Create the records by
+   hand from the `ipv4` output. Then have the operator run `bootstrap.sh` as
+   "Install the box" in the runbook describes.
 4. Add the AAAA records. The operator reads the box's IPv6 address with
    `ip -6 addr show scope global`. Set `ipv6_address` and apply again. That
    adds only the records, which cost nothing.
@@ -97,16 +98,22 @@ Stop at each of the following gates:
    A copy also sets `ROOT_REDIRECT_HOST` in `.env` to its own bare domain and
    points the redirect in the Caddyfile at its own website. Otherwise its
    Caddy keeps asking for a certificate for opensourceeurope.org.
-6. Verify the install as "Verify the install" in the runbook describes. It
-   ends with the relay check on port 587, which must answer `open`.
+6. Verify the install as "Verify the install" in the runbook describes. That
+   section ends with the relay check on port 587, which must answer `open`.
 
 ## What a copy changes
 
 The repository is written for OSE, and a copy keeps OSE's values until it
-changes them. Infra files mark each one with a `COPYING:` comment, so
-`git grep -n 'COPYING:'` lists them: the repository URL, instance and bucket
-names, the bare domain's redirect, the applicant hostname, and the editor gate
-hash. Go through each one with the operator.
+changes them. Infra files mark each one with a `COPYING:` comment. The command
+`git grep -n 'COPYING:'` lists them, and they include the following:
+
+- The repository URL
+- The instance and bucket names
+- The bare domain's redirect
+- The applicant hostname
+- The editor gate hash
+
+Go through each one with the operator.
 
 Some places cannot carry a comment. Change them too, through the
 `n8n-skills:n8n` skill for anything in `automation/n8n/`:
@@ -126,7 +133,7 @@ Some places cannot carry a comment. Change them too, through the
   and when it suggests Open Collective Europe (OCE) instead.
 - The link preview image, `automation/infra/public/static/og_image.png`.
 
-## Done means
+## When the install is done
 
 The install is done when all of the following are true:
 

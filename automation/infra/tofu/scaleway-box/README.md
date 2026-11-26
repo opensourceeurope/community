@@ -4,8 +4,8 @@ This OpenTofu module creates a Scaleway instance that
 [`bootstrap.sh`](../../bootstrap.sh) can turn into the box running the OSE
 application automation. It creates:
 
-- A `DEV1-S` instance (2 vCPU, 2 GB) in `pl-waw-1`, on Debian 13, with a 20 GB
-  local SSD.
+- A `DEV1-S` instance (two vCPUs and two GB of memory) in `pl-waw-1`, on
+  Debian 13, with a 20 GB local SSD.
 - One routed IPv4 address and one routed IPv6 prefix.
 - A security group that drops every inbound connection but SSH, HTTP, HTTPS,
   and ICMP, over IPv4 and IPv6. It lets outbound SMTP through, which Scaleway
