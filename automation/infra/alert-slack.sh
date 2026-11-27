@@ -90,15 +90,18 @@ else
 fi
 
 body=$(mktemp)
+reply=$(mktemp)
 response=$(mktemp)
-trap 'rm -f "$body" "$response"' EXIT
+trap 'rm -f "$body" "$reply" "$response"' EXIT
 
 # Unit names, the hostname and log lines are data, not Slack markup. `&` is
 # escaped first, the same rule the workflows' escapeSlack helper follows.
-LOG="$log" python3 - "$kind" "$unit" "$host" "$channel" > "$body" <<'PY'
+# A failure also writes a thread reply to $reply: a prompt to paste into a
+# coding agent, with the failed run's output in it. A recovery leaves it empty.
+LOG="$log" python3 - "$kind" "$unit" "$host" "$channel" "$reply" > "$body" <<'PY'
 import json, os, sys
 
-kind, unit, host, channel = sys.argv[1:5]
+kind, unit, host, channel, reply_path = sys.argv[1:6]
 
 # What a failure means to a reader who has never heard of the unit, and what
 # to do about it, then the line its recovery posts. A check also has a name,
@@ -115,6 +118,14 @@ MEANING = {
         ),
         "recovered": "The n8n security upgrade is live: no published advisory affects the version production runs",
         "check": "n8n security advisory check",
+        "task": (
+            "Upgrade n8n to the version the check names. In a new worktree, set the n8n "
+            "image in automation/infra/docker-compose.yml to that version. Run "
+            "automation/test/n8n-import-check.sh and automation/test/readme-fetch.py, which "
+            "use the new image. Read the n8n release notes between the two versions for "
+            "anything touching the public API, Code nodes, data tables, or forms. Open a "
+            "pull request that lists the advisories it fixes, and do not merge it."
+        ),
     },
     "ose-deploy.service": {
         "failed": (
@@ -124,6 +135,11 @@ MEANING = {
             "below is fixed.",
         ),
         "recovered": "Deploys reach production again",
+        "task": (
+            "Find why the deploy failed and fix it in a pull request. If the box needs "
+            "something only the operator can do, write the one-shot ssh command for me to "
+            "run, as AGENTS.md describes, and say what output to expect."
+        ),
     },
     "ose-backup.service": {
         "failed": (
@@ -133,6 +149,11 @@ MEANING = {
             "back to an older one.",
         ),
         "recovered": "The database backup works again",
+        "task": (
+            "Find why the backup failed, and whether the dump on the box or the upload off "
+            "the box broke. Fix it in a pull request, or write the one-shot ssh command for "
+            "me to run, as AGENTS.md describes, and say what output to expect."
+        ),
     },
     "ose-env-drift.service": {
         "failed": (
@@ -142,6 +163,11 @@ MEANING = {
         ),
         "recovered": "The box's settings match git again",
         "check": "check of the box's settings",
+        "task": (
+            "Tell me which value to change in the box's .env, and the commands to run on the "
+            "box, as AGENTS.md describes. Never ask me for a secret's value, and point me at "
+            "where it comes from instead."
+        ),
     },
     "ose-inactive-workflows.service": {
         "failed": (
@@ -151,6 +177,11 @@ MEANING = {
         ),
         "recovered": "Every workflow is active again",
         "check": "check for switched-off workflows",
+        "task": (
+            "Tell me which workflow is inactive, what changed in it, and whether it is safe "
+            "to activate now, including any sub-workflow it calls. Do not activate it "
+            "yourself."
+        ),
     },
     "ose-workflow-recovery.service": {
         "failed": (
@@ -199,6 +230,26 @@ else:
     text = ":white_check_mark: *%s* recovered on %s" % (esc(unit), esc(host))
 
 json.dump({"channel": channel, "text": text, "unfurl_links": False}, sys.stdout)
+
+GENERIC_TASK = ("Find why it failed and fix it in a pull request. If the box needs "
+                "something only the operator can do, write the one-shot ssh command for me "
+                "to run, as AGENTS.md describes, and say what output to expect.")
+
+if kind in ("failed", "unchecked"):
+    if kind == "unchecked" and check:
+        task = ("The check could not run at all. Find out why, and whether it will clear "
+                "on its own or needs a fix. " + GENERIC_TASK)
+    else:
+        task = (meaning or {}).get("task", GENERIC_TASK)
+    log = os.environ.get("LOG", "").strip() or "(no output was captured)"
+    prompt = ("Work in the opensourceeurope/community repository and follow its AGENTS.md. "
+              "The systemd unit %s on the n8n box failed. The output of the run that "
+              "failed:\n\n%s\n\n%s" % (unit, log, task))
+    reply_text = ("*Fix it with a coding agent.* Open the community repository in Claude "
+                  "Code or another coding agent and paste this prompt:\n```\n%s\n```"
+                  % esc(prompt).replace("```", "'''"))
+    with open(reply_path, "w") as handle:
+        json.dump({"channel": channel, "text": reply_text, "unfurl_links": False}, handle)
 PY
 
 printf 'header = "Authorization: Bearer %s"\n' "$token" \
@@ -223,3 +274,30 @@ else
   echo "$(date -u +%FT%TZ) $kind" > "$state"
 fi
 echo "posted: $unit $kind"
+
+# The prompt goes in the alert's thread. The alert is delivered and recorded by
+# now, so a reply that fails says so and is not retried.
+if [ -s "$reply" ]; then
+  thread_ok=$(python3 - "$reply" "$response" <<'PY'
+import json, sys
+reply_path, response_path = sys.argv[1:3]
+ts = json.load(open(response_path)).get("ts")
+if ts:
+    data = json.load(open(reply_path))
+    data["thread_ts"] = ts
+    json.dump(data, open(reply_path, "w"))
+    print("ok")
+PY
+  ) || true
+  if [ "$thread_ok" != ok ]; then
+    echo "WARNING: Slack returned no ts, so the agent prompt was not posted" >&2
+  elif printf 'header = "Authorization: Bearer %s"\n' "$token" \
+      | curl -sS --max-time 20 -K - \
+          -H 'Content-Type: application/json; charset=utf-8' \
+          --data-binary "@$reply" -o "$response" "$SLACK_API" \
+      && [ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("ok"))' "$response" 2>/dev/null)" = True ]; then
+    echo "posted: the agent prompt in the alert's thread"
+  else
+    echo "WARNING: the agent prompt did not reach the alert's thread" >&2
+  fi
+fi

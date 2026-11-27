@@ -25,15 +25,24 @@ cat > "$STUB_DIR/curl-config"
 out=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --data-binary) cp "${2#@}" "$STUB_DIR/body.json"; shift ;;
+    --data-binary) data="${2#@}"; shift ;;
     -o) out="$2"; shift ;;
   esac
   shift
 done
-response='{"ok":true}'
-[ -z "${STUB_SLACK_RESPONSE:-}" ] || response="$STUB_SLACK_RESPONSE"
+# The alert is a post, the agent prompt a reply in its thread.
+if [ "$(grep -c thread_ts "$data" || true)" -gt 0 ]; then
+  cp "$data" "$STUB_DIR/reply.json"
+  echo reply >> "$STUB_DIR/posts.log"
+  response='{"ok":true}'
+  [ -z "${STUB_REPLY_RESPONSE:-}" ] || response="$STUB_REPLY_RESPONSE"
+else
+  cp "$data" "$STUB_DIR/body.json"
+  echo post >> "$STUB_DIR/posts.log"
+  response='{"ok":true,"ts":"1700000000.000100"}'
+  [ -z "${STUB_SLACK_RESPONSE:-}" ] || response="$STUB_SLACK_RESPONSE"
+fi
 printf '%s\n' "$response" > "$out"
-echo post >> "$STUB_DIR/posts.log"
 EOF
 # The failed run's own lines come back under its invocation id. The unit's
 # whole journal adds systemd's lines and an earlier run, which must not show.
@@ -78,7 +87,7 @@ rc=0
 run() {  # run <case name> [alert-slack.sh arguments]
   case_name="$1"; shift
   : > "$WORK/posts.log"
-  rm -f "$WORK/body.json"
+  rm -f "$WORK/body.json" "$WORK/reply.json"
   rc=0
   "$ALERT" "$@" > "$WORK/out.log" 2>&1 || rc=$?
 }
@@ -87,7 +96,9 @@ fail() {
   sed 's/^/    > /' "$WORK/out.log"
   failures=$((failures + 1))
 }
-posts() { local n; n=$(grep -c post "$WORK/posts.log" 2>/dev/null || true); echo "${n:-0}"; }
+posts() { local n; n=$(grep -c '^post$' "$WORK/posts.log" 2>/dev/null || true); echo "${n:-0}"; }
+replies() { local n; n=$(grep -c '^reply$' "$WORK/posts.log" 2>/dev/null || true); echo "${n:-0}"; }
+reply_has() { [ "$(grep -c -F -e "$1" "$WORK/reply.json" 2>/dev/null || true)" -gt 0 ] || fail "the thread reply lacks: $1"; }
 body_has() { [ "$(grep -c -F -e "$1" "$WORK/body.json" 2>/dev/null || true)" -gt 0 ] || fail "the message lacks: $1"; }
 body_lacks() { [ "$(grep -c -F -e "$1" "$WORK/body.json" 2>/dev/null || true)" -eq 0 ] || fail "the message contains: $1"; }
 
@@ -108,6 +119,13 @@ body_lacks 'Main process exited'
 [ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["text"].count("\n"))' "$WORK/body.json")" -ge 3 ] \
   || fail "the message has no real line breaks"
 
+[ "$(replies)" -eq 1 ] || fail "expected the agent prompt in the thread"
+reply_has '"thread_ts": "1700000000.000100"'
+reply_has 'Fix it with a coding agent'
+reply_has 'The systemd unit ose-deploy.service on the n8n box failed'
+reply_has '&lt;!channel&gt; &amp; friends'
+reply_has 'Find why the deploy failed'
+
 run "the same failure does not post again" "$UNIT"
 [ "$rc" -eq 0 ] || fail "expected exit 0, got $rc"
 [ "$(posts)" -eq 0 ] || fail "posted a second time"
@@ -118,6 +136,7 @@ run "recovery posts once" --recovered "$UNIT"
 body_has ':white_check_mark:'
 
 body_has 'Deploys reach production again'
+[ "$(replies)" -eq 0 ] || fail "a recovery posted an agent prompt"
 
 run "a recovery with no failure posts nothing" --recovered "$UNIT"
 [ "$rc" -eq 0 ] || fail "expected exit 0, got $rc"
@@ -127,6 +146,8 @@ run "the advisory alert says n8n needs an upgrade" ose-n8n-advisories.service
 [ "$(posts)" -eq 1 ] || fail "expected one post"
 body_has 'n8n needs a security upgrade'
 body_has 'automation/infra/docker-compose.yml'
+reply_has 'Upgrade n8n to the version the check names'
+reply_has 'do not merge it'
 run "the advisory recovery says the upgrade is live" --recovered ose-n8n-advisories.service
 body_has 'The n8n security upgrade is live'
 
@@ -134,6 +155,7 @@ STUB_EXIT_STATUS=2 run "a check that could not run says so" ose-env-drift.servic
 [ "$(posts)" -eq 1 ] || fail "expected one post"
 body_has 'The check of the box'"'"'s settings could not run'
 body_lacks 'differs from what git requires'
+reply_has 'The check could not run at all'
 STUB_EXIT_STATUS=2 run "it does not post twice" ose-env-drift.service
 [ "$(posts)" -eq 0 ] || fail "posted a second time"
 run "a real finding after it posts again" ose-env-drift.service
@@ -166,6 +188,17 @@ done
 run "a unit with no meaning alerts under its own name" ose-something-new.service
 [ "$(posts)" -eq 1 ] || fail "expected one post"
 body_has '*ose-something-new.service* failed on '
+reply_has 'Find why it failed and fix it in a pull request'
+
+STUB_REPLY_RESPONSE='{"ok":false,"error":"thread_not_found"}' run "a refused prompt still records the alert" ose-reply-refused.service
+[ "$rc" -eq 0 ] || fail "expected exit 0, got $rc"
+[ "$(grep -c 'did not reach' "$WORK/out.log" || true)" -gt 0 ] || fail "no warning about the lost prompt"
+run "and the alert is not posted again" ose-reply-refused.service
+[ "$(posts)" -eq 0 ] || fail "the alert posted again"
+
+STUB_SLACK_RESPONSE='{"ok":true}' run "an alert with no ts skips the prompt" ose-no-ts.service
+[ "$rc" -eq 0 ] || fail "expected exit 0, got $rc"
+[ "$(replies)" -eq 0 ] || fail "posted a reply with no thread"
 body_has 'ERROR: no API key'
 
 STUB_INVOCATION_ID="" run "with no invocation id the journal's last lines show" ose-no-id.service
