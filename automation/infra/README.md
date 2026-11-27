@@ -985,8 +985,8 @@ So that nobody forgets this decision, `ose-inactive-workflows.timer` runs
 [`check-inactive-workflows.py`](check-inactive-workflows.py) every hour. It
 lists each workflow that has an export and is inactive on the instance, with
 a link to it in the editor. While the list is not empty the unit fails, and
-`ose-alert@` posts it to the alerts channel, once. It posts "recovered" when
-every workflow is active again. A workflow that goes inactive while an alert
+`ose-alert@` posts it to the alerts channel, once. It posts that every
+workflow is active again once none is left. A workflow that goes inactive while an alert
 is still open therefore posts nothing new, so run the check by hand after you
 activate one. The error handler is checked like the rest, because n8n runs it only once
 it has been activated. To keep a workflow switched off on purpose, archive it
@@ -1019,17 +1019,26 @@ the map.
 
 ## Alerts when the box fails
 
-The deploy and backup units both name `ose-alert@.service` in `OnFailure=`.
-When either one fails, [`alert-slack.sh`](alert-slack.sh) posts the unit name,
-the host and the last 15 lines of its journal to `SLACK_CHANNEL`. That is the
-channel the application threads and the workflow failure alerts use. Text from
-the log is escaped, so a line containing `<!channel>` cannot notify the
-channel.
+Every unit in `systemd/` that runs a task names `ose-alert@.service` in
+`OnFailure=`. When one fails, [`alert-slack.sh`](alert-slack.sh) posts to
+`SLACK_CHANNEL`, the channel the application threads and the workflow failure
+alerts use. The message opens with what the failure means in plain words and
+what to do about it, then shows the output of the run that failed, then names
+the unit and the host. A reply in the alert's thread holds a prompt to paste
+into a coding agent: the failed run's output and what to do, such as opening the
+upgrade pull request for an advisory. A check that could not run at all, which it reports by
+exiting 2, or that crashed, says so instead of claiming what it would have found. A unit the
+script has no wording for still alerts, under its own name. Add the wording to
+`MEANING` in the script along with a new unit, which
+`automation/test/alert-slack.sh` enforces.
+Text from the log is escaped, so a line containing `<!channel>` cannot notify
+the channel.
 
 The deploy timer fires every ten minutes, and some failures last until a person
-acts. So a failure alerts once. The script records a delivered alert in
-`~/.local/state/ose-alert/`, and the next successful run of the unit posts that
-it recovered and clears the note. An alert that Slack refused is retried on the
+acts. So a failure alerts once. The script records a delivered alert and its
+kind in `~/.local/state/ose-alert/`, and the next successful run of the unit
+posts that it recovered and clears the note. A check that could not run and
+then finds a real problem alerts again. Every other repeat stays silent. An alert that Slack refused is retried on the
 next failure.
 
 ### The token
@@ -1122,7 +1131,7 @@ run exactly as written with a `# box: must match` line above them.
 hour. It compares each marked value with this `.env` and with the running n8n,
 which reads `.env` only when it is created. When one differs, the unit fails
 and `ose-alert@` posts which value and what git expects to the alerts channel,
-once. It posts "recovered" when they match again. A second value that drifts
+once. It posts that the settings match git again once they do. A second value that drifts
 while the first alert is still open posts nothing new. So when you fix one
 value, run the check by hand to see whether it lists another.
 
@@ -2257,9 +2266,11 @@ Nobody has to remember to look. `ose-n8n-advisories.timer` runs
 [`check-n8n-version.py`](check-n8n-version.py) on this box every morning. It
 compares the n8n tag in `docker-compose.yml` with n8n's published security
 advisories. When an advisory with a fix affects that version, the unit fails.
-`ose-alert@` then posts the report to the alerts channel once, as it does for a
-failed deploy or backup. The report names the worst advisories and the stable
-release to move to. It posts again as recovered once a merged upgrade clears it.
+`ose-alert@` then posts "n8n needs a security upgrade" with the report to the
+alerts channel once, as it does for a failed deploy or backup. The report names
+the worst advisories and the stable release to move to, and the thread holds a
+prompt that has a coding agent open the upgrade pull request. It posts that the
+upgrade is live once a merged upgrade clears it.
 
 The check runs here rather than in GitHub Actions. That way it reuses the alert
 path and the Slack token the box already has, and no Slack token sits in a
