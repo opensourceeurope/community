@@ -56,7 +56,11 @@ esac
 EOF
 cat > "$BIN/systemctl" <<'EOF'
 #!/usr/bin/env bash
-echo "${STUB_INVOCATION_ID-0123abcd}"
+case "$*" in
+  "show -p InvocationID --value "*) echo "${STUB_INVOCATION_ID-0123abcd}" ;;
+  "show -p ExecMainStatus --value "*) echo "${STUB_EXIT_STATUS:-1}" ;;
+  *) echo "systemctl stub: unexpected arguments: $*" >&2; exit 1 ;;
+esac
 EOF
 chmod +x "$BIN/curl" "$BIN/journalctl" "$BIN/systemctl"
 
@@ -101,6 +105,8 @@ body_has 'Changes merged to main are not reaching production'
 body_has '_From ose-deploy.service on '
 body_lacks 'an earlier run that passed'
 body_lacks 'Main process exited'
+[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["text"].count("\n"))' "$WORK/body.json")" -ge 3 ] \
+  || fail "the message has no real line breaks"
 
 run "the same failure does not post again" "$UNIT"
 [ "$rc" -eq 0 ] || fail "expected exit 0, got $rc"
@@ -123,6 +129,39 @@ body_has 'n8n needs a security upgrade'
 body_has 'automation/infra/docker-compose.yml'
 run "the advisory recovery says the upgrade is live" --recovered ose-n8n-advisories.service
 body_has 'The n8n security upgrade is live'
+
+STUB_EXIT_STATUS=2 run "a check that could not run says so" ose-env-drift.service
+[ "$(posts)" -eq 1 ] || fail "expected one post"
+body_has 'The check of the box'"'"'s settings could not run'
+body_lacks 'differs from what git requires'
+STUB_EXIT_STATUS=2 run "it does not post twice" ose-env-drift.service
+[ "$(posts)" -eq 0 ] || fail "posted a second time"
+run "a real finding after it posts again" ose-env-drift.service
+[ "$(posts)" -eq 1 ] || fail "the real finding did not post"
+body_has 'differs from what git requires'
+run "and its recovery is the finding's" --recovered ose-env-drift.service
+body_has 'match git again'
+
+STUB_EXIT_STATUS=2 run "a check that could not run" ose-inactive-workflows.service
+run "recovers without claiming a fix" --recovered ose-inactive-workflows.service
+body_has 'runs again and finds nothing wrong'
+body_lacks 'Every workflow is active again'
+
+mkdir -p "$WORK/state"
+echo "2026-11-27T07:05:00Z" > "$WORK/state/ose-n8n-advisories.service.failing"
+run "a state file from before kinds recovers as a failure" --recovered ose-n8n-advisories.service
+[ "$(posts)" -eq 1 ] || fail "expected one recovery post"
+body_has 'The n8n security upgrade is live'
+
+STUB_EXIT_STATUS=2 run "a unit that is not a check alerts as a failure on exit 2" ose-deploy-two.service
+body_has '*ose-deploy-two.service* failed on '
+
+case_name="every unit that alerts has wording"
+for f in "$HERE/../infra/systemd/"*.service; do
+  [ "$(grep -c '^OnFailure=' "$f" || true)" -gt 0 ] || continue
+  name=$(basename "$f")
+  [ "$(grep -c -F -e "\"$name\": {" "$ALERT" || true)" -eq 1 ] || fail "$name alerts but has no entry in MEANING"
+done
 
 run "a unit with no meaning alerts under its own name" ose-something-new.service
 [ "$(posts)" -eq 1 ] || fail "expected one post"

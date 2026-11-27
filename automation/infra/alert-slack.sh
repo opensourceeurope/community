@@ -35,12 +35,28 @@ unit="${1:-}"
 state="$STATE_DIR/$unit.failing"
 host=$(hostname)
 
-if [ "$recovered" = true ] && [ ! -f "$state" ]; then
-  exit 0
-fi
-if [ "$recovered" = false ] && [ -f "$state" ]; then
-  echo "$unit is still failing. Alerted at $(cat "$state"), not posting again"
-  exit 0
+# The checks exit 2 when they could not run at all, such as on a rate limit.
+# That is a different alert from what they found, so it gets its own wording
+# and its own entry in the state file: a check that could not run and then
+# finds a real problem alerts again. The state file holds the time of the
+# alert and its kind. One holding only a time is from before kinds, a failure.
+if [ "$recovered" = true ]; then
+  [ -f "$state" ] || exit 0
+  read -r _ kind < "$state" || true
+  case "${kind:-}" in
+    unchecked) kind="recovered-unchecked" ;;
+    *) kind=recovered ;;
+  esac
+else
+  status=$(systemctl show -p ExecMainStatus --value "$unit" 2>/dev/null || true)
+  if [ "$status" = 2 ]; then kind=unchecked; else kind=failed; fi
+  if [ -f "$state" ]; then
+    read -r alerted alerted_kind < "$state" || true
+    if [ "${alerted_kind:-failed}" = "$kind" ]; then
+      echo "$unit is still failing. Alerted at ${alerted:-an unknown time}, not posting again"
+      exit 0
+    fi
+  fi
 fi
 
 [ -f "$TOKEN_FILE" ] || die "no Slack bot token at $TOKEN_FILE, so this alert was not sent"
@@ -57,7 +73,6 @@ channel=$(sed -n 's/^[[:space:]]*SLACK_CHANNEL[[:space:]]*=[[:space:]]*//p' "$IN
 
 if [ "$recovered" = true ]; then
   log=""
-  kind=recovered
 else
   # Only the run that failed: its invocation id picks the unit's own output and
   # leaves out systemd's start and stop lines and any earlier run. A unit with
@@ -72,7 +87,6 @@ else
   if [ -z "$log" ]; then
     log=$(journalctl -u "$unit" -n "$LINES" --no-pager -o cat 2>/dev/null || true)
   fi
-  kind=failed
 fi
 
 body=$(mktemp)
@@ -87,70 +101,100 @@ import json, os, sys
 kind, unit, host, channel = sys.argv[1:5]
 
 # What a failure means to a reader who has never heard of the unit, and what
-# to do about it, then the line its recovery posts. A unit missing here still
-# alerts, under its own name.
+# to do about it, then the line its recovery posts. A check also has a name,
+# for when it could not run at all. A unit missing here still alerts, under its
+# own name.
 MEANING = {
-    "ose-n8n-advisories.service": (
-        "n8n needs a security upgrade",
-        "A published security advisory affects the n8n version production runs. "
-        "To upgrade, open a pull request that sets the n8n image in "
-        "`automation/infra/docker-compose.yml` to the version below. "
-        "The deploy upgrades the box within ten minutes of the merge.",
-        "The n8n security upgrade is live: no published advisory affects the version production runs",
-    ),
-    "ose-deploy.service": (
-        "Changes merged to main are not reaching production",
-        "The deploy that copies main onto the box failed. It retries every ten "
-        "minutes, but nothing merged since reaches production until the error "
-        "below is fixed.",
-        "Deploys reach production again",
-    ),
-    "ose-backup.service": (
-        "The daily database backup failed",
-        "Production has no fresh backup of its workflows, credentials, and "
-        "applications until a backup succeeds. The error below says why.",
-        "The database backup works again",
-    ),
-    "ose-env-drift.service": (
-        "A setting on the box differs from what git requires",
-        "A value in the box's `.env`, or in the running n8n, does not match what "
-        "git marks as required. The lines below name it and the value git expects. "
-        "The operator fixes it in `.env` on the box.",
-        "The box's settings match git again",
-    ),
-    "ose-inactive-workflows.service": (
-        "A workflow is switched off and waiting to be activated",
-        "A workflow that git ships is inactive in n8n, so it does not run. "
-        "Activate it in the n8n editor once you have reviewed it.",
-        "Every workflow is active again",
-    ),
-    "ose-workflow-recovery.service": (
-        "The check that announces fixed workflows is failing",
-        "When a workflow that failed starts working again, nobody is told until "
-        "this check runs again. The error below says why.",
-        "The check that announces fixed workflows works again",
-    ),
+    "ose-n8n-advisories.service": {
+        "failed": (
+            "n8n needs a security upgrade",
+            "A published security advisory affects the n8n version production runs. "
+            "To upgrade, open a pull request that sets the n8n image in "
+            "`automation/infra/docker-compose.yml` to the version below. "
+            "The deploy upgrades the box within ten minutes of the merge.",
+        ),
+        "recovered": "The n8n security upgrade is live: no published advisory affects the version production runs",
+        "check": "n8n security advisory check",
+    },
+    "ose-deploy.service": {
+        "failed": (
+            "Changes merged to main are not reaching production",
+            "The deploy that copies main onto the box failed. It retries every ten "
+            "minutes, but nothing merged since reaches production until the error "
+            "below is fixed.",
+        ),
+        "recovered": "Deploys reach production again",
+    },
+    "ose-backup.service": {
+        "failed": (
+            "The daily database backup did not finish",
+            "Either the backup on the box or its encrypted copy off the box failed. "
+            "The error below says which. Until a backup succeeds, a restore falls "
+            "back to an older one.",
+        ),
+        "recovered": "The database backup works again",
+    },
+    "ose-env-drift.service": {
+        "failed": (
+            "A setting on the box differs from what git requires",
+            "A value in the box's `.env`, or in the running n8n, does not match what "
+            "git marks as required. The lines below name each value and how to fix it.",
+        ),
+        "recovered": "The box's settings match git again",
+        "check": "check of the box's settings",
+    },
+    "ose-inactive-workflows.service": {
+        "failed": (
+            "A workflow is switched off and waiting to be activated",
+            "A workflow that git ships is inactive in n8n, so it does not run. "
+            "Activate it in the n8n editor once you have reviewed it.",
+        ),
+        "recovered": "Every workflow is active again",
+        "check": "check for switched-off workflows",
+    },
+    "ose-workflow-recovery.service": {
+        "failed": (
+            "The check that announces fixed workflows is failing",
+            "When a workflow that failed starts working again, nobody is told until "
+            "this check runs again. The error below says why.",
+        ),
+        "recovered": "The check that announces fixed workflows works again",
+    },
 }
 
 def esc(text):
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 meaning = MEANING.get(unit)
+check = meaning.get("check") if meaning else None
 source = "_From %s on %s._" % (esc(unit), esc(host))
 
-if kind == "failed":
-    if meaning:
-        text = ":rotating_light: *%s*\n%s" % (meaning[0], meaning[1])
+if kind == "unchecked" and check:
+    title = "The %s could not run" % check
+    detail = ("So nothing is known yet about what it checks. The error below says "
+              "why. A network or API hiccup clears on its own at the next run.")
+elif kind in ("failed", "unchecked") and meaning:
+    title, detail = meaning["failed"]
+elif kind == "recovered-unchecked" and check:
+    title, detail = "The %s runs again and finds nothing wrong" % check, None
+elif kind.startswith("recovered") and meaning:
+    title, detail = meaning["recovered"], None
+else:
+    title = detail = None
+
+if kind in ("failed", "unchecked"):
+    if title:
+        text = ":rotating_light: *%s*\n%s" % (title, detail)
     else:
         text = ":rotating_light: *%s* failed on %s" % (esc(unit), esc(host))
     log = os.environ.get("LOG", "").strip()
     if log:
         text += "\n```\n%s\n```" % esc(log).replace("```", "'''")
-    if meaning:
+    if title:
         text += "\n" + source
     text += "\nFull log: `journalctl -u %s`" % esc(unit)
-elif meaning:
-    text = ":white_check_mark: *%s*\n%s" % (meaning[2], source)
+elif title:
+    text = ":white_check_mark: *%s*\n%s" % (title, source)
 else:
     text = ":white_check_mark: *%s* recovered on %s" % (esc(unit), esc(host))
 
@@ -176,6 +220,6 @@ if [ "$recovered" = true ]; then
   rm -f "$state"
 else
   mkdir -p "$STATE_DIR"
-  date -u +%FT%TZ > "$state"
+  echo "$(date -u +%FT%TZ) $kind" > "$state"
 fi
 echo "posted: $unit $kind"
