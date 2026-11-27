@@ -985,8 +985,8 @@ So that nobody forgets this decision, `ose-inactive-workflows.timer` runs
 [`check-inactive-workflows.py`](check-inactive-workflows.py) every hour. It
 lists each workflow that has an export and is inactive on the instance, with
 a link to it in the editor. While the list is not empty the unit fails, and
-`ose-alert@` posts it to the alerts channel, once. It posts "recovered" when
-every workflow is active again. A workflow that goes inactive while an alert
+`ose-alert@` posts it to the alerts channel, once. It posts that every
+workflow is active again once none is left. A workflow that goes inactive while an alert
 is still open therefore posts nothing new, so run the check by hand after you
 activate one. The error handler is checked like the rest, because n8n runs it only once
 it has been activated. To keep a workflow switched off on purpose, archive it
@@ -1131,7 +1131,7 @@ run exactly as written with a `# box: must match` line above them.
 hour. It compares each marked value with this `.env` and with the running n8n,
 which reads `.env` only when it is created. When one differs, the unit fails
 and `ose-alert@` posts which value and what git expects to the alerts channel,
-once. It posts "recovered" when they match again. A second value that drifts
+once. It posts that the settings match git again once they do. A second value that drifts
 while the first alert is still open posts nothing new. So when you fix one
 value, run the check by hand to see whether it lists another.
 
@@ -2266,9 +2266,11 @@ Nobody has to remember to look. `ose-n8n-advisories.timer` runs
 [`check-n8n-version.py`](check-n8n-version.py) on this box every morning. It
 compares the n8n tag in `docker-compose.yml` with n8n's published security
 advisories. When an advisory with a fix affects that version, the unit fails.
-`ose-alert@` then posts the report to the alerts channel once, as it does for a
-failed deploy or backup. The report names the worst advisories and the stable
-release to move to. It posts again as recovered once a merged upgrade clears it.
+`ose-alert@` then posts "n8n needs a security upgrade" with the report to the
+alerts channel once, as it does for a failed deploy or backup. The report names
+the worst advisories and the stable release to move to, and the thread holds a
+prompt that has a coding agent open the upgrade pull request. It posts that the
+upgrade is live once a merged upgrade clears it.
 
 The check runs here rather than in GitHub Actions. That way it reuses the alert
 path and the Slack token the box already has, and no Slack token sits in a
