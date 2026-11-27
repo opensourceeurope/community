@@ -35,12 +35,30 @@ response='{"ok":true}'
 printf '%s\n' "$response" > "$out"
 echo post >> "$STUB_DIR/posts.log"
 EOF
+# The failed run's own lines come back under its invocation id. The unit's
+# whole journal adds systemd's lines and an earlier run, which must not show.
 cat > "$BIN/journalctl" <<'EOF'
 #!/usr/bin/env bash
-echo 'deploy <!channel> & friends'
-echo 'ERROR: no API key'
+case "$*" in
+  *_SYSTEMD_INVOCATION_ID=*)
+    [ -z "${STUB_NO_INVOCATION_LINES:-}" ] || exit 0
+    echo 'deploy <!channel> & friends'
+    echo 'ERROR: no API key'
+    ;;
+  *)
+    echo 'Starting the unit...'
+    echo 'an earlier run that passed'
+    echo 'deploy <!channel> & friends'
+    echo 'ERROR: no API key'
+    echo 'Main process exited, code=exited, status=1/FAILURE'
+    ;;
+esac
 EOF
-chmod +x "$BIN/curl" "$BIN/journalctl"
+cat > "$BIN/systemctl" <<'EOF'
+#!/usr/bin/env bash
+echo "${STUB_INVOCATION_ID-0123abcd}"
+EOF
+chmod +x "$BIN/curl" "$BIN/journalctl" "$BIN/systemctl"
 
 TOKEN="xoxb-test-token-1234"
 printf '%s\n' "$TOKEN" > "$WORK/token"
@@ -79,6 +97,11 @@ body_has '"channel": "#ops-test"'
 [ "$(grep -c -F -e "$TOKEN" "$WORK/argv.log" || true)" -eq 0 ] || fail "the token reached curl's argument list"
 [ "$(grep -c -F -e "$TOKEN" "$WORK/curl-config" || true)" -eq 1 ] || fail "the token did not reach curl on stdin"
 
+body_has 'Changes merged to main are not reaching production'
+body_has '_From ose-deploy.service on '
+body_lacks 'an earlier run that passed'
+body_lacks 'Main process exited'
+
 run "the same failure does not post again" "$UNIT"
 [ "$rc" -eq 0 ] || fail "expected exit 0, got $rc"
 [ "$(posts)" -eq 0 ] || fail "posted a second time"
@@ -88,9 +111,29 @@ run "recovery posts once" --recovered "$UNIT"
 [ "$(posts)" -eq 1 ] || fail "expected one recovery post"
 body_has ':white_check_mark:'
 
+body_has 'Deploys reach production again'
+
 run "a recovery with no failure posts nothing" --recovered "$UNIT"
 [ "$rc" -eq 0 ] || fail "expected exit 0, got $rc"
 [ "$(posts)" -eq 0 ] || fail "posted a recovery for a unit that never failed"
+
+run "the advisory alert says n8n needs an upgrade" ose-n8n-advisories.service
+[ "$(posts)" -eq 1 ] || fail "expected one post"
+body_has 'n8n needs a security upgrade'
+body_has 'automation/infra/docker-compose.yml'
+run "the advisory recovery says the upgrade is live" --recovered ose-n8n-advisories.service
+body_has 'The n8n security upgrade is live'
+
+run "a unit with no meaning alerts under its own name" ose-something-new.service
+[ "$(posts)" -eq 1 ] || fail "expected one post"
+body_has '*ose-something-new.service* failed on '
+body_has 'ERROR: no API key'
+
+STUB_INVOCATION_ID="" run "with no invocation id the journal's last lines show" ose-no-id.service
+body_has 'an earlier run that passed'
+
+STUB_NO_INVOCATION_LINES=1 run "a run with no lines of its own falls back to the journal" ose-no-lines.service
+body_has 'Main process exited'
 
 STUB_SLACK_RESPONSE='{"ok":false,"error":"not_in_channel"}' run "a refused alert fails" "$UNIT"
 [ "$rc" -ne 0 ] || fail "expected a non-zero exit"

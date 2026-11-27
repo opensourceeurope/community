@@ -1019,12 +1019,15 @@ the map.
 
 ## Alerts when the box fails
 
-The deploy and backup units both name `ose-alert@.service` in `OnFailure=`.
-When either one fails, [`alert-slack.sh`](alert-slack.sh) posts the unit name,
-the host and the last 15 lines of its journal to `SLACK_CHANNEL`. That is the
-channel the application threads and the workflow failure alerts use. Text from
-the log is escaped, so a line containing `<!channel>` cannot notify the
-channel.
+Every unit in `systemd/` that runs a task names `ose-alert@.service` in
+`OnFailure=`. When one fails, [`alert-slack.sh`](alert-slack.sh) posts to
+`SLACK_CHANNEL`, the channel the application threads and the workflow failure
+alerts use. The message opens with what the failure means in plain words and
+what to do about it, then shows the output of the run that failed, then names
+the unit and the host. A unit the script has no wording for still alerts, under
+its own name. Add the wording to `MEANING` in the script along with a new unit.
+Text from the log is escaped, so a line containing `<!channel>` cannot notify
+the channel.
 
 The deploy timer fires every ten minutes, and some failures last until a person
 acts. So a failure alerts once. The script records a delivered alert in
