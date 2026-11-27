@@ -1027,7 +1027,7 @@ what to do about it, then shows the output of the run that failed, then names
 the unit and the host. A reply in the alert's thread holds a prompt to paste
 into a coding agent: the failed run's output and what to do, such as opening the
 upgrade pull request for an advisory. A check that could not run at all, which it reports by
-exiting 2, says so instead of claiming what it would have found. A unit the
+exiting 2, or that crashed, says so instead of claiming what it would have found. A unit the
 script has no wording for still alerts, under its own name. Add the wording to
 `MEANING` in the script along with a new unit, which
 `automation/test/alert-slack.sh` enforces.
@@ -1038,7 +1038,7 @@ The deploy timer fires every ten minutes, and some failures last until a person
 acts. So a failure alerts once. The script records a delivered alert and its
 kind in `~/.local/state/ose-alert/`, and the next successful run of the unit
 posts that it recovered and clears the note. A check that could not run and
-then finds a real problem alerts again, because the kind changed. An alert that Slack refused is retried on the
+then finds a real problem alerts again. Every other repeat stays silent. An alert that Slack refused is retried on the
 next failure.
 
 ### The token
